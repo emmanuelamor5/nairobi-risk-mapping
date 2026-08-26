@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Multi-Task Deep Learning for Just Urban Governance
 
 Parcel-level flood risk micro-zonation and structural deprivation
@@ -98,3 +99,7 @@ Graph construction tests specifically target the two failure modes the
 proposal's testing plan (Sec 3.4) calls out: disconnected subgraphs and
 incorrectly thresholded adjacency edges, both of which fail silently
 (no exception) and propagate into GraphSAGE's neighbourhood aggregation.
+=======
+# MTL-Nairobi-2026
+MTL Nairobi is a deep learning model that serves as an evidence-based XAI tool for community groups and city planners to assess housing conditions and access to water and sanitation against UN-Habitat standards in Three major informal settlement regions of Kibera, Mathare and Mukuru in Nairobi. 
+>>>>>>> 4d100710778bf38eb0dd548568d0fbbe45f7d859
