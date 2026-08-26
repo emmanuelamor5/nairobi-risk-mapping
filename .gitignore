@@ -1,0 +1,22 @@
+# Data (regenerate via DataPipeline, don't commit raw/exported rasters)
+data/
+*.tif
+*.tiff
+*.npy
+*.pt
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Environment
+.env
+.venv/
+
+# OS
+.DS_Store
