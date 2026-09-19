@@ -71,6 +71,8 @@ SRTM_RESOLUTION_M = 30
 
 # --- OSM / graph construction ---
 BUILDING_ADJACENCY_THRESHOLD_M = 15.0  # per proposal Sec 3.4 unit testing note
+MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
+MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
 OVERPASS_TAGS = {"building": True}
 INFRA_TAGS = {
     "amenity": ["drinking_water", "toilets"],

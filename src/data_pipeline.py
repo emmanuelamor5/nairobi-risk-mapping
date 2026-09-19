@@ -208,6 +208,12 @@ class DataPipeline:
                 config.BUILDING_ADJACENCY_THRESHOLD_M,
             )
 
+        buildings, graph, pruning_report = graph_utils.prune_small_components(buildings, graph)
+        logger.info("Pruned small components for %s: %s", self.settlement.name, pruning_report)
+
+        buildings, graph, pruning_report = graph_utils.prune_small_components(buildings, graph)
+        logger.info("Pruned small components for %s: %s", self.settlement.name, pruning_report)
+
         data = graph_utils.graph_to_pyg_data(graph)
 
         out_dir = self.data_root.parent / config.GRAPHS_DIR

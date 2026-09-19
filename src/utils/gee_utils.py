@@ -168,7 +168,10 @@ def build_raster_stack(geometry: "ee.Geometry") -> "ee.Image":
     s2 = get_sentinel2_composite(geometry)
     s1_label = get_sentinel1_flood_mask(geometry)
     terrain = get_srtm_twi(geometry)
-    return s2.addBands(s1_label).addBands(terrain)
+    # Cast every band to Float32 -- GEE export refuses mixed dtypes,
+    # and the flood label comes out as Byte from the .lt() comparison
+    # while the optical bands are already Float32.
+    return s2.addBands(s1_label).addBands(terrain).toFloat()
 
 
 def export_stack_to_drive(image: "ee.Image", geometry: "ee.Geometry",
