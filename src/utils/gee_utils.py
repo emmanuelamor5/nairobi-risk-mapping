@@ -7,9 +7,14 @@ via ee.batch.Export, since large exports need to run asynchronously against
 Drive rather than blocking the Colab runtime.
 """
 
+import logging
+
 import ee
+import numpy as np
 
 from .. import config
+
+logger = logging.getLogger(__name__)
 
 
 def initialize_gee(project_id: str) -> None:
@@ -86,51 +91,52 @@ def get_sentinel1_backscatter(geometry: "ee.Geometry") -> "ee.ImageCollection":
 def get_sentinel1_flood_mask(geometry: "ee.Geometry") -> "ee.Image":
     """
     Historical inundation footprint via Otsu thresholding on the rainy-season
-    VV backscatter minimum composite. Water surfaces have characteristically
-    low VV backscatter (specular reflection), so thresholding the per-pixel
-    temporal minimum over the rainy-season window approximates the maximum
-    historical flood extent -- this becomes the Attention U-Net's training
-    label, per proposal Sec 3.2.1.
+    VV backscatter minimum composite. The histogram is pulled to Python with
+    .getInfo() and thresholded with plain numpy, rather than reimplemented in
+    Earth Engine's Array API -- the GEE-native version proved fragile across
+    several rounds of debugging (an off-by-one corrupted the sort, and
+    guarding the division still left the threshold degenerate). This version
+    is a standard, easily-verified numpy Otsu; the threshold is logged so you
+    can sanity-check it against real dB values (expect roughly -25 to -5 dB
+    for VV backscatter -- a threshold far outside that range means the
+    histogram itself looks wrong, not the thresholding math).
 
-    Otsu's method is implemented via the standard GEE histogram + cumulative
-    moments recipe (there's no built-in ee.Otsu).
+    Deliberately NOT .selfMask()'d -- this needs to stay a dense 0/1 band for
+    training, not a sparse "flooded pixels only" mask. selfMask() previously
+    turned every non-flooded pixel into nodata, which tanked the tiling
+    valid-data fraction to ~43% on real exports.
     """
     vv_min = get_sentinel1_backscatter(geometry).min().clip(geometry)
 
-    histogram = vv_min.reduceRegion(
+    histogram_dict = vv_min.reduceRegion(
         reducer=ee.Reducer.histogram(255, 1),
         geometry=geometry,
         scale=10,
         maxPixels=1e9,
         bestEffort=True,
-    ).get(config.S1_BAND)
+    ).get(config.S1_BAND).getInfo()
 
-    def _otsu(histogram_dict):
-        counts = ee.Array(ee.Dictionary(histogram_dict).get("histogram"))
-        means = ee.Array(ee.Dictionary(histogram_dict).get("bucketMeans"))
-        size = means.length().get([0])
-        total = counts.reduce(ee.Reducer.sum(), [0]).get([0])
-        s_sum = means.multiply(counts).reduce(ee.Reducer.sum(), [0]).get([0])
-        indices = ee.List.sequence(1, size)
+    counts = np.array(histogram_dict["histogram"], dtype=np.float64)
+    means = np.array(histogram_dict["bucketMeans"], dtype=np.float64)
+    total = counts.sum()
+    sum_all = (counts * means).sum()
 
-        def _bss(i):
-            a_counts = counts.slice(0, 0, i)
-            a_count = a_counts.reduce(ee.Reducer.sum(), [0]).get([0])
-            a_means = means.slice(0, 0, i)
-            a_mean = (
-                a_means.multiply(a_counts).reduce(ee.Reducer.sum(), [0]).get([0])
-                .divide(a_count)
-            )
-            b_count = total.subtract(a_count)
-            b_mean = s_sum.subtract(a_count.multiply(a_mean)).divide(b_count)
-            return a_count.multiply(b_count).multiply(a_mean.subtract(b_mean).pow(2))
+    best_bss, best_threshold = -1.0, float(means[0])
+    cum_count, cum_sum = 0.0, 0.0
+    for i in range(len(counts) - 1):  # always leave >=1 bucket in the "above" class
+        cum_count += counts[i]
+        cum_sum += counts[i] * means[i]
+        if cum_count == 0 or (total - cum_count) == 0:
+            continue
+        a_mean = cum_sum / cum_count
+        b_mean = (sum_all - cum_sum) / (total - cum_count)
+        bss = cum_count * (total - cum_count) * (a_mean - b_mean) ** 2
+        if bss > best_bss:
+            best_bss = bss
+            best_threshold = float(means[i])
 
-        bss = indices.map(_bss)
-        return means.sort(bss).get([-1])
-
-    threshold = ee.Number(_otsu(histogram))
-    flood_mask = vv_min.lt(threshold).rename("flood_label")
-    return flood_mask.selfMask()
+    logger.info("Sentinel-1 Otsu threshold for this geometry: %.3f dB", best_threshold)
+    return vv_min.lt(ee.Number(best_threshold)).rename("flood_label")
 
 
 def get_srtm_twi(geometry: "ee.Geometry") -> "ee.Image":
@@ -147,9 +153,6 @@ def get_srtm_twi(geometry: "ee.Geometry") -> "ee.Image":
     dem = ee.Image(config.SRTM_DATASET).clip(geometry)
     slope = ee.Terrain.slope(dem)
 
-    # Flow accumulation proxy: inverse of local elevation relative to a
-    # smoothed neighbourhood -- a coarse stand-in, not a true D8/D-infinity
-    # flow routing. Flag this clearly for anyone refining the pipeline.
     smoothed = dem.focal_mean(radius=90, units="meters")
     flow_proxy = smoothed.subtract(dem).max(0.01).rename("flow_accum_proxy")
 
@@ -168,9 +171,9 @@ def build_raster_stack(geometry: "ee.Geometry") -> "ee.Image":
     s2 = get_sentinel2_composite(geometry)
     s1_label = get_sentinel1_flood_mask(geometry)
     terrain = get_srtm_twi(geometry)
-    # Cast every band to Float32 -- GEE export refuses mixed dtypes,
-    # and the flood label comes out as Byte from the .lt() comparison
-    # while the optical bands are already Float32.
+    # Cast every band to Float32 -- GEE export refuses mixed dtypes, and the
+    # flood label's .lt() comparison produces Byte while the optical bands
+    # are already Float32.
     return s2.addBands(s1_label).addBands(terrain).toFloat()
 
 

@@ -239,6 +239,138 @@ def prune_small_components(buildings, graph, min_component_size: int = None) -> 
     return filtered_buildings, filtered_graph, report
 
 
+def prune_small_components(buildings, graph, min_component_size: int = None) -> tuple:
+    """
+    Drop buildings belonging to connected components smaller than
+    min_component_size. Targets sparse, likely-off-target fringe areas
+    (formally-planned plots at the edge of an oversized bounding box)
+    without requiring a hand-tuned boundary polygon.
+    """
+    min_component_size = min_component_size or config.MIN_COMPONENT_SIZE
+    components = list(nx.connected_components(graph))
+
+    kept_node_ids = set()
+    kept_components, dropped_components = 0, 0
+    for comp in components:
+        if len(comp) >= min_component_size:
+            kept_node_ids |= comp
+            kept_components += 1
+        else:
+            dropped_components += 1
+
+    filtered_buildings = buildings[buildings["node_id"].isin(kept_node_ids)].copy()
+    filtered_graph = graph.subgraph(kept_node_ids).copy()
+
+    report = {
+        "min_component_size": min_component_size,
+        "components_kept": kept_components,
+        "components_dropped": dropped_components,
+        "nodes_before": graph.number_of_nodes(),
+        "nodes_after": filtered_graph.number_of_nodes(),
+        "nodes_dropped": graph.number_of_nodes() - filtered_graph.number_of_nodes(),
+    }
+    return filtered_buildings, filtered_graph, report
+
+
+def prune_small_components(buildings, graph, min_component_size: int = None) -> tuple:
+    """
+    Drop buildings belonging to connected components smaller than
+    min_component_size. Targets sparse, likely-off-target fringe areas
+    (formally-planned plots at the edge of an oversized bounding box)
+    without requiring a hand-tuned boundary polygon.
+    """
+    min_component_size = min_component_size or config.MIN_COMPONENT_SIZE
+    components = list(nx.connected_components(graph))
+
+    kept_node_ids = set()
+    kept_components, dropped_components = 0, 0
+    for comp in components:
+        if len(comp) >= min_component_size:
+            kept_node_ids |= comp
+            kept_components += 1
+        else:
+            dropped_components += 1
+
+    filtered_buildings = buildings[buildings["node_id"].isin(kept_node_ids)].copy()
+    filtered_graph = graph.subgraph(kept_node_ids).copy()
+
+    report = {
+        "min_component_size": min_component_size,
+        "components_kept": kept_components,
+        "components_dropped": dropped_components,
+        "nodes_before": graph.number_of_nodes(),
+        "nodes_after": filtered_graph.number_of_nodes(),
+        "nodes_dropped": graph.number_of_nodes() - filtered_graph.number_of_nodes(),
+    }
+    return filtered_buildings, filtered_graph, report
+
+
+def prune_small_components(buildings, graph, min_component_size: int = None) -> tuple:
+    """
+    Drop buildings belonging to connected components smaller than
+    min_component_size. Targets sparse, likely-off-target fringe areas
+    (formally-planned plots at the edge of an oversized bounding box)
+    without requiring a hand-tuned boundary polygon.
+    """
+    min_component_size = min_component_size or config.MIN_COMPONENT_SIZE
+    components = list(nx.connected_components(graph))
+
+    kept_node_ids = set()
+    kept_components, dropped_components = 0, 0
+    for comp in components:
+        if len(comp) >= min_component_size:
+            kept_node_ids |= comp
+            kept_components += 1
+        else:
+            dropped_components += 1
+
+    filtered_buildings = buildings[buildings["node_id"].isin(kept_node_ids)].copy()
+    filtered_graph = graph.subgraph(kept_node_ids).copy()
+
+    report = {
+        "min_component_size": min_component_size,
+        "components_kept": kept_components,
+        "components_dropped": dropped_components,
+        "nodes_before": graph.number_of_nodes(),
+        "nodes_after": filtered_graph.number_of_nodes(),
+        "nodes_dropped": graph.number_of_nodes() - filtered_graph.number_of_nodes(),
+    }
+    return filtered_buildings, filtered_graph, report
+
+
+def prune_small_components(buildings, graph, min_component_size: int = None) -> tuple:
+    """
+    Drop buildings belonging to connected components smaller than
+    min_component_size. Targets sparse, likely-off-target fringe areas
+    (formally-planned plots at the edge of an oversized bounding box)
+    without requiring a hand-tuned boundary polygon.
+    """
+    min_component_size = min_component_size or config.MIN_COMPONENT_SIZE
+    components = list(nx.connected_components(graph))
+
+    kept_node_ids = set()
+    kept_components, dropped_components = 0, 0
+    for comp in components:
+        if len(comp) >= min_component_size:
+            kept_node_ids |= comp
+            kept_components += 1
+        else:
+            dropped_components += 1
+
+    filtered_buildings = buildings[buildings["node_id"].isin(kept_node_ids)].copy()
+    filtered_graph = graph.subgraph(kept_node_ids).copy()
+
+    report = {
+        "min_component_size": min_component_size,
+        "components_kept": kept_components,
+        "components_dropped": dropped_components,
+        "nodes_before": graph.number_of_nodes(),
+        "nodes_after": filtered_graph.number_of_nodes(),
+        "nodes_dropped": graph.number_of_nodes() - filtered_graph.number_of_nodes(),
+    }
+    return filtered_buildings, filtered_graph, report
+
+
 def graph_to_pyg_data(graph: nx.Graph) -> Data:
     """Convert the networkx proximity graph into a PyTorch Geometric Data object."""
     node_features = ["area_m2", "dist_to_water_m", "dist_to_sanitation_m", "dist_to_road_m"]

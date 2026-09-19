@@ -74,6 +74,22 @@ class DataPipeline:
 
         boundary = self.get_boundary()
         geometry = ee.Geometry(boundary.geometry.iloc[0].__geo_interface__)
+        # Buffer by 200m -- some settlement boundaries are too narrow to clear
+        # the 256px tile size in one dimension at 10m resolution (see Kibera:
+        # raw export came back 246 x 313px, short in height).
+        geometry = geometry.buffer(200)
+        # Buffer by 200m -- some settlement boundaries are too narrow to clear
+        # the 256px tile size in one dimension at 10m resolution (see Kibera:
+        # raw export came back 246 x 313px, short in height).
+        geometry = geometry.buffer(200)
+        # Buffer by 200m -- some settlement boundaries are too narrow to clear
+        # the 256px tile size in one dimension at 10m resolution (see Kibera:
+        # raw export came back 246 x 313px, short in height).
+        geometry = geometry.buffer(200)
+        # Buffer by 200m -- some settlement boundaries are too narrow to clear
+        # the 256px tile size in one dimension at 10m resolution (see Kibera:
+        # raw export came back 246 x 313px, short in height).
+        geometry = geometry.buffer(200)
 
         logger.info("Assembling raster stack for %s", self.settlement.name)
         stack = gee_utils.build_raster_stack(geometry)
