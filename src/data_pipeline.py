@@ -40,7 +40,7 @@ class DataPipeline:
             )
         self.settlement_key = settlement_key
         self.settlement = config.SETTLEMENTS[settlement_key]
-        self.gee_project_id = gee_project_id
+        self.gee_project_id = gee_project_id or config.GEE_PROJECT_ID
         self.data_root = Path(data_root or config.DATA_ROOT)
 
         for d in [config.RAW_DIR, config.STACKS_DIR, config.TILES_DIR, config.GRAPHS_DIR]:
@@ -67,8 +67,8 @@ class DataPipeline:
         # for the graph-only path used in unit tests.
 
         if not self._ee_initialized:
-            if not self.gee_project_id:
-                raise ValueError("gee_project_id is required for raster acquisition")
+            # project id may be None here: initialize_gee falls back to
+            # GEE_PROJECT_ID or the service-account key's own project_id.
             gee_utils.initialize_gee(self.gee_project_id)
             self._ee_initialized = True
 
