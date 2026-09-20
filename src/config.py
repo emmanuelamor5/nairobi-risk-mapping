@@ -13,6 +13,7 @@ reliable than any hardcoded box but still depends on OSM's admin polygon
 coverage being complete for these areas -- verify visually before training.
 """
 
+import os
 from dataclasses import dataclass, field
 
 
@@ -44,6 +45,13 @@ SETTLEMENTS = {
         centroid=(-1.3183, 36.8725),
     ),
 }
+
+# --- Google Earth Engine ---
+# Optional default GCP project for Earth Engine. Lets headless runs (CI /
+# Cloud Agents) avoid hardcoding a project: set GEE_PROJECT_ID in the
+# environment, or rely on the service-account key's own project_id. An
+# explicit gee_project_id passed to DataPipeline still overrides this.
+GEE_PROJECT_ID = os.environ.get("GEE_PROJECT_ID")
 
 # --- CRS ---
 # WGS84 for GEE / OSM I/O; UTM 37S for anything requiring metric distances

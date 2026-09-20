@@ -7,7 +7,10 @@ via ee.batch.Export, since large exports need to run asynchronously against
 Drive rather than blocking the Colab runtime.
 """
 
+import json
 import logging
+import os
+import tempfile
 
 import ee
 import numpy as np
@@ -17,15 +20,66 @@ from .. import config
 logger = logging.getLogger(__name__)
 
 
-def initialize_gee(project_id: str) -> None:
+def _resolve_service_account_key() -> str | None:
+    """
+    Return a filesystem path to a service-account JSON key if one is supplied
+    via the environment, else None.
+
+    Accepts either the JSON key *contents* or a path in
+    EARTHENGINE_SERVICE_ACCOUNT_KEY, or a path in GOOGLE_APPLICATION_CREDENTIALS.
+    Inline JSON is materialised to a private (0600) temp file because
+    ee.ServiceAccountCredentials needs a file path, not raw JSON. Injecting
+    the key as a secret env var keeps it out of the repo, logs, and snapshots.
+    """
+    raw = os.environ.get("EARTHENGINE_SERVICE_ACCOUNT_KEY")
+    if raw:
+        raw = raw.strip()
+        if raw.startswith("{"):
+            fd, path = tempfile.mkstemp(prefix="ee-sa-", suffix=".json")
+            with os.fdopen(fd, "w") as f:
+                f.write(raw)
+            os.chmod(path, 0o600)
+            return path
+        if os.path.exists(raw):
+            return raw
+    gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if gac and os.path.exists(gac):
+        return gac
+    return None
+
+
+def initialize_gee(project_id: str = None) -> None:
     """
     Authenticate and initialise the Earth Engine API.
 
-    In Colab, run this once per session. `project_id` must be a GCP project
-    with the Earth Engine API enabled (Cloud Project associated with your
-    Google account -- required since GEE moved off the legacy noproject
-    auth flow).
+    Resolution order:
+      1. Service-account credentials from EARTHENGINE_SERVICE_ACCOUNT_KEY (the
+         JSON key contents or a path to it) or GOOGLE_APPLICATION_CREDENTIALS
+         (a key-file path). This is the non-interactive path for CI, headless
+         servers, and Cloud Agents. When `project_id` is omitted it defaults to
+         the key's own `project_id`.
+      2. Pre-existing user credentials (plain ee.Initialize) -- e.g. a prior
+         `earthengine authenticate` on a workstation.
+      3. Interactive ee.Authenticate() as a last resort (local / Colab only).
+
+    `project_id` (or the key's project) must be a GCP project with the Earth
+    Engine API enabled -- required since GEE moved off the legacy noproject
+    auth flow.
     """
+    key_path = _resolve_service_account_key()
+    if key_path:
+        with open(key_path) as f:
+            info = json.load(f)
+        project_id = project_id or config.GEE_PROJECT_ID or info.get("project_id")
+        logger.info(
+            "Initialising Earth Engine with service account %s (project %s)",
+            info.get("client_email"), project_id,
+        )
+        credentials = ee.ServiceAccountCredentials(info["client_email"], key_path)
+        ee.Initialize(credentials, project=project_id)
+        return
+
+    project_id = project_id or config.GEE_PROJECT_ID
     try:
         ee.Initialize(project=project_id)
     except Exception:
