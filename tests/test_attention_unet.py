@@ -261,3 +261,65 @@ def test_overlap_mask_handles_two_neighbours():
     assert not safe[:, :50].any()   # strip shared with the left neighbour
     assert not safe[:50, :].any()   # strip shared with the upper neighbour
     assert safe[50:, 50:].all()
+
+
+# --- Sprint 2 v2 regularisation additions (dropout / weight decay / early stop) ---
+
+def test_dropout_does_not_change_statedict_keys():
+    """Dropout has no parameters, so adding it must leave transfer-learning keys identical."""
+    plain = AttentionUNet(in_channels=9, base_channels=8, dropout=0.0)
+    regd = AttentionUNet(in_channels=9, base_channels=8, dropout=0.3)
+    assert set(plain.state_dict().keys()) == set(regd.state_dict().keys())
+
+
+def test_dropout_changes_train_mode_outputs_but_not_eval():
+    torch.manual_seed(0)
+    model = AttentionUNet(in_channels=9, base_channels=8, dropout=0.5)
+    x = torch.randn(1, 9, 64, 64)
+    model.train()
+    assert not torch.allclose(model(x), model(x))  # stochastic while training
+    model.eval()
+    assert torch.allclose(model(x), model(x))       # deterministic at eval
+
+
+def test_transfer_loader_still_works_with_dropout_model():
+    """A dropout-regularised model must still accept pretrained encoder weights (keys unchanged)."""
+    src_model = AttentionUNet(in_channels=2, base_channels=8)
+    dst_model = AttentionUNet(in_channels=9, base_channels=8, dropout=0.3)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = Path(tmpdir) / "ckpt.pt"
+        torch.save(src_model.state_dict(), path)
+        report = load_pretrained_encoder(dst_model, str(path))
+    assert len(report["transferred"]) > 0
+
+
+def _write_tile_manifest_entries(tmpdir, locations):
+    """Make real (10, 32, 32) tiles with a learnable label so fit() can run a couple of epochs."""
+    rng = np.random.default_rng(0)
+    entries = []
+    for row_off, col_off in locations:
+        for variant in ["orig", "flip_h"]:
+            bands = rng.random((10, 32, 32)).astype(np.float32)
+            bands[FLOOD_LABEL_BAND_INDEX] = (bands[0] > 0.5).astype(np.float32)
+            tile_id = f"kibera_{row_off}_{col_off}_{variant}"
+            path = Path(tmpdir) / f"{tile_id}.npy"
+            np.save(path, bands)
+            entries.append({"tile_id": tile_id, "path": str(path),
+                            "row_off": row_off, "col_off": col_off,
+                            "valid_fraction": 0.9, "split": "train"})
+    return entries
+
+
+def test_fit_runs_with_weight_decay_and_early_stopping():
+    from src.models.attention_unet_model import AttentionUNetModel
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        train = _write_tile_manifest_entries(tmpdir, [(0, 0)])
+        val = _write_tile_manifest_entries(tmpdir, [(206, 0)])
+        model = AttentionUNetModel(in_channels=9, base_channels=8, dropout=0.2, device="cpu")
+        result = model.fit(train, val, epochs=6, batch_size=2, learning_rate=1e-3,
+                           checkpoint_dir=str(Path(tmpdir) / "ckpt"),
+                           weight_decay=1e-4, early_stopping_patience=2)
+        assert len(result["history"]) <= 6
+        assert "stopped_epoch" in result
+        assert (Path(tmpdir) / "ckpt" / "attention_unet_best.pt").exists()

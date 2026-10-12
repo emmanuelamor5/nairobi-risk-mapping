@@ -19,22 +19,50 @@ serialised PyTorch Geometric graph. `DataPipeline` is settlement-agnostic
 `run_sprint1_all_settlements()` runs all three in one call — see notebook
 section 5.
 
-Sprints 2-6 (model heads, fusion engine, dashboard) are not yet
-implemented — this repo currently covers the data layer only.
+**Sprint 2 (weeks 3-4): Attention U-Net flood head** — implemented, with a
+v1 baseline and a v2 improvement pass.
+
+- `notebooks/02_sprint2_attention_unet.ipynb` (v1) trained the Attention
+  U-Net on the Sprint 1 tiles. It overfit: train IoU ~0.77 but validation
+  never beat the flood-everywhere baseline (~0.31). Diagnostics traced this
+  to the **label**, not the network — the dry-vs-rainy-season Otsu label was
+  an unvalidated land-cover proxy (signal concentrated in SWIR/NIR optical
+  bands; flooded fractions of 19–32% were implausibly high).
+- `notebooks/02_sprint2_attention_unet_v2.ipynb` (v2) rebuilds the label as
+  **bi-temporal change detection around a dated flood event** (the Apr–May
+  2024 Nairobi floods — see `src/utils/flood_label.py` and
+  `gee_utils.get_event_flood_label`), **validates it against an independent
+  reference** with a lift statistic (`src/utils/label_validation.py`), lets
+  the U-Net optionally see the Sentinel-1 bands its label comes from
+  (`dataset.EVENT_S1_LAYOUT`), and adds dropout / weight decay / early
+  stopping against the single-location overfitting.
+
+Sprints 3-6 (GraphSAGE head, fusion engine, dashboard) are not yet
+implemented.
 
 ## Repo structure
 
 ```
 src/
-  config.py              # settlement boundaries, date ranges, thresholds
+  config.py              # settlement boundaries, date ranges, flood-event + label thresholds
   data_pipeline.py        # DataPipeline class -- Sprint 1 entrypoint
   utils/
-    gee_utils.py           # Sentinel-2/1, SRTM/TWI acquisition (Google Earth Engine)
+    gee_utils.py           # Sentinel-2/1, SRTM/TWI acquisition; seasonal + event flood labels (GEE)
     graph_utils.py          # OSM ingestion + proximity graph construction
+    flood_label.py          # event-based change-detection label (pure numpy, Sprint 2 v2)
+    label_validation.py     # label-vs-reference agreement / lift (Sprint 2 v2)
+  models/
+    attention_unet.py       # Attention U-Net (optional dropout)
+    attention_unet_model.py # training/inference wrapper (weight decay, early stopping)
+    dataset.py              # tile dataset + stack layouts (DEFAULT / EVENT_S1) + spatial holdout
+    losses.py metrics.py evaluation.py  # BCE+Dice loss, IoU/F1, leakage-aware eval
+    transfer_learning.py    # Sen1Floods11 partial-encoder transfer
+    diagnostics.py          # cross-location pixel AUC + permutation importance (Sprint 2 v2)
 notebooks/
-  01_sprint1_data_pipeline.ipynb   # Colab notebook, runs the pipeline end-to-end
-tests/
-  test_graph_construction.py       # unit tests for graph edge cases (no network needed)
+  01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
+  02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
+  02_sprint2_attention_unet_v2.ipynb    # Sprint 2 v2: event label + validation + regularisation
+tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```
 
@@ -82,11 +110,14 @@ completion before calling `tile_raster_stack()` on the downloaded GeoTIFF.
   For a rigorous TWI, export the DEM and recompute flow accumulation in a
   dedicated hydrology package (WhiteboxTools, pysheds) before final
   training.
-- **Sentinel-1 Otsu thresholding** for historical flood labels
-  (`get_sentinel1_flood_mask`) is a first-pass label source per the
-  proposal; validate a sample against the NRRP's 37 high-risk zone
-  reference polygons before trusting it as ground truth for U-Net
-  training.
+- **Flood labels.** The seasonal Otsu label (`get_sentinel1_flood_mask`) is
+  a known-weak land-cover proxy and is kept only for reproducing the v1
+  result. The current label is `get_event_flood_label` (bi-temporal event
+  change detection, default of `build_raster_stack`). Either way, validate
+  the label against the NRRP 37 high-risk zones before trusting it as ground
+  truth — `notebooks/02_sprint2_attention_unet_v2.ipynb` section 5 does this
+  with `src/utils/label_validation.py` (lift statistic; NRRP polygons, or an
+  OSM river-corridor buffer as fallback).
 
 ## Testing
 

@@ -12,7 +12,7 @@ tile are also covered by training tiles and evaluate with those excluded.
 import numpy as np
 import torch
 
-from .dataset import FLOOD_LABEL_BAND_INDEX, INPUT_BAND_INDICES
+from .dataset import DEFAULT_LAYOUT, StackLayout
 from .metrics import f1_from_counts, iou_from_counts
 
 
@@ -37,15 +37,21 @@ def validation_overlap_mask(val_location: tuple, train_locations: list,
     return safe
 
 
-def evaluate_masked(model, tile_path: str, safe_mask: np.ndarray, threshold: float = 0.5) -> dict:
+def evaluate_masked(model, tile_path: str, safe_mask: np.ndarray, threshold: float = 0.5,
+                    layout: StackLayout = None) -> dict:
     """
     Evaluate a trained AttentionUNetModel on one saved tile, counting only
     pixels where safe_mask is True. Use the un-augmented ("orig") tile, since
     flipped or rotated variants would need the mask transformed identically.
+
+    ``layout`` defaults to the model's own layout (so S1-input models evaluate
+    with the matching band indices), falling back to DEFAULT_LAYOUT.
     """
+    if layout is None:
+        layout = getattr(model, "layout", DEFAULT_LAYOUT)
     tile = np.load(tile_path)
-    inputs = np.nan_to_num(tile[INPUT_BAND_INDICES], nan=0.0)
-    label = np.nan_to_num(tile[FLOOD_LABEL_BAND_INDEX], nan=0.0)
+    inputs = np.nan_to_num(tile[layout.input_indices], nan=0.0)
+    label = np.nan_to_num(tile[layout.label_index], nan=0.0)
 
     proba = model.predict_proba(torch.from_numpy(inputs).float().unsqueeze(0))[0, 0].numpy()
     pred = proba >= threshold

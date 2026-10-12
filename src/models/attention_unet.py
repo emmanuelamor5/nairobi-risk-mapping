@@ -18,18 +18,26 @@ import torch.nn.functional as F
 
 
 class ConvBlock(nn.Module):
-    """Two 3x3 convolutions, each followed by batch norm and ReLU -- the standard U-Net building block."""
+    """
+    Two 3x3 convolutions, each followed by batch norm and ReLU -- the standard
+    U-Net building block. An optional 2-D dropout after the block regularises
+    the feature maps; it has no parameters, so adding it leaves the transfer-
+    learning state-dict keys unchanged.
+    """
 
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, in_channels: int, out_channels: int, dropout: float = 0.0):
         super().__init__()
-        self.block = nn.Sequential(
+        layers = [
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-        )
+        ]
+        if dropout and dropout > 0.0:
+            layers.append(nn.Dropout2d(p=dropout))
+        self.block = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.block(x)
@@ -87,36 +95,42 @@ class AttentionUNet(nn.Module):
     overfitting a huge parameter count to only a handful of spatial samples.
     """
 
-    def __init__(self, in_channels: int = 9, out_channels: int = 1, base_channels: int = 32):
+    def __init__(self, in_channels: int = 9, out_channels: int = 1, base_channels: int = 32,
+                 dropout: float = 0.0):
         super().__init__()
         c1, c2, c3, c4, c5 = base_channels, base_channels * 2, base_channels * 4, base_channels * 8, base_channels * 16
 
-        # Encoder (contracting path) -- this is the part transfer learning targets.
+        # Encoder (contracting path) -- this is the part transfer learning
+        # targets, so it is kept dropout-free to preserve transferred features.
         self.enc1 = ConvBlock(in_channels, c1)
         self.enc2 = ConvBlock(c1, c2)
         self.enc3 = ConvBlock(c2, c3)
         self.enc4 = ConvBlock(c3, c4)
         self.pool = nn.MaxPool2d(2)
 
-        self.bottleneck = ConvBlock(c4, c5)
+        # Dropout is applied at the bottleneck and through the decoder, the
+        # high-capacity path most prone to memorising a tiny training set --
+        # the Sprint 2 v1 overfitting lived here (train IoU 0.77, val at
+        # baseline). Default 0.0 keeps the original behaviour reproducible.
+        self.bottleneck = ConvBlock(c4, c5, dropout=dropout)
 
         # Decoder (expanding path) -- trained from random init per proposal's
         # transfer-learning plan, alongside the attention gates.
         self.up4 = nn.ConvTranspose2d(c5, c4, kernel_size=2, stride=2)
         self.att4 = AttentionGate(gate_channels=c4, skip_channels=c4, inter_channels=c4 // 2)
-        self.dec4 = ConvBlock(c4 * 2, c4)
+        self.dec4 = ConvBlock(c4 * 2, c4, dropout=dropout)
 
         self.up3 = nn.ConvTranspose2d(c4, c3, kernel_size=2, stride=2)
         self.att3 = AttentionGate(gate_channels=c3, skip_channels=c3, inter_channels=c3 // 2)
-        self.dec3 = ConvBlock(c3 * 2, c3)
+        self.dec3 = ConvBlock(c3 * 2, c3, dropout=dropout)
 
         self.up2 = nn.ConvTranspose2d(c3, c2, kernel_size=2, stride=2)
         self.att2 = AttentionGate(gate_channels=c2, skip_channels=c2, inter_channels=c2 // 2)
-        self.dec2 = ConvBlock(c2 * 2, c2)
+        self.dec2 = ConvBlock(c2 * 2, c2, dropout=dropout)
 
         self.up1 = nn.ConvTranspose2d(c2, c1, kernel_size=2, stride=2)
         self.att1 = AttentionGate(gate_channels=c1, skip_channels=c1, inter_channels=c1 // 2)
-        self.dec1 = ConvBlock(c1 * 2, c1)
+        self.dec1 = ConvBlock(c1 * 2, c1, dropout=dropout)
 
         self.out_conv = nn.Conv2d(c1, out_channels, kernel_size=1)
 

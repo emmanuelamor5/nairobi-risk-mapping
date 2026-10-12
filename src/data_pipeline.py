@@ -61,8 +61,15 @@ class DataPipeline:
     # ------------------------------------------------------------------ #
     # Raster branch (feeds the Attention U-Net)
     # ------------------------------------------------------------------ #
-    def acquire_raster_stack(self):
-        """Build the GEE image stack and export it to Drive. Returns the export task."""
+    def acquire_raster_stack(self, label_mode: str = "event", include_s1_inputs: bool = False):
+        """
+        Build the GEE image stack and export it to Drive. Returns the export task.
+
+        ``label_mode`` ("event"/"seasonal") and ``include_s1_inputs`` are passed
+        through to gee_utils.build_raster_stack -- Sprint 2 v2 defaults to the
+        event change-detection label; set include_s1_inputs=True to add the
+        pre/event VV bands for the EVENT_S1 layout.
+        """
         import ee  # local import: keeps this module importable without earthengine-api
         # for the graph-only path used in unit tests.
 
@@ -91,8 +98,13 @@ class DataPipeline:
         # raw export came back 246 x 313px, short in height).
         geometry = geometry.buffer(200)
 
-        logger.info("Assembling raster stack for %s", self.settlement.name)
-        stack = gee_utils.build_raster_stack(geometry)
+        logger.info(
+            "Assembling raster stack for %s (label_mode=%s, include_s1_inputs=%s)",
+            self.settlement.name, label_mode, include_s1_inputs,
+        )
+        stack = gee_utils.build_raster_stack(
+            geometry, label_mode=label_mode, include_s1_inputs=include_s1_inputs
+        )
 
         description = f"{self.settlement_key}_raster_stack"
         task = gee_utils.export_stack_to_drive(stack, geometry, description)
@@ -105,13 +117,27 @@ class DataPipeline:
         )
         return task
 
-    def tile_raster_stack(self, stack_path: str, split: str = "train"):
+    def tile_raster_stack(self, stack_path: str, split: str = "train",
+                          band_names: list = None):
         """
         Tile an exported GeoTIFF stack into 256x256 patches with 50px overlap,
         discarding tiles below config.MIN_VALID_DATA_FRACTION valid pixels.
         Augmentation (flip/rotation) is applied only when split == "train",
         and only to the raster stream, per proposal Sec 3.2.2.
+
+        ``band_names`` (optional) labels each band so Sentinel-1 VV bands
+        (names ``vv`` / ``*_vv``) can be normalised with a FIXED dB window
+        (config.S1_DB_RANGE) instead of per-tile percentiles. This matters
+        only for the S1-input layout (EVENT_S1_LAYOUT): percentile-scaling pre
+        and event VV independently would erase the cross-date backscatter drop
+        that signals water. When ``band_names`` is None, all bands use the
+        original per-band percentile normalisation (v1 behaviour, unchanged).
         """
+        sar_band_indices = set()
+        if band_names is not None:
+            sar_band_indices = {
+                i for i, n in enumerate(band_names) if n == "vv" or str(n).endswith("_vv")
+            }
         tile_size = config.TILE_SIZE_PX
         overlap = config.TILE_OVERLAP_PX
         stride = tile_size - overlap
@@ -136,7 +162,7 @@ class DataPipeline:
                         discarded += 1
                         continue
 
-                    tile = self._normalise_bands(tile)
+                    tile = self._normalise_bands(tile, sar_band_indices=sar_band_indices)
                     variants = self._augment(tile) if split == "train" else [("orig", tile)]
 
                     for suffix, variant in variants:
@@ -172,13 +198,24 @@ class DataPipeline:
         return float(valid_mask.mean())
 
     @staticmethod
-    def _normalise_bands(tile: np.ndarray) -> np.ndarray:
-        """Per-band min-max scaling to [0,1], band-wise so SAR and optical scales don't collide."""
+    def _normalise_bands(tile: np.ndarray, sar_band_indices: set = None) -> np.ndarray:
+        """
+        Per-band min-max scaling to [0,1], band-wise so SAR and optical scales
+        don't collide. Bands in ``sar_band_indices`` instead use a fixed dB
+        window (config.S1_DB_RANGE) shared across all SAR bands, preserving the
+        pre-vs-event backscatter difference that the per-band percentile scaling
+        would otherwise destroy.
+        """
+        sar_band_indices = sar_band_indices or set()
         out = np.zeros_like(tile, dtype=np.float32)
+        s1_min, s1_max = config.S1_DB_RANGE
         for b in range(tile.shape[0]):
             band = tile[b].astype(np.float32)
             finite = band[np.isfinite(band)]
             if finite.size == 0:
+                continue
+            if b in sar_band_indices:
+                out[b] = np.clip((band - s1_min) / (s1_max - s1_min), 0, 1)
                 continue
             b_min, b_max = np.percentile(finite, [1, 99])  # robust to outlier pixels
             if b_max > b_min:
