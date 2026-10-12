@@ -106,7 +106,11 @@ class DataPipeline:
             geometry, label_mode=label_mode, include_s1_inputs=include_s1_inputs
         )
 
-        description = f"{self.settlement_key}_raster_stack"
+        # Encode the variant in the filename so event / seasonal / S1-input
+        # exports are self-identifying in Drive rather than all landing as
+        # kibera_raster_stack(1).tif, kibera_raster_stack(2).tif, ...
+        variant = label_mode + ("_s1" if include_s1_inputs else "")
+        description = f"{self.settlement_key}_raster_stack_{variant}"
         task = gee_utils.export_stack_to_drive(stack, geometry, description)
         logger.info(
             "Export task '%s' started -- poll task.status() or check the "
