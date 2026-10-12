@@ -73,6 +73,49 @@ S1_RAINY_SEASON_MONTHS = [3, 4, 5, 10, 11]  # long + short rains
 S1_BAND = "VV"
 S1_INSTRUMENT_MODE = "IW"
 
+# --- Event-based flood label (Sprint 2 v2) ------------------------------
+# Sprint 2 v1 derived the label from a dry-vs-rainy-season Otsu threshold on
+# the VV *minimum* composite. Diagnostics (notebook 02 v1) showed that label
+# tracks seasonal land-cover / surface-type change more than inundation: the
+# signal concentrated in SWIR/NIR optical bands, flooded fractions of 19-32%
+# were implausibly high, and the U-Net never beat a "flood everywhere"
+# baseline. This block replaces that with bi-temporal change detection around
+# a single dated flood event -- the UN-SPIDER recommended practice for
+# SAR flood mapping -- which cancels out anything that is stable between the
+# two dates (permanent land cover) and keeps only the new-water signal.
+#
+# Dated event: the April-May 2024 East African floods, which inundated the
+# Nairobi/Mathare/Ngong river corridors through Mathare, Mukuru and parts of
+# Kibera (Nairobi's most severe recent flooding). The pre-event window is the
+# preceding dry spell; the event window brackets the inundation peak. Adjust
+# these if you anchor the label to a different documented event.
+FLOOD_EVENT_NAME = "2024-04 Nairobi floods"
+FLOOD_EVENT_PRE_START = "2024-02-01"   # dry baseline, ends before the rains
+FLOOD_EVENT_PRE_END = "2024-03-20"
+FLOOD_EVENT_START = "2024-04-20"       # brackets the inundation peak
+FLOOD_EVENT_END = "2024-05-10"
+
+# Change-detection decision rule. Open water is specular at C-band, so new
+# inundation shows up as a sharp DROP in VV backscatter between the pre-event
+# and event composites. A pixel is flagged flooded when that drop exceeds
+# FLOOD_CHANGE_THRESHOLD_DB (negative = a decrease). The notebook/GEE path
+# can instead derive the threshold from the change histogram via Otsu and
+# fall back to this constant when the histogram is degenerate.
+FLOOD_CHANGE_THRESHOLD_DB = -3.0
+
+# Physical refinement masks applied after thresholding (UN-SPIDER practice):
+FLOOD_MAX_SLOPE_DEG = 5.0              # water does not pool on steep terrain
+FLOOD_PERMANENT_WATER_OCCURRENCE_PCT = 50  # JRC GSW occurrence >= this = permanent water, excluded
+FLOOD_MIN_OBJECT_PIXELS = 8           # drop speckle: connected flood blobs smaller than this
+JRC_GSW_DATASET = "JRC/GSW1_4/GlobalSurfaceWater"
+
+# Fixed physical range (dB) for normalising Sentinel-1 VV bands when they are
+# fed to the U-Net as inputs (EVENT_S1_LAYOUT). Per-tile percentile scaling --
+# fine for optical -- would rescale pre_vv and event_vv independently and
+# destroy the cross-date backscatter DROP that signals water. A shared, fixed
+# dB window keeps pre and event comparable so the drop survives normalisation.
+S1_DB_RANGE = (-30.0, 0.0)
+
 # --- SRTM DEM / TWI ---
 SRTM_DATASET = "USGS/SRTMGL1_003"
 SRTM_RESOLUTION_M = 30
