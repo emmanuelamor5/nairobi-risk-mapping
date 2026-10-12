@@ -72,6 +72,42 @@ def test_compare_labels_runs_each():
     assert result["good"]["lift"] > result["bad"]["lift"]
 
 
+def test_load_reference_polygons_geojson_and_crs():
+    pytest.importorskip("geopandas")
+    import tempfile, os
+    import geopandas as gpd
+    from shapely.geometry import box, Polygon
+
+    from src.utils.label_validation import load_reference_polygons
+
+    # A valid polygon plus a self-intersecting (invalid) bowtie that buffer(0) should repair.
+    bowtie = Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])
+    gdf = gpd.GeoDataFrame(geometry=[box(0, 0, 1, 1), bowtie], crs="EPSG:4326")
+    with tempfile.TemporaryDirectory() as tmp:
+        p = os.path.join(tmp, "nrrp.geojson")
+        gdf.to_file(p, driver="GeoJSON")
+        loaded = load_reference_polygons(p, target_crs="EPSG:3857")
+        assert len(loaded) >= 1
+        assert loaded.crs.to_epsg() == 3857
+        assert loaded.geometry.is_valid.all()
+
+
+def test_load_reference_polygons_rejects_non_polygons():
+    pytest.importorskip("geopandas")
+    import tempfile, os
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    from src.utils.label_validation import load_reference_polygons
+
+    gdf = gpd.GeoDataFrame(geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326")
+    with tempfile.TemporaryDirectory() as tmp:
+        p = os.path.join(tmp, "points.geojson")
+        gdf.to_file(p, driver="GeoJSON")
+        with pytest.raises(ValueError, match="polygon"):
+            load_reference_polygons(p)
+
+
 def test_rasterize_reference_against_grid():
     pytest.importorskip("rasterio")
     gpd = pytest.importorskip("geopandas")

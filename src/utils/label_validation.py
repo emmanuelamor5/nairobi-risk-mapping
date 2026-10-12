@@ -101,6 +101,49 @@ def compare_labels(labels: dict, reference: np.ndarray,
 # Geo helpers -- rasterising a vector reference onto the training grid.
 # Imported lazily so the numpy core above stays offline-testable.
 # --------------------------------------------------------------------------- #
+def load_reference_polygons(path, target_crs=None):
+    """
+    Load a reference polygon file (e.g. NRRP high-risk zones) robustly for use
+    as a label-validation reference, handling the usual real-world snags:
+
+      - Format: GeoJSON/JSON, shapefile (`.shp`, or a `.zip` containing one),
+        GeoPackage (`.gpkg`), KML -- anything GDAL/pyogrio can read.
+      - CRS: if the file declares none, assume WGS84 (EPSG:4326) rather than
+        silently misaligning the burn. Reproject to ``target_crs`` when given
+        (pass the raster's CRS so rasterize_reference lines up exactly).
+      - Geometry hygiene: drop empty/null geometries and repair invalid ones
+        (self-intersections are common in hand-digitized planning polygons)
+        with a zero-width buffer, so rasterisation does not silently drop them.
+
+    Returns a cleaned GeoDataFrame. Raises with an actionable message if the
+    file has no usable polygon geometry.
+    """
+    import geopandas as gpd
+
+    path = str(path)
+    # GDAL reads a shapefile inside a .zip via the /vsizip/ handler; geopandas
+    # exposes that as the "zip://" prefix.
+    read_path = f"zip://{path}" if path.lower().endswith(".zip") and "://" not in path else path
+    gdf = gpd.read_file(read_path)
+
+    gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty].copy()
+    # Reject non-polygon layers up front: buffer(0) would turn points/lines into
+    # empty polygons that silently pass a later type check.
+    gdf = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
+    gdf["geometry"] = gdf.geometry.buffer(0)  # repair invalid (e.g. self-intersecting) polygons
+    gdf = gdf[~gdf.geometry.is_empty]
+    if gdf.empty:
+        raise ValueError(
+            f"No usable polygon geometry in {path}. The NRRP reference must be a "
+            f"polygon layer (high-risk zones), not points or lines."
+        )
+    if gdf.crs is None:
+        gdf = gdf.set_crs(4326)
+    if target_crs is not None:
+        gdf = gdf.to_crs(target_crs)
+    return gdf
+
+
 def rasterize_reference(reference_gdf, transform, out_shape, raster_crs) -> np.ndarray:
     """
     Burn reference polygons (e.g. NRRP high-risk zones) onto the raster grid
