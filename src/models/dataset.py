@@ -7,16 +7,64 @@ build_raster_stack band order: S2 optical, then flood_label, then terrain).
 """
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-# Band layout produced by gee_utils.build_raster_stack(), in order:
-# [B2, B3, B4, B8, B11, B12, flood_label, elevation, slope, twi]
-FLOOD_LABEL_BAND_INDEX = 6
-INPUT_BAND_INDICES = [0, 1, 2, 3, 4, 5, 7, 8, 9]  # everything except flood_label
+
+@dataclass(frozen=True)
+class StackLayout:
+    """
+    Describes the band order of a tiled raster stack so the dataset, evaluation
+    and model code agree on which band is the label and which are U-Net inputs
+    without hardcoding indices in several places. The label band is excluded
+    from the inputs; everything else is an input channel in band order.
+    """
+
+    band_names: tuple
+    label_name: str = "flood_label"
+
+    @property
+    def label_index(self) -> int:
+        return self.band_names.index(self.label_name)
+
+    @property
+    def input_indices(self) -> list:
+        return [i for i, n in enumerate(self.band_names) if n != self.label_name]
+
+    @property
+    def in_channels(self) -> int:
+        return len(self.input_indices)
+
+    def sar_input_indices(self) -> list:
+        """Indices (within the tile's band axis) of Sentinel-1 dB bands, by name convention (*_vv / vv)."""
+        return [i for i, n in enumerate(self.band_names)
+                if n != self.label_name and (n == "vv" or n.endswith("_vv"))]
+
+
+# v1 / default layout from gee_utils.build_raster_stack(label_mode=..., include_s1_inputs=False):
+# optical + flood label + terrain. 9 input channels. Kept as the default so
+# existing tiles, tests and checkpoints keep working unchanged.
+DEFAULT_LAYOUT = StackLayout(band_names=(
+    "B2", "B3", "B4", "B8", "B11", "B12", "flood_label", "elevation", "slope", "twi",
+))
+
+# Sprint 2 v2 layout: the pre-event and event Sentinel-1 VV composites are
+# added as input channels, so the U-Net can actually see the SAR modality its
+# label is derived from (Sen1Floods11's "VV in, water out" paradigm, extended
+# bi-temporally) instead of inferring water from optical land cover alone.
+# 11 input channels. Produced by build_raster_stack(include_s1_inputs=True).
+EVENT_S1_LAYOUT = StackLayout(band_names=(
+    "B2", "B3", "B4", "B8", "B11", "B12", "pre_vv", "event_vv", "flood_label",
+    "elevation", "slope", "twi",
+))
+
+# Backward-compatible module constants (some call sites / tests import these).
+FLOOD_LABEL_BAND_INDEX = DEFAULT_LAYOUT.label_index
+INPUT_BAND_INDICES = DEFAULT_LAYOUT.input_indices  # everything except flood_label
 
 
 class FloodTileDataset(Dataset):
@@ -33,8 +81,9 @@ class FloodTileDataset(Dataset):
     Sprint 4 -- check that before assuming this simplification still holds.
     """
 
-    def __init__(self, manifest_path: str):
+    def __init__(self, manifest_path: str, layout: StackLayout = DEFAULT_LAYOUT):
         self.manifest_path = Path(manifest_path)
+        self.layout = layout
         with open(self.manifest_path) as f:
             self.manifest = json.load(f)
         if len(self.manifest) == 0:
@@ -49,10 +98,11 @@ class FloodTileDataset(Dataset):
 
     def __getitem__(self, idx: int):
         entry = self.manifest[idx]
-        tile = np.load(entry["path"])  # shape: (10, H, W)
+        tile = np.load(entry["path"])  # shape: (n_bands, H, W)
 
-        inputs = tile[INPUT_BAND_INDICES]
-        label = tile[FLOOD_LABEL_BAND_INDEX : FLOOD_LABEL_BAND_INDEX + 1]  # keep channel dim: (1, H, W)
+        label_index = self.layout.label_index
+        inputs = tile[self.layout.input_indices]
+        label = tile[label_index : label_index + 1]  # keep channel dim: (1, H, W)
 
         inputs = np.nan_to_num(inputs, nan=0.0)
         label = np.nan_to_num(label, nan=0.0)

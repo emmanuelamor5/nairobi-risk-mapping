@@ -22,7 +22,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from .attention_unet import AttentionUNet
-from .dataset import FloodTileDataset
+from .dataset import DEFAULT_LAYOUT, FloodTileDataset, StackLayout
 from .losses import CombinedLoss
 from .metrics import RunningMetrics
 from .transfer_learning import freeze_transferred_layers, load_pretrained_encoder, trainable_parameter_count
@@ -31,11 +31,20 @@ logger = logging.getLogger(__name__)
 
 
 class AttentionUNetModel:
-    def __init__(self, in_channels: int = 9, base_channels: int = 32,
+    def __init__(self, in_channels: int = None, base_channels: int = 32,
                  device: str = None, pretrained_checkpoint: str = None,
-                 freeze_pretrained_encoder: bool = True):
+                 freeze_pretrained_encoder: bool = True, dropout: float = 0.0,
+                 layout: StackLayout = DEFAULT_LAYOUT):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.network = AttentionUNet(in_channels=in_channels, base_channels=base_channels).to(self.device)
+        self.layout = layout
+        # Default the input-channel count to the layout's, so switching to the
+        # S1-input layout (EVENT_S1_LAYOUT, 11 channels) does not require also
+        # remembering to pass in_channels. An explicit in_channels still wins.
+        if in_channels is None:
+            in_channels = layout.in_channels
+        self.network = AttentionUNet(
+            in_channels=in_channels, base_channels=base_channels, dropout=dropout,
+        ).to(self.device)
         self.transfer_report = None
 
         if pretrained_checkpoint is not None:
@@ -59,30 +68,40 @@ class AttentionUNetModel:
 
     def fit(self, train_manifest_entries: list, val_manifest_entries: list,
             epochs: int = 50, batch_size: int = 2, learning_rate: float = 1e-3,
-            checkpoint_dir: str = "checkpoints"):
+            checkpoint_dir: str = "checkpoints", weight_decay: float = 0.0,
+            early_stopping_patience: int = None):
         """
         Trains the network per proposal Sec 'Model Training': Adam optimiser,
         initial LR 1e-3 (default here matches), cosine annealing schedule,
         combined BCE+Dice loss.
 
+        ``weight_decay`` adds L2 regularisation to Adam (0.0 keeps v1 behaviour;
+        Sprint 2 v2 uses a small positive value to fight the single-location
+        overfitting). ``early_stopping_patience``, if set, stops training when
+        validation IoU has not improved for that many epochs -- cheap insurance
+        against the late-epoch memorisation the v1 loss curves showed. The best
+        checkpoint (by val IoU) is always the one restored/saved regardless.
+
         batch_size defaults to 2 given Sprint 1's small Kibera tile count --
         raise it once Sprint 4 brings in Mathare/Mukuru and genuinely more
         tiles exist to batch over.
         """
-        train_dataset = _ManifestSubsetDataset(train_manifest_entries)
-        val_dataset = _ManifestSubsetDataset(val_manifest_entries)
+        train_dataset = _ManifestSubsetDataset(train_manifest_entries, layout=self.layout)
+        val_dataset = _ManifestSubsetDataset(val_manifest_entries, layout=self.layout)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, self.network.parameters()),
             lr=learning_rate,
+            weight_decay=weight_decay,
         )
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
         criterion = CombinedLoss()
 
         Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
         best_val_iou = -1.0
+        epochs_since_improvement = 0
         history = []
 
         for epoch in range(1, epochs + 1):
@@ -137,10 +156,21 @@ class AttentionUNetModel:
 
             if val_results["iou"] > best_val_iou:
                 best_val_iou = val_results["iou"]
+                epochs_since_improvement = 0
                 torch.save(self.network.state_dict(), Path(checkpoint_dir) / "attention_unet_best.pt")
                 logger.info("New best val_iou=%.4f -- checkpoint saved.", best_val_iou)
+            else:
+                epochs_since_improvement += 1
+                if early_stopping_patience is not None and epochs_since_improvement >= early_stopping_patience:
+                    logger.info(
+                        "Early stopping at epoch %d: val_iou has not improved for "
+                        "%d epochs (best=%.4f). Best checkpoint is kept.",
+                        epoch, early_stopping_patience, best_val_iou,
+                    )
+                    break
 
-        return {"history": history, "best_val_iou": best_val_iou}
+        return {"history": history, "best_val_iou": best_val_iou,
+                "stopped_epoch": history[-1]["epoch"] if history else 0}
 
     @torch.no_grad()
     def predict(self, inputs: torch.Tensor, threshold: float = 0.5) -> torch.Tensor:
@@ -181,6 +211,7 @@ class AttentionUNetModel:
 class _ManifestSubsetDataset(FloodTileDataset):
     """Wraps a list of already-selected manifest entries (e.g. from spatial_holdout_split) as a Dataset, bypassing the file-path constructor."""
 
-    def __init__(self, manifest_entries: list):
+    def __init__(self, manifest_entries: list, layout: StackLayout = DEFAULT_LAYOUT):
         self.manifest_path = None
         self.manifest = manifest_entries
+        self.layout = layout
