@@ -31,6 +31,11 @@ from .graphsage_metrics import (
     classification_report_from_logits,
     stratified_node_split,
 )
+from .multi_settlement import (
+    evaluate_graphsage_by_settlement,
+    graphsage_threshold_report,
+    stratified_multi_settlement_split,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +69,12 @@ class GraphSAGEModel:
         Attach stratified train/val/test masks to a PyG ``Data`` object that
         already carries ``data.y`` deprivation labels. Returns the same
         object for chaining; masks are also stored on ``self.split_masks``.
+
+        When ``data.settlement_id`` is present (Sprint 4 combined graph from
+        ``multi_settlement.combine_settlement_graphs``), the split is
+        stratified *within each settlement* so small settlements keep a
+        representative val/test fold. Single-settlement Kibera graphs keep
+        the Sprint 3 global stratified split.
         """
         if data.y is None:
             raise ValueError(
@@ -77,7 +88,19 @@ class GraphSAGEModel:
                 f"in_channels={self.in_channels} ({NODE_FEATURE_NAMES})."
             )
 
-        masks = stratified_node_split(data.y.cpu().numpy(), seed=seed)
+        if hasattr(data, "settlement_id") and data.settlement_id is not None:
+            masks = stratified_multi_settlement_split(
+                data.y.cpu().numpy(),
+                data.settlement_id.cpu().numpy(),
+                seed=seed,
+            )
+            logger.info(
+                "Using per-settlement stratified split over %s",
+                getattr(data, "settlement_keys", "?"),
+            )
+        else:
+            masks = stratified_node_split(data.y.cpu().numpy(), seed=seed)
+
         data.train_mask = torch.tensor(masks["train"], dtype=torch.bool)
         data.val_mask = torch.tensor(masks["val"], dtype=torch.bool)
         data.test_mask = torch.tensor(masks["test"], dtype=torch.bool)
@@ -197,14 +220,35 @@ class GraphSAGEModel:
             self.load_checkpoint(str(best_path))
 
         meets_sprint3 = best_val_macro_f1 >= config.GRAPHSAGE_SPRINT3_MACRO_F1_TARGET
-        return {
+        meets_final = best_val_macro_f1 >= config.GRAPHSAGE_FINAL_MACRO_F1_TARGET
+        result = {
             "history": history,
             "best_val_macro_f1": best_val_macro_f1,
             "stopped_epoch": history[-1]["epoch"] if history else 0,
             "meets_sprint3_target": meets_sprint3,
             "sprint3_target": config.GRAPHSAGE_SPRINT3_MACRO_F1_TARGET,
+            # Sprint 4 / NFR bar -- same pooled val metric, stricter threshold.
+            "meets_final_target": meets_final,
+            "final_target": config.GRAPHSAGE_FINAL_MACRO_F1_TARGET,
             "checkpoint_path": str(best_path),
         }
+
+        # When training on a combined three-settlement graph, also attach
+        # per-settlement + pooled val reports so notebook 04 can print the
+        # threshold table without a second forward pass setup.
+        if hasattr(data, "settlement_id") and data.settlement_id is not None:
+            by_settlement = evaluate_graphsage_by_settlement(
+                self, data, split="val", num_classes=self.num_classes,
+            )
+            result["val_by_settlement"] = by_settlement
+            result["threshold_report"] = graphsage_threshold_report(
+                {
+                    k: v["macro_f1"]
+                    for k, v in by_settlement["per_settlement"].items()
+                },
+                by_settlement["pooled"]["macro_f1"],
+            )
+        return result
 
     @torch.no_grad()
     def predict(self, data: Data, mask: torch.Tensor = None) -> torch.Tensor:
@@ -244,6 +288,16 @@ class GraphSAGEModel:
             return classification_report_from_logits(
                 logits[mask], data.y[mask], num_classes=self.num_classes,
             )
+
+    def evaluate_by_settlement(self, data: Data, split: str = "val") -> dict:
+        """
+        Sprint 4: per-settlement + pooled macro-F1 on a combined graph.
+        Requires ``data.settlement_id`` / ``data.settlement_keys`` from
+        ``multi_settlement.combine_settlement_graphs``.
+        """
+        return evaluate_graphsage_by_settlement(
+            self, data, split=split, num_classes=self.num_classes,
+        )
 
     def explain(self, *args, **kwargs):
         """

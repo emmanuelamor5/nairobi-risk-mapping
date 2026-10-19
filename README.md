@@ -51,8 +51,24 @@ v1 baseline and a v2 improvement pass.
   `lr=5e-3`, `weight_decay=5e-4`; Sprint 3 exit bar is validation
   **macro-F1 ≥ 0.60** (`config.GRAPHSAGE_SPRINT3_MACRO_F1_TARGET`).
 
-Sprints 4–6 (three-settlement extension, late-fusion / NRRP policy
-validation, XAI dashboard) are not yet implemented.
+**Sprint 4 (weeks 7-8): Three-settlement extension** — implemented
+(offline helpers + Colab notebook; real Mathare/Mukuru metrics need Colab).
+
+- `src/models/multi_settlement.py` combines Kibera + Mathare + Mukuru
+  GraphSAGE graphs (disjoint union), applies per-settlement stratified
+  60/20/20 splits, and aggregates per-settlement + pooled macro-F1 against
+  `config.GRAPHSAGE_FINAL_MACRO_F1_TARGET` (0.70).
+- The same module loads multi-settlement tile manifests, runs a
+  **per-settlement** spatial holdout (no cross-settlement location leakage;
+  augmented variants stay together), and reports pooled / per-settlement
+  flood IoU (≥ 0.60) and F1 (≥ 0.75).
+- `notebooks/04_sprint4_three_settlements.ipynb` rebuilds all three graphs
+  (Overpass retries), jointly trains GraphSAGE, fine-tunes / trains the
+  Attention U-Net on pooled tiles when Drive manifests exist, and prints
+  whether thresholds are met.
+
+Sprints 5–6 (late-fusion / NRRP policy validation, XAI dashboard) are not
+yet implemented.
 
 ## Repo structure
 
@@ -76,11 +92,13 @@ src/
     graphsage.py            # two-layer GraphSAGE (mean aggregation)
     graphsage_model.py      # training/inference wrapper (stratified split, macro-F1)
     graphsage_metrics.py    # macro-F1 + stratified 60/20/20 node split
+    multi_settlement.py     # Sprint 4: combine graphs/tiles, splits, pooled metrics
 notebooks/
   01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
   02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
   02_sprint2_attention_unet_v2.ipynb    # Sprint 2 v2: event label + validation + regularisation
   03_sprint3_graphsage.ipynb            # Sprint 3: GraphSAGE deprivation head on Kibera
+  04_sprint4_three_settlements.ipynb    # Sprint 4: both heads on Kibera+Mathare+Mukuru
 tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```
