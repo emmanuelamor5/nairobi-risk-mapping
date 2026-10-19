@@ -35,10 +35,24 @@ v1 baseline and a v2 improvement pass.
   reference** with a lift statistic (`src/utils/label_validation.py`), lets
   the U-Net optionally see the Sentinel-1 bands its label comes from
   (`dataset.EVENT_S1_LAYOUT`), and adds dropout / weight decay / early
-  stopping against the single-location overfitting.
+  stopping against the single-location overfitting. NRRP-polygon lift still
+  needs a Colab run with the 37 high-risk zone geometries (OSM river-
+  corridor fallback is available offline).
 
-Sprints 3-6 (GraphSAGE head, fusion engine, dashboard) are not yet
-implemented.
+**Sprint 3 (weeks 5-6): GraphSAGE deprivation head** — implemented.
+
+- `notebooks/03_sprint3_graphsage.ipynb` trains a two-layer mean-aggregation
+  GraphSAGE on Kibera building nodes (`src/models/graphsage.py` +
+  `graphsage_model.py`). Node features are footprint area, water /
+  sanitation / road distances, and a roof-material durability score.
+- Deprivation labels are a three-class UN-Habitat / SUPI **proxy** derived
+  from those OSM observables (`src/utils/deprivation_label.py`) — not
+  household-survey SUPI scores. Stratified 60/20/20 split; Adam
+  `lr=5e-3`, `weight_decay=5e-4`; Sprint 3 exit bar is validation
+  **macro-F1 ≥ 0.60** (`config.GRAPHSAGE_SPRINT3_MACRO_F1_TARGET`).
+
+Sprints 4–6 (three-settlement extension, late-fusion / NRRP policy
+validation, XAI dashboard) are not yet implemented.
 
 ## Repo structure
 
@@ -51,6 +65,7 @@ src/
     graph_utils.py          # OSM ingestion + proximity graph construction
     flood_label.py          # event-based change-detection label (pure numpy, Sprint 2 v2)
     label_validation.py     # label-vs-reference agreement / lift (Sprint 2 v2)
+    deprivation_label.py    # UN-Habitat/SUPI-proxy node labels (pure numpy, Sprint 3)
   models/
     attention_unet.py       # Attention U-Net (optional dropout)
     attention_unet_model.py # training/inference wrapper (weight decay, early stopping)
@@ -58,10 +73,14 @@ src/
     losses.py metrics.py evaluation.py  # BCE+Dice loss, IoU/F1, leakage-aware eval
     transfer_learning.py    # Sen1Floods11 partial-encoder transfer
     diagnostics.py          # cross-location pixel AUC + permutation importance (Sprint 2 v2)
+    graphsage.py            # two-layer GraphSAGE (mean aggregation)
+    graphsage_model.py      # training/inference wrapper (stratified split, macro-F1)
+    graphsage_metrics.py    # macro-F1 + stratified 60/20/20 node split
 notebooks/
   01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
   02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
   02_sprint2_attention_unet_v2.ipynb    # Sprint 2 v2: event label + validation + regularisation
+  03_sprint3_graphsage.ipynb            # Sprint 3: GraphSAGE deprivation head on Kibera
 tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```
