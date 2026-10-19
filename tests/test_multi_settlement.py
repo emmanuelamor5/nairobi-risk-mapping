@@ -199,6 +199,33 @@ def test_multi_settlement_spatial_holdout_skips_underpopulated_settlement():
     assert "mukuru" not in split["holdout_locations"]
 
 
+def test_required_export_buffer_grows_small_extent():
+    from src.utils.gee_utils import required_export_buffer_m
+
+    # A ~2.3km x 2.0km settlement (Mathare-ish) at 10m/px needs enough buffer
+    # to fit two 256px tile windows (tile + stride = 462px = 4620m) + margin.
+    small = required_export_buffer_m(
+        (0.0, 0.0, 2300.0, 2000.0), scale_m=10, tile_px=256, overlap_px=50,
+        min_locations=2, base_buffer_m=200, margin=1.1,
+    )
+    needed_m = (256 + 206) * 10 * 1.1
+    # Buffer must lift the smaller (height) dimension up to needed_m.
+    assert small == pytest.approx((needed_m - 2000.0) / 2.0)
+    assert 2000.0 + 2 * small >= needed_m - 1e-6
+    assert 2300.0 + 2 * small >= needed_m - 1e-6
+
+
+def test_required_export_buffer_respects_base_floor():
+    from src.utils.gee_utils import required_export_buffer_m
+
+    # An already-large extent needs no growth, so the base floor applies.
+    buf = required_export_buffer_m(
+        (0.0, 0.0, 10000.0, 10000.0), scale_m=10, tile_px=256, overlap_px=50,
+        min_locations=2, base_buffer_m=200, margin=1.1,
+    )
+    assert buf == 200.0
+
+
 def test_load_multi_settlement_manifests_drops_empty(tmp_path):
     """A 0-tile manifest (export not COMPLETED at tiling time) is treated as missing."""
     for key, entries in (
