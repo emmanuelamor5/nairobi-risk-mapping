@@ -9,6 +9,8 @@ here since the proposal's testing section (Sec 3.4 "Testing") explicitly
 calls out mis-thresholded edges as a silent-failure risk.
 """
 
+import logging
+import time
 import warnings
 
 import geopandas as gpd
@@ -28,6 +30,45 @@ from .deprivation_label import (
     encode_roof_material,
     score_deprivation_indicators,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _features_from_polygon_with_retry(polygon, tags) -> gpd.GeoDataFrame:
+    """
+    Call ``ox.features_from_polygon`` with exponential backoff across the
+    configured Overpass mirrors. Public Overpass endpoints frequently return
+    502 / empty bodies when at capacity; cycling mirrors + sleeping is the
+    recommended recovery (and far cheaper than failing the whole Sprint 3 run).
+    """
+    urls = list(getattr(config, "OVERPASS_URLS", ("https://overpass-api.de/api",)))
+    max_attempts = int(getattr(config, "OVERPASS_MAX_ATTEMPTS", 6))
+    base_sleep = float(getattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 5.0))
+    last_exc = None
+
+    for attempt in range(max_attempts):
+        url = urls[attempt % len(urls)]
+        ox.settings.overpass_url = url
+        ox.settings.requests_timeout = max(getattr(ox.settings, "requests_timeout", 180), 180)
+        try:
+            logger.info(
+                "Overpass attempt %d/%d via %s", attempt + 1, max_attempts, url,
+            )
+            return ox.features_from_polygon(polygon, tags=tags)
+        except Exception as exc:
+            last_exc = exc
+            sleep_s = base_sleep * (2 ** attempt)
+            logger.warning(
+                "Overpass failed on %s (%s: %s). Sleeping %.0fs before retry.",
+                url, type(exc).__name__, exc, sleep_s,
+            )
+            time.sleep(sleep_s)
+
+    raise RuntimeError(
+        f"Overpass fetch failed after {max_attempts} attempts across {urls}. "
+        f"Last error: {last_exc}. Wait a few minutes and re-run, or point "
+        f"config.OVERPASS_URLS at a less-loaded mirror."
+    ) from last_exc
 
 
 def fetch_settlement_boundary(settlement_key: str) -> gpd.GeoDataFrame:
@@ -61,7 +102,7 @@ def fetch_settlement_boundary(settlement_key: str) -> gpd.GeoDataFrame:
 def fetch_osm_buildings(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Fetch building footprints within the boundary polygon via the Overpass API."""
     polygon = boundary.geometry.iloc[0]
-    buildings = ox.features_from_polygon(polygon, tags=config.OVERPASS_TAGS)
+    buildings = _features_from_polygon_with_retry(polygon, config.OVERPASS_TAGS)
     buildings = buildings[buildings.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
     buildings = buildings.to_crs(config.CRS_METRIC)
     buildings["centroid"] = buildings.geometry.centroid
@@ -74,7 +115,7 @@ def fetch_osm_buildings(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 def fetch_osm_infrastructure(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Fetch water points, sanitation points, and road network for proximity features."""
     polygon = boundary.geometry.iloc[0]
-    infra = ox.features_from_polygon(polygon, tags=config.INFRA_TAGS)
+    infra = _features_from_polygon_with_retry(polygon, config.INFRA_TAGS)
     infra = infra.to_crs(config.CRS_METRIC)
     infra["centroid"] = infra.geometry.centroid
     return infra

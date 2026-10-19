@@ -129,6 +129,15 @@ INFRA_TAGS = {
     "man_made": ["water_tap", "water_well"],
     "highway": True,
 }
+# Public Overpass mirrors. The primary (overpass-api.de) often returns 502
+# when at capacity; graph_utils cycles through these with backoff.
+OVERPASS_URLS = (
+    "https://overpass-api.de/api",
+    "https://lz4.overpass-api.de/api",
+    "https://overpass.kumi.systems/api",
+)
+OVERPASS_MAX_ATTEMPTS = 6
+OVERPASS_RETRY_BASE_SLEEP_S = 5.0
 
 # --- Structural deprivation labels (Sprint 3 / GraphSAGE) ---------------
 # Three severity classes derived from UN-Habitat / SUPI-style indicators,

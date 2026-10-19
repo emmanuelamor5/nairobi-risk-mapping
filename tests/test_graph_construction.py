@@ -137,3 +137,35 @@ def test_empty_buildings_gdf_produces_empty_graph():
     integrity = graph_utils.check_graph_integrity(graph)
     assert integrity["num_nodes"] == 0
     assert integrity["largest_component_frac"] == 0.0
+
+
+def test_overpass_retry_cycles_mirrors(monkeypatch):
+    """Transient Overpass failures should rotate mirrors then succeed."""
+    calls = {"n": 0, "urls": []}
+
+    def fake_features(polygon, tags=None):
+        calls["n"] += 1
+        calls["urls"].append(ox.settings.overpass_url)
+        if calls["n"] < 3:
+            raise RuntimeError("502 Bad Gateway (simulated)")
+        return gpd.GeoDataFrame(
+            {"geometry": [Point(0, 0).buffer(1)], "building": ["yes"]},
+            crs=config.CRS_WGS84,
+        )
+
+    import osmnx as ox
+    monkeypatch.setattr(ox, "features_from_polygon", fake_features)
+    monkeypatch.setattr(config, "OVERPASS_MAX_ATTEMPTS", 4)
+    monkeypatch.setattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 0.01)
+    monkeypatch.setattr(
+        config, "OVERPASS_URLS",
+        ("https://mirror-a.example/api", "https://mirror-b.example/api"),
+    )
+
+    from shapely.geometry import box
+    boundary = gpd.GeoDataFrame(geometry=[box(0, 0, 1, 1)], crs=config.CRS_WGS84)
+    # fetch_osm_buildings filters to Polygon geometries -- Point.buffer gives Polygon.
+    out = graph_utils.fetch_osm_buildings(boundary)
+    assert len(out) == 1
+    assert calls["n"] == 3
+    assert calls["urls"][0] != calls["urls"][1] or len(config.OVERPASS_URLS) == 1
