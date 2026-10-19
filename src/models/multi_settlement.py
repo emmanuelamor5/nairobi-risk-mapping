@@ -353,13 +353,29 @@ def load_multi_settlement_manifests(
     missing = []
     for key in keys:
         try:
-            out[key] = load_tile_manifest(tiles_root, key, split=split)
+            entries = load_tile_manifest(tiles_root, key, split=split)
         except FileNotFoundError as exc:
             missing.append(key)
             logger.warning("%s", exc)
+            continue
+        # An empty manifest (0 tiles kept) means the stack was absent/partial
+        # or every tile fell below the valid-data threshold at tiling time --
+        # usually because the GEE export had not reached COMPLETED yet. Treat
+        # it as missing rather than a usable settlement so downstream splits
+        # don't crash on a settlement with no spatial locations.
+        if not entries:
+            missing.append(key)
+            logger.warning(
+                "Manifest for '%s' (%s split) has 0 tiles -- skipping. Confirm the "
+                "GEE export reached COMPLETED on Drive, then re-run tile_raster_stack "
+                "for this settlement.",
+                key, split,
+            )
+            continue
+        out[key] = entries
     if require_all and missing:
         raise FileNotFoundError(
-            f"Missing tile manifests for: {missing}. Present: {list(out)}"
+            f"Missing or empty tile manifests for: {missing}. Present: {list(out)}"
         )
     return out
 
@@ -396,6 +412,7 @@ def multi_settlement_spatial_holdout(
     train_entries, val_entries = [], []
     holdout_locations = {}
     location_counts = {}
+    skipped_settlements = []
 
     for key, source in manifests_by_settlement.items():
         if isinstance(source, (str, Path)):
@@ -410,10 +427,19 @@ def multi_settlement_spatial_holdout(
         locations = _locations_from_entries(entries)
         n_loc = len(locations)
         if n_loc < 2:
-            raise ValueError(
-                f"Settlement '{key}' has only {n_loc} distinct spatial location(s) "
-                f"-- need at least 2 to hold one out for validation."
+            # Not enough distinct spatial locations to hold one out without
+            # leaving an empty train side. Skip this settlement (with a
+            # warning) rather than aborting the whole multi-settlement split,
+            # so a half-tiled run can still train on the settlements that are
+            # ready. The caller's "need >= 2 settlements" guard still applies.
+            logger.warning(
+                "Settlement '%s' has only %d distinct spatial location(s) -- "
+                "skipping it in the spatial holdout (need >= 2). Finish tiling "
+                "this settlement to include it.",
+                key, n_loc,
             )
+            skipped_settlements.append(key)
+            continue
 
         n_holdout = max(1, int(round(n_loc * holdout_fraction)))
         n_holdout = min(n_holdout, n_loc - min_train_locations)
@@ -440,12 +466,22 @@ def multi_settlement_spatial_holdout(
             else:
                 train_entries.append(e)
 
+    usable = [k for k in manifests_by_settlement if k not in skipped_settlements]
+    if len(usable) < 2:
+        raise ValueError(
+            f"Spatial holdout needs >= 2 settlements with >= 2 tile locations each; "
+            f"usable={usable}, skipped={skipped_settlements}. Finish Sprint 1 tiling "
+            f"for the missing settlements (GEE export must be COMPLETED before "
+            f"tile_raster_stack)."
+        )
+
     return {
         "train": train_entries,
         "val": val_entries,
         "holdout_locations": holdout_locations,
         "location_counts": location_counts,
-        "num_settlements": len(manifests_by_settlement),
+        "num_settlements": len(usable),
+        "skipped_settlements": skipped_settlements,
     }
 
 
