@@ -123,17 +123,37 @@ SRTM_RESOLUTION_M = 30
 # --- OSM / graph construction ---
 BUILDING_ADJACENCY_THRESHOLD_M = 15.0  # per proposal Sec 3.4 unit testing note
 MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
-MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
-MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
-MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
-MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
-MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
 OVERPASS_TAGS = {"building": True}
 INFRA_TAGS = {
     "amenity": ["drinking_water", "toilets"],
     "man_made": ["water_tap", "water_well"],
     "highway": True,
 }
+
+# --- Structural deprivation labels (Sprint 3 / GraphSAGE) ---------------
+# Three severity classes derived from UN-Habitat / SUPI-style indicators,
+# proxied from OSM attributes + infrastructure distances (proposal Sec
+# 3.2 / FR-04). Higher class index = more deprived.
+#
+#   0 = low    (Retain and Formalise candidate)
+#   1 = medium (Retain and Upgrade candidate)
+#   2 = high   (Compensated Resettlement / severe deprivation candidate)
+#
+# Thresholds are heuristics for the OSM proxy -- replace with survey-derived
+# cut-points if field labels become available. Distances in metres; area in m^2.
+DEPRIVATION_CLASS_NAMES = ("low", "medium", "high")
+DEPRIVATION_NUM_CLASSES = 3
+# Water / sanitation access: beyond these distances counts as full deficit.
+DEPRIVATION_WATER_ACCESS_M = 200.0
+DEPRIVATION_SANITATION_ACCESS_M = 200.0
+# Footprint area below this is treated as an overcrowding proxy.
+DEPRIVATION_OVERCROWDING_AREA_M2 = 25.0
+# Road access: beyond this distance counts as full deficit.
+DEPRIVATION_ROAD_ACCESS_M = 50.0
+# Sprint 3 exit criterion (proposal Sec 3.4.3 weeks 5-6).
+GRAPHSAGE_SPRINT3_MACRO_F1_TARGET = 0.60
+# Final NFR (proposal NFR-01) -- Sprint 4 three-settlement bar.
+GRAPHSAGE_FINAL_MACRO_F1_TARGET = 0.70
 
 # --- Raster tiling ---
 TILE_SIZE_PX = 256

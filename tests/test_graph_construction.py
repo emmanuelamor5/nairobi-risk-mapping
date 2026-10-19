@@ -9,6 +9,7 @@ import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pytest
+import torch
 from shapely.geometry import Point
 
 import sys
@@ -31,6 +32,7 @@ def _make_buildings(coords, crs=config.CRS_METRIC):
     gdf["dist_to_water_m"] = 10.0
     gdf["dist_to_sanitation_m"] = 10.0
     gdf["dist_to_road_m"] = 5.0
+    gdf["roof_material_score"] = 0.5
     return gdf
 
 
@@ -93,7 +95,40 @@ def test_pyg_conversion_preserves_node_count():
     graph = graph_utils.build_proximity_graph(buildings, threshold_m=15.0)
     data = graph_utils.graph_to_pyg_data(graph)
     assert data.num_nodes == len(coords)
-    assert data.x.shape[1] == 4  # area, dist_to_water, dist_to_sanitation, dist_to_road
+    # area, dist_to_water, dist_to_sanitation, dist_to_road, roof_material_score
+    assert data.x.shape[1] == 5
+
+
+def test_enrichment_attaches_deprivation_labels_to_pyg_data():
+    """Varying infra distances must produce a three-class y tensor on the PyG object."""
+    coords = [(i * 10, 0) for i in range(12)]
+    buildings = _make_buildings(coords)
+    buildings["dist_to_water_m"] = np.linspace(5, 400, len(coords))
+    buildings["dist_to_sanitation_m"] = np.linspace(5, 400, len(coords))
+    buildings["area_m2"] = np.linspace(10, 80, len(coords))
+    buildings = graph_utils.enrich_buildings_with_deprivation(buildings)
+    assert "deprivation_class" in buildings.columns
+    assert set(buildings["deprivation_class"].unique()).issubset({0, 1, 2})
+
+    graph = graph_utils.build_proximity_graph(buildings, threshold_m=15.0)
+    data = graph_utils.graph_to_pyg_data(graph)
+    assert data.y is not None
+    assert data.y.shape == (len(coords),)
+    assert data.y.dtype == torch.long
+
+
+def test_prune_small_components_drops_fringe_isolates():
+    cluster = [(i * 10, 0) for i in range(25)]
+    fringe = [(1000, 1000), (1010, 1000)]
+    buildings = _make_buildings(cluster + fringe)
+    graph = graph_utils.build_proximity_graph(buildings, threshold_m=15.0)
+    filtered_buildings, filtered_graph, report = graph_utils.prune_small_components(
+        buildings, graph, min_component_size=5,
+    )
+    assert report["nodes_after"] == 25
+    assert report["nodes_dropped"] == 2
+    assert filtered_graph.number_of_nodes() == 25
+    assert len(filtered_buildings) == 25
 
 
 def test_empty_buildings_gdf_produces_empty_graph():

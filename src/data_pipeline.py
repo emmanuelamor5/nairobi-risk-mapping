@@ -85,18 +85,6 @@ class DataPipeline:
         # the 256px tile size in one dimension at 10m resolution (see Kibera:
         # raw export came back 246 x 313px, short in height).
         geometry = geometry.buffer(200)
-        # Buffer by 200m -- some settlement boundaries are too narrow to clear
-        # the 256px tile size in one dimension at 10m resolution (see Kibera:
-        # raw export came back 246 x 313px, short in height).
-        geometry = geometry.buffer(200)
-        # Buffer by 200m -- some settlement boundaries are too narrow to clear
-        # the 256px tile size in one dimension at 10m resolution (see Kibera:
-        # raw export came back 246 x 313px, short in height).
-        geometry = geometry.buffer(200)
-        # Buffer by 200m -- some settlement boundaries are too narrow to clear
-        # the 256px tile size in one dimension at 10m resolution (see Kibera:
-        # raw export came back 246 x 313px, short in height).
-        geometry = geometry.buffer(200)
 
         logger.info(
             "Assembling raster stack for %s (label_mode=%s, include_s1_inputs=%s)",
@@ -246,6 +234,10 @@ class DataPipeline:
         infra = graph_utils.fetch_osm_infrastructure(boundary)
         buildings = graph_utils.compute_infra_distance_features(buildings, infra)
 
+        # Sprint 3: attach UN-Habitat/SUPI-proxy deprivation scores and the
+        # three-class severity label GraphSAGE trains against.
+        buildings = graph_utils.enrich_buildings_with_deprivation(buildings)
+
         graph = graph_utils.build_proximity_graph(buildings)
         integrity = graph_utils.check_graph_integrity(graph)
         logger.info("Graph integrity check for %s: %s", self.settlement.name, integrity)
@@ -260,9 +252,6 @@ class DataPipeline:
                 self.settlement.name,
                 config.BUILDING_ADJACENCY_THRESHOLD_M,
             )
-
-        buildings, graph, pruning_report = graph_utils.prune_small_components(buildings, graph)
-        logger.info("Pruned small components for %s: %s", self.settlement.name, pruning_report)
 
         buildings, graph, pruning_report = graph_utils.prune_small_components(buildings, graph)
         logger.info("Pruned small components for %s: %s", self.settlement.name, pruning_report)
