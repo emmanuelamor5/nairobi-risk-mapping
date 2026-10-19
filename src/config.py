@@ -164,6 +164,16 @@ GRAPHSAGE_SPRINT3_MACRO_F1_TARGET = 0.60
 # Final NFR (proposal NFR-01) -- Sprint 4 three-settlement bar.
 GRAPHSAGE_FINAL_MACRO_F1_TARGET = 0.70
 
+# --- Attention U-Net thresholds (Sprint 2 / NFR, used again in Sprint 4) ---
+# Transfer-learning convergence check from Sprint 2 (proposal Sec Iterative
+# Refinement). Sprint 4 reports this per settlement and pooled.
+ATTENTION_UNET_TRANSFER_IOU_TARGET = 0.60
+# Final NFR F1 bar (proposal Sec Model Validation and Testing / NFR).
+ATTENTION_UNET_FINAL_F1_TARGET = 0.75
+
+# Canonical settlement order for multi-settlement training / reporting.
+SETTLEMENT_KEYS = tuple(SETTLEMENTS.keys())
+
 # --- Raster tiling ---
 TILE_SIZE_PX = 256
 TILE_OVERLAP_PX = 50

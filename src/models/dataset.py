@@ -138,10 +138,11 @@ def spatial_holdout_split(manifest_path: str, holdout_location_index: int = -1) 
     5-fold design was built to avoid.
 
     Document this substitution explicitly in your write-up -- see the
-    Sprint 2 notebook's markdown cell for suggested wording. Revisit with
-    genuine 5-fold spatial CV in Sprint 4 once Mathare and Mukuru widen the
-    real spatial extent -- check the combined distinct-location count
-    before assuming that's actually achieved by then.
+    Sprint 2 notebook's markdown cell for suggested wording. Sprint 4's
+    multi-settlement path (``multi_settlement.multi_settlement_spatial_holdout``)
+    holds out locations *per settlement* once Mathare and Mukuru tiles are
+    available; use that instead of calling this helper on a naively
+    concatenated manifest (row/col offsets are only unique within one raster).
     """
     with open(manifest_path) as f:
         manifest = json.load(f)

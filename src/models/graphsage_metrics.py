@@ -3,11 +3,12 @@ Node-classification metrics for the GraphSAGE deprivation head.
 
 Sprint 3's exit criterion (proposal Sec 3.4.3 weeks 5-6) is macro-F1 >= 0.60
 on the Kibera validation split. The final NFR (NFR-01) raises that to
-macro-F1 >= 0.70 across all three settlements in Sprint 4. Macro-F1 is
-used rather than accuracy / micro-F1 because it weights the three
-deprivation severity classes equally -- the high-severity class is
-expected to be a minority, and majority-class collapse would otherwise
-look like success.
+macro-F1 >= 0.70 across all three settlements in Sprint 4 -- see
+``multi_settlement.evaluate_graphsage_by_settlement`` for the
+per-settlement + pooled reporting path. Macro-F1 is used rather than
+accuracy / micro-F1 because it weights the three deprivation severity
+classes equally -- the high-severity class is expected to be a minority,
+and majority-class collapse would otherwise look like success.
 """
 
 from __future__ import annotations
