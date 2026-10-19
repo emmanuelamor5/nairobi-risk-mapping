@@ -81,10 +81,19 @@ class DataPipeline:
 
         boundary = self.get_boundary()
         geometry = ee.Geometry(boundary.geometry.iloc[0].__geo_interface__)
-        # Buffer by 200m -- some settlement boundaries are too narrow to clear
-        # the 256px tile size in one dimension at 10m resolution (see Kibera:
-        # raw export came back 246 x 313px, short in height).
-        geometry = geometry.buffer(200)
+        # Size-aware buffer: smaller settlements (Mathare, Mukuru) would
+        # otherwise export rasters below the 256px tile size in a dimension, so
+        # tile_raster_stack keeps 0 tiles. Buffer each settlement just enough
+        # to fit >= RASTER_MIN_TILE_LOCATIONS tile windows in both dimensions
+        # (needed for the Sprint 4 per-settlement spatial holdout).
+        bounds_m = boundary.to_crs(config.CRS_METRIC).total_bounds
+        buffer_m = gee_utils.required_export_buffer_m(bounds_m)
+        logger.info(
+            "Export buffer for %s: %.0fm (bounds extent %.0fm x %.0fm)",
+            self.settlement.name, buffer_m,
+            bounds_m[2] - bounds_m[0], bounds_m[3] - bounds_m[1],
+        )
+        geometry = geometry.buffer(buffer_m)
 
         logger.info(
             "Assembling raster stack for %s (label_mode=%s, include_s1_inputs=%s)",

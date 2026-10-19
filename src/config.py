@@ -179,6 +179,20 @@ TILE_SIZE_PX = 256
 TILE_OVERLAP_PX = 50
 MIN_VALID_DATA_FRACTION = 0.6  # discard tiles with less valid data than this
 
+# --- Raster export sizing ------------------------------------------------
+# GEE exports at this scale (metres/pixel). The export geometry must be large
+# enough that at least RASTER_MIN_TILE_LOCATIONS distinct 256px tile windows
+# fit in BOTH dimensions, otherwise tile_raster_stack keeps 0 tiles. Kibera's
+# bbox happens to clear this with a small buffer; Mathare/Mukuru are smaller
+# and need a larger, size-aware buffer -- computed in
+# gee_utils.required_export_buffer_m rather than hardcoded, so each settlement
+# gets just enough buffer. A settlement needs >= 2 tile locations for the
+# Sprint 4 spatial holdout to hold one out for validation.
+RASTER_EXPORT_SCALE_M = 10
+RASTER_MIN_TILE_LOCATIONS = 2
+RASTER_EXPORT_BASE_BUFFER_M = 200   # floor; never buffer less than this
+RASTER_EXPORT_BUFFER_MARGIN = 1.10  # 10% headroom over the strict minimum
+
 # --- Output paths (relative to repo root; mount Drive at this path in Colab) ---
 DATA_ROOT = "data"
 RAW_DIR = f"{DATA_ROOT}/raw"

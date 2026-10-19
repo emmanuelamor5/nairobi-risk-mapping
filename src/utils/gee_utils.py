@@ -20,6 +20,51 @@ from .. import config
 logger = logging.getLogger(__name__)
 
 
+def required_export_buffer_m(
+    bounds_m,
+    scale_m: float = None,
+    tile_px: int = None,
+    overlap_px: int = None,
+    min_locations: int = None,
+    base_buffer_m: float = None,
+    margin: float = None,
+) -> float:
+    """
+    Smallest uniform buffer (metres) to apply to an export geometry so the
+    exported raster clears ``min_locations`` distinct 256px tile windows in
+    BOTH dimensions at ``scale_m`` m/px.
+
+    ``bounds_m`` is ``(minx, miny, maxx, maxy)`` in a metric CRS (e.g. from
+    ``gdf.to_crs(config.CRS_METRIC).total_bounds``). Pure arithmetic -- no
+    Earth Engine -- so it is unit-testable offline. The result is never below
+    ``base_buffer_m`` (the historical Kibera floor).
+
+    A tile grid with stride ``tile_px - overlap_px`` fits ``min_locations``
+    windows along a dimension once that dimension spans
+    ``tile_px + (min_locations - 1) * stride`` pixels; we convert that to
+    metres, add ``margin`` headroom, and solve for the per-side buffer that
+    grows the current extent up to it.
+    """
+    scale_m = scale_m if scale_m is not None else config.RASTER_EXPORT_SCALE_M
+    tile_px = tile_px if tile_px is not None else config.TILE_SIZE_PX
+    overlap_px = overlap_px if overlap_px is not None else config.TILE_OVERLAP_PX
+    min_locations = min_locations if min_locations is not None else config.RASTER_MIN_TILE_LOCATIONS
+    base_buffer_m = base_buffer_m if base_buffer_m is not None else config.RASTER_EXPORT_BASE_BUFFER_M
+    margin = margin if margin is not None else config.RASTER_EXPORT_BUFFER_MARGIN
+
+    minx, miny, maxx, maxy = bounds_m
+    width_m = float(maxx - minx)
+    height_m = float(maxy - miny)
+
+    stride_px = tile_px - overlap_px
+    needed_px = tile_px + (max(min_locations, 1) - 1) * stride_px
+    needed_m = needed_px * scale_m * margin
+
+    buffer_w = max(0.0, (needed_m - width_m) / 2.0)
+    buffer_h = max(0.0, (needed_m - height_m) / 2.0)
+    return max(buffer_w, buffer_h, float(base_buffer_m))
+
+
 def _resolve_service_account_key() -> str | None:
     """
     Return a filesystem path to a service-account JSON key if one is supplied

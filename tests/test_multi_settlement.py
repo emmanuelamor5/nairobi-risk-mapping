@@ -167,13 +167,80 @@ def test_multi_settlement_spatial_holdout_no_cross_location_leak():
     assert split["num_settlements"] == 2
 
 
-def test_multi_settlement_spatial_holdout_raises_on_single_location():
-    with pytest.raises(ValueError, match="distinct spatial location"):
+def test_multi_settlement_spatial_holdout_raises_when_too_few_usable():
+    """A single settlement with one location is skipped, leaving <2 usable -> raise."""
+    with pytest.raises(ValueError, match=">= 2 settlements"):
         multi_settlement_spatial_holdout({
             "kibera": [
                 {"tile_id": "k_0_0_orig", "path": "a.npy", "row_off": 0, "col_off": 0},
             ],
         })
+
+
+def test_multi_settlement_spatial_holdout_skips_underpopulated_settlement():
+    """A settlement with <2 locations is skipped, not fatal, when others are usable."""
+    manifests = {
+        "kibera": [
+            {"tile_id": "kibera_0_0_orig", "path": "a.npy", "row_off": 0, "col_off": 0},
+            {"tile_id": "kibera_206_0_orig", "path": "b.npy", "row_off": 206, "col_off": 0},
+            {"tile_id": "kibera_412_0_orig", "path": "c.npy", "row_off": 412, "col_off": 0},
+        ],
+        "mathare": [
+            {"tile_id": "mathare_0_0_orig", "path": "d.npy", "row_off": 0, "col_off": 0},
+            {"tile_id": "mathare_206_0_orig", "path": "e.npy", "row_off": 206, "col_off": 0},
+        ],
+        "mukuru": [  # only one location -> skipped
+            {"tile_id": "mukuru_0_0_orig", "path": "f.npy", "row_off": 0, "col_off": 0},
+        ],
+    }
+    split = multi_settlement_spatial_holdout(manifests, holdout_fraction=0.25, seed=1)
+    assert split["skipped_settlements"] == ["mukuru"]
+    assert split["num_settlements"] == 2
+    assert "mukuru" not in split["holdout_locations"]
+
+
+def test_required_export_buffer_grows_small_extent():
+    from src.utils.gee_utils import required_export_buffer_m
+
+    # A ~2.3km x 2.0km settlement (Mathare-ish) at 10m/px needs enough buffer
+    # to fit two 256px tile windows (tile + stride = 462px = 4620m) + margin.
+    small = required_export_buffer_m(
+        (0.0, 0.0, 2300.0, 2000.0), scale_m=10, tile_px=256, overlap_px=50,
+        min_locations=2, base_buffer_m=200, margin=1.1,
+    )
+    needed_m = (256 + 206) * 10 * 1.1
+    # Buffer must lift the smaller (height) dimension up to needed_m.
+    assert small == pytest.approx((needed_m - 2000.0) / 2.0)
+    assert 2000.0 + 2 * small >= needed_m - 1e-6
+    assert 2300.0 + 2 * small >= needed_m - 1e-6
+
+
+def test_required_export_buffer_respects_base_floor():
+    from src.utils.gee_utils import required_export_buffer_m
+
+    # An already-large extent needs no growth, so the base floor applies.
+    buf = required_export_buffer_m(
+        (0.0, 0.0, 10000.0, 10000.0), scale_m=10, tile_px=256, overlap_px=50,
+        min_locations=2, base_buffer_m=200, margin=1.1,
+    )
+    assert buf == 200.0
+
+
+def test_load_multi_settlement_manifests_drops_empty(tmp_path):
+    """A 0-tile manifest (export not COMPLETED at tiling time) is treated as missing."""
+    for key, entries in (
+        ("kibera", [{"tile_id": "kibera_0_0_orig", "path": "t.npy",
+                     "row_off": 0, "col_off": 0, "split": "train"}]),
+        ("mathare", []),  # empty manifest
+    ):
+        d = tmp_path / key
+        d.mkdir()
+        with open(d / "manifest_train.json", "w") as f:
+            json.dump(entries, f)
+    loaded = load_multi_settlement_manifests(
+        tmp_path, settlement_keys=["kibera", "mathare", "mukuru"],
+    )
+    assert set(loaded) == {"kibera"}
 
 
 def test_load_multi_settlement_manifests(tmp_path):
