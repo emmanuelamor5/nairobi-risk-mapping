@@ -278,20 +278,24 @@ def evaluate_graphsage_by_settlement(
         )
 
     device = next(model.network.parameters()).device
-    data = data.to(device)
-    split_mask = getattr(data, mask_attr)
+    # Do not Data.to(device): that moves data.pos onto the GPU as well, and
+    # Sprint 5 still needs those centroids on the host for raster sampling.
+    # Host copies also keep a graph that fit() already parked on CUDA working.
     model.network.eval()
-    logits = model.network(data.x, data.edge_index)
+    logits = model.network(data.x.to(device), data.edge_index.to(device)).cpu()
+    split_mask = getattr(data, mask_attr).detach().cpu()
+    settlement_id = data.settlement_id.detach().cpu()
+    labels = data.y.detach().cpu()
 
     per_settlement = {}
     cms = []
     for sid, key in enumerate(data.settlement_keys):
-        node_mask = (data.settlement_id == sid) & split_mask
+        node_mask = (settlement_id == sid) & split_mask
         if int(node_mask.sum()) == 0:
             logger.warning("No %s nodes for settlement %s -- skipping.", split, key)
             continue
         report = classification_report_from_logits(
-            logits[node_mask], data.y[node_mask], num_classes=num_classes,
+            logits[node_mask], labels[node_mask], num_classes=num_classes,
         )
         per_settlement[key] = report
         cms.append(np.asarray(report["confusion_matrix"], dtype=np.int64))

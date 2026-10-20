@@ -250,12 +250,25 @@ class GraphSAGEModel:
             )
         return result
 
+    def _forward(self, data: Data) -> torch.Tensor:
+        """
+        Logits for ``data`` without moving the caller's graph.
+
+        ``Data.to(device)`` rewrites every tensor on the object, including
+        ``data.pos``. Sprint 5 samples the flood raster at those centroids
+        after ``predict_proba``; a CUDA ``pos`` cannot be converted to numpy.
+        Only ``x`` and ``edge_index`` are copied to the model device.
+        """
+        self.network.eval()
+        return self.network(
+            data.x.to(self.device),
+            data.edge_index.to(self.device),
+        )
+
     @torch.no_grad()
     def predict(self, data: Data, mask: torch.Tensor = None) -> torch.Tensor:
         """Return predicted class indices for all nodes, or those under ``mask``."""
-        self.network.eval()
-        data = data.to(self.device)
-        logits = self.network(data.x, data.edge_index)
+        logits = self._forward(data)
         preds = logits.argmax(dim=-1)
         if mask is not None:
             return preds[mask.to(self.device)].cpu()
@@ -266,10 +279,10 @@ class GraphSAGEModel:
         """
         Softmax class probabilities -- the vector the Fusion Engine (Sprint 5)
         concatenates with the U-Net flood probability.
+
+        Does not move ``data`` (in particular ``data.pos``) onto the model device.
         """
-        self.network.eval()
-        data = data.to(self.device)
-        logits = self.network(data.x, data.edge_index)
+        logits = self._forward(data)
         probs = F.softmax(logits, dim=-1)
         if mask is not None:
             return probs[mask.to(self.device)].cpu()
@@ -280,13 +293,12 @@ class GraphSAGEModel:
         mask_attr = f"{split}_mask"
         if not hasattr(data, mask_attr):
             raise ValueError(f"data has no {mask_attr}; call prepare_data / fit first.")
-        self.network.eval()
-        data = data.to(self.device)
         with torch.no_grad():
-            logits = self.network(data.x, data.edge_index)
-            mask = getattr(data, mask_attr)
+            logits = self._forward(data)
+            mask = getattr(data, mask_attr).to(self.device)
+            targets = data.y.to(self.device)
             return classification_report_from_logits(
-                logits[mask], data.y[mask], num_classes=self.num_classes,
+                logits[mask], targets[mask], num_classes=self.num_classes,
             )
 
     def evaluate_by_settlement(self, data: Data, split: str = "val") -> dict:
