@@ -67,14 +67,34 @@ v1 baseline and a v2 improvement pass.
   Attention U-Net on pooled tiles when Drive manifests exist, and prints
   whether thresholds are met.
 
-Sprints 5–6 (late-fusion / NRRP policy validation, XAI dashboard) are not
+**Sprint 5 (weeks 9-10): Late-fusion policy engine & NRRP validation** —
+implemented (offline helpers + Colab notebook; real three-settlement NRRP
+lift numbers need Colab).
+
+- `src/models/fusion_engine.py` implements `FusionEngine`, which concatenates
+  the Attention U-Net's flood probability score with GraphSAGE's three-class
+  deprivation probability vector (`[p_flood, p_low, p_med, p_high]`) and
+  applies the $3\times 3$ rule-based policy classification matrix (`Retain
+  and Formalise`, `Retain and Upgrade`, `Compensated Resettlement`).
+- The same module stitches overlapping $256\times 256$ U-Net tile predictions
+  onto each settlement's raster grid (`predict_settlement_flood_map`),
+  samples parcel-level flood probabilities at building footprints
+  (`extract_parcel_flood_probabilities`), validates parcel recommendations
+  against the NRRP high-risk riparian reference zones (`validate_policy_against_nrrp`
+  — reporting `Compensated Resettlement` lift and the share of riparian-zone
+  parcels spared blanket eviction), and exports
+  `outputs/classifications/<settlement>_policy_parcels.geojson`.
+- `notebooks/05_sprint5_late_fusion_nrrp.ipynb` runs the full late-fusion and
+  NRRP validation workflow across Kibera, Mathare, and Mukuru in Colab.
+
+Sprint 6 (Captum Grad-CAM, SHAP attribution, and Folium XAI dashboard) is not
 yet implemented.
 
 ## Repo structure
 
 ```
 src/
-  config.py              # settlement boundaries, date ranges, flood-event + label thresholds
+  config.py              # settlement boundaries, date ranges, flood-event + label + fusion thresholds
   data_pipeline.py        # DataPipeline class -- Sprint 1 entrypoint
   utils/
     gee_utils.py           # Sentinel-2/1, SRTM/TWI acquisition; seasonal + event flood labels (GEE)
@@ -93,12 +113,14 @@ src/
     graphsage_model.py      # training/inference wrapper (stratified split, macro-F1)
     graphsage_metrics.py    # macro-F1 + stratified 60/20/20 node split
     multi_settlement.py     # Sprint 4: combine graphs/tiles, splits, pooled metrics
+    fusion_engine.py        # Sprint 5: Late-fusion policy matrix, tile stitching, NRRP validation, GeoJSON export
 notebooks/
   01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
   02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
   02_sprint2_attention_unet_v2.ipynb    # Sprint 2 v2: event label + validation + regularisation
   03_sprint3_graphsage.ipynb            # Sprint 3: GraphSAGE deprivation head on Kibera
   04_sprint4_three_settlements.ipynb    # Sprint 4: both heads on Kibera+Mathare+Mukuru
+  05_sprint5_late_fusion_nrrp.ipynb     # Sprint 5: late-fusion policy engine + NRRP validation
 tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```
