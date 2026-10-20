@@ -297,6 +297,20 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     data = from_networkx(graph, group_node_attrs=list(NODE_FEATURE_NAMES))
     data.x = data.x.float()
 
+    # Preserve metric building centroid coordinates (CRS_METRIC, EPSG:32737)
+    # BEFORE graph.nodes['y'] is overwritten by data.y (the deprivation class
+    # target). Sprint 5's FusionEngine uses data.pos to sample the U-Net flood
+    # probability raster at each building's geographic location and to export
+    # the policy-classified parcel GeoJSON layer even when the original OSM
+    # GeoDataFrame is not cached on disk.
+    if graph.number_of_nodes() > 0:
+        first_attrs = next(iter(graph.nodes(data=True)))[1]
+        node_order = list(graph.nodes())
+        if "x" in first_attrs and "y" in first_attrs:
+            coords = [[float(graph.nodes[n]["x"]), float(graph.nodes[n]["y"])] for n in node_order]
+            data.pos = torch.tensor(coords, dtype=torch.float32)
+        data.node_id = torch.tensor([int(n) for n in node_order], dtype=torch.long)
+
     # z-score normalise node features so GraphSAGE's mean aggregator isn't
     # dominated by raw metre-scale distances vs. area in square metres.
     mean = data.x.mean(dim=0, keepdim=True)
