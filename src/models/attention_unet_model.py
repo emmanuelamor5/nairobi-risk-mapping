@@ -52,16 +52,6 @@ class AttentionUNetModel:
             if freeze_pretrained_encoder:
                 freeze_summary = freeze_transferred_layers(self.network, self.transfer_report)
                 logger.info("Selective freeze applied: %s", freeze_summary)
-        else:
-            logger.warning(
-                "No pretrained_checkpoint provided -- training the full network "
-                "from random initialisation, NOT the transfer-learning setup the "
-                "proposal specifies. This is a materially different, harder "
-                "training problem given the small Kibera tile count; expect "
-                "convergence to be slower or the IoU >= 0.60 target to be harder "
-                "to hit. Source Sen1Floods11 weights before treating Sprint 2 "
-                "results as representative of the intended design."
-            )
 
         param_counts = trainable_parameter_count(self.network)
         logger.info("Model initialised: %s", param_counts)
@@ -86,6 +76,19 @@ class AttentionUNetModel:
         raise it once Sprint 4 brings in Mathare/Mukuru and genuinely more
         tiles exist to batch over.
         """
+        # Warned here, not in __init__. Sprint 5 constructs the network only
+        # to load a Sprint 4 checkpoint; that is inference, not a from-scratch
+        # training run, and the warning was drowning the fusion log.
+        if self.transfer_report is None:
+            logger.warning(
+                "No pretrained_checkpoint provided -- training the full network "
+                "from random initialisation, NOT the transfer-learning setup the "
+                "proposal specifies. This is a materially different, harder "
+                "training problem given the small Kibera tile count; expect "
+                "convergence to be slower or the IoU >= 0.60 target to be harder "
+                "to hit. Source Sen1Floods11 weights before treating Sprint 2 "
+                "results as representative of the intended design."
+            )
         train_dataset = _ManifestSubsetDataset(train_manifest_entries, layout=self.layout)
         val_dataset = _ManifestSubsetDataset(val_manifest_entries, layout=self.layout)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)

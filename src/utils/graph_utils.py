@@ -112,6 +112,39 @@ def fetch_osm_buildings(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return buildings
 
 
+def fetch_river_corridor(settlement_keys=None, buffer_m: float = None):
+    """
+    One Overpass query for river, stream, and drain lines over the settlement
+    bboxes, buffered into a corridor for the Sprint 5 lift test.
+
+    This is the fallback reference when the NRRP 37-zone polygons are not
+    on disk. The query polygon is the union of the configured bboxes, expanded
+    by the buffer so a river just outside a bbox still counts for buildings
+    on the edge. Returns corridor polygons in ``config.CRS_METRIC``.
+    """
+    from shapely.geometry import box
+    from shapely.ops import unary_union
+
+    from .label_validation import waterway_corridor_polygons
+
+    buffer_m = float(buffer_m if buffer_m is not None else config.FUSION_RIVER_BUFFER_M)
+    keys = list(settlement_keys) if settlement_keys is not None else list(config.SETTLEMENT_KEYS)
+    boxes = []
+    for key in keys:
+        if key not in config.SETTLEMENTS:
+            raise ValueError(f"Unknown settlement '{key}'.")
+        min_lon, min_lat, max_lon, max_lat = config.SETTLEMENTS[key].fallback_bbox
+        boxes.append(box(min_lon, min_lat, max_lon, max_lat))
+    query_area = gpd.GeoDataFrame(geometry=[unary_union(boxes)], crs=config.CRS_WGS84)
+    # Expand in metres so the fetch includes channels just outside the bbox.
+    query_area = query_area.to_crs(config.CRS_METRIC).buffer(buffer_m).to_crs(config.CRS_WGS84)
+    raw = _features_from_polygon_with_retry(
+        query_area.geometry.iloc[0],
+        {"waterway": ["river", "stream", "drain"]},
+    )
+    return waterway_corridor_polygons(raw, buffer_m=buffer_m, metric_crs=config.CRS_METRIC)
+
+
 def fetch_osm_infrastructure(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Fetch water points, sanitation points, and road network for proximity features."""
     polygon = boundary.geometry.iloc[0]

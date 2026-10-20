@@ -96,9 +96,9 @@ v1 baseline and a v2 improvement pass.
   export names (`{settlement}_raster_stack.tif`, including Earth Engine's
   ` (1)` re-export suffix).
 - `notebooks/05_sprint5_late_fusion.ipynb` runs the matrix on synthetic
-  parcels (so the rule is visible without Drive) and, when checkpoints
-  and an NRRP GeoJSON are present, on the three settlements. River-corridor
-  polygons are the fallback reference.
+  parcels and, when checkpoints are present, on the three settlements.
+  With no NRRP GeoJSON it fetches OSM rivers, streams, and drains once
+  and scores lift against a 120 m corridor around them.
 
 Sprint 6 (XAI dashboard: SHAP / Grad-CAM + Folium) is not yet implemented.
 

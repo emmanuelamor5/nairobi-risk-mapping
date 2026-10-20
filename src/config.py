@@ -195,6 +195,12 @@ FUSION_NRRP_OVERRIDES_FLOOD = True
 # Measuring it on real parcels needs Colab, the trained heads, and the NRRP
 # polygons (or the OSM river-corridor fallback).
 FUSION_NRRP_LIFT_TARGET = 1.0
+# Used when the 37 NRRP zone polygons are not available. Parcels within this
+# distance of an OSM river, stream, or drain count as inside the reference.
+# Same width as the Sprint 2 v2 notebook fallback. It is a coarser prior
+# than the NRRP zones: a pass here means flood-responsive actions concentrate
+# on the river corridor, not that they match the official high-risk map.
+FUSION_RIVER_BUFFER_M = 120.0
 
 # --- Raster tiling ---
 TILE_SIZE_PX = 256
