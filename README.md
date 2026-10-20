@@ -67,8 +67,26 @@ v1 baseline and a v2 improvement pass.
   Attention U-Net on pooled tiles when Drive manifests exist, and prints
   whether thresholds are met.
 
-Sprints 5–6 (late-fusion / NRRP policy validation, XAI dashboard) are not
-yet implemented.
+**Sprint 5 (weeks 9-10): Late-fusion policy engine** — implemented
+(offline helpers + Colab notebook; real NRRP lift needs Colab + the 37-zone
+polygons).
+
+- `src/models/fusion_engine.py` concatenates the U-Net flood probability and
+  the GraphSAGE deprivation probability vector and looks up a 3×3 rule matrix
+  (`config.DEFAULT_POLICY_MATRIX`) that assigns each parcel **Retain and
+  Formalise**, **Retain and Upgrade**, or **Compensated Resettlement**. The
+  matrix and flood-bin cuts are isolated from trained weights so a different
+  city can retune policy without retraining.
+- `src/utils/parcel_io.py` samples the flood surface at building centroids,
+  tests parcel-in-NRRP membership, and writes GeoJSON.
+- Validation is **resettlement lift** against NRRP high-risk polygons (OSM
+  river-corridor fallback): Compensated Resettlement should concentrate
+  inside the overlay (`config.POLICY_NRRP_LIFT_TARGET` = 1.5).
+- `notebooks/05_sprint5_fusion_engine.ipynb` runs the path on all three
+  settlements and writes `outputs/classifications/`.
+
+**Sprint 6 (weeks 11-12): XAI dashboard** — not yet implemented (Grad-CAM /
+SHAP + Folium).
 
 ## Repo structure
 
@@ -82,6 +100,7 @@ src/
     flood_label.py          # event-based change-detection label (pure numpy, Sprint 2 v2)
     label_validation.py     # label-vs-reference agreement / lift (Sprint 2 v2)
     deprivation_label.py    # UN-Habitat/SUPI-proxy node labels (pure numpy, Sprint 3)
+    parcel_io.py            # Sprint 5: sample flood raster, NRRP membership, GeoJSON I/O
   models/
     attention_unet.py       # Attention U-Net (optional dropout)
     attention_unet_model.py # training/inference wrapper (weight decay, early stopping)
@@ -93,12 +112,14 @@ src/
     graphsage_model.py      # training/inference wrapper (stratified split, macro-F1)
     graphsage_metrics.py    # macro-F1 + stratified 60/20/20 node split
     multi_settlement.py     # Sprint 4: combine graphs/tiles, splits, pooled metrics
+    fusion_engine.py        # Sprint 5: late-fusion policy matrix + NRRP lift
 notebooks/
   01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
   02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
   02_sprint2_attention_unet_v2.ipynb    # Sprint 2 v2: event label + validation + regularisation
   03_sprint3_graphsage.ipynb            # Sprint 3: GraphSAGE deprivation head on Kibera
   04_sprint4_three_settlements.ipynb    # Sprint 4: both heads on Kibera+Mathare+Mukuru
+  05_sprint5_fusion_engine.ipynb        # Sprint 5: late fusion + NRRP policy validation
 tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```
