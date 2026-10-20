@@ -335,3 +335,56 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
         data.y = torch.tensor(labels, dtype=torch.long)
 
     return data
+
+
+def graph_has_positions(data) -> bool:
+    """True when ``data.pos`` is an (N, 2) centroid tensor aligned to the nodes."""
+    pos = getattr(data, "pos", None)
+    if pos is None or not hasattr(pos, "shape"):
+        return False
+    return (
+        int(getattr(pos, "ndim", 0)) == 2
+        and int(pos.shape[0]) == int(data.num_nodes)
+        and int(pos.shape[1]) == 2
+    )
+
+
+def align_parcel_positions(existing: Data, refreshed: Data,
+                           atol: float = 1e-4, rtol: float = 1e-4):
+    """
+    Put centroids on a graph that was saved before Sprint 5 stored ``data.pos``.
+
+    ``refreshed`` is a graph just built from OSM (it has ``pos``). Returns
+    ``(graph, status)``:
+
+    - ``"present"`` — ``existing`` already has centroids.
+    - ``"aligned"`` — same nodes in the same order (feature tensors match).
+      Centroids are copied onto ``existing``, so the training-graph node
+      order and labels stay put and a saved softmax still lines up.
+    - ``"replaced"`` — OSM no longer reproduces that node set. The refreshed
+      graph is returned. GraphSAGE weights do not depend on node index, so
+      the caller reruns ``predict_proba`` on it.
+
+    Matching on the z-scored features is the identity check. A changed
+    building inventory shifts those values, and guessing an alignment from
+    the node count alone would sample the flood raster at the wrong roof.
+    """
+    if graph_has_positions(existing):
+        return existing, "present"
+    if not graph_has_positions(refreshed):
+        raise ValueError("refreshed graph has no data.pos; cannot attach centroids.")
+
+    same_nodes = int(existing.num_nodes) == int(refreshed.num_nodes)
+    features_match = False
+    if same_nodes and existing.x is not None and refreshed.x is not None:
+        if tuple(existing.x.shape) == tuple(refreshed.x.shape):
+            features_match = torch.allclose(
+                existing.x.float(), refreshed.x.float(), atol=atol, rtol=rtol,
+            )
+    if same_nodes and features_match:
+        existing.pos = refreshed.pos.double()
+        crs = getattr(refreshed, "pos_crs", None)
+        if crs is not None:
+            existing.pos_crs = crs
+        return existing, "aligned"
+    return refreshed, "replaced"

@@ -90,8 +90,11 @@ v1 baseline and a v2 improvement pass.
   does not.
 - Parcel centroids are stored on `data.pos` (EPSG:32737) in GraphSAGE node
   order so a flood raster or overlapping U-Net tiles can be sampled at
-  buildings. Graphs written before Sprint 5 need a rebuild before that
-  sampling path works.
+  buildings. Graphs written before Sprint 5 have no `data.pos`. The Sprint 5
+  notebook re-fetches OSM once, copies centroids onto the saved graph when
+  the node features still match, and reads flood stacks from the Drive
+  export names (`{settlement}_raster_stack.tif`, including Earth Engine's
+  ` (1)` re-export suffix).
 - `notebooks/05_sprint5_late_fusion.ipynb` runs the matrix on synthetic
   parcels (so the rule is visible without Drive) and, when checkpoints
   and an NRRP GeoJSON are present, on the three settlements. River-corridor

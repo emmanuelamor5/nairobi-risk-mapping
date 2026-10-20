@@ -26,6 +26,7 @@ from src.models.fusion import (
     format_policy_report,
     justice_audit,
     load_policy_table,
+    newest_geotiff,
     parcel_reference_mask,
     sample_flood_at_pos,
     sample_geotiff_at_pos,
@@ -267,6 +268,24 @@ def test_parcel_reference_mask_intersects_polygons():
 
     empty = gpd.GeoDataFrame(geometry=[], crs="EPSG:32737")
     assert parcel_reference_mask(empty, reference).shape == (0,)
+
+
+def test_newest_geotiff_prefers_the_latest_earth_engine_reexport(tmp_path):
+    import os
+    import time
+
+    older = tmp_path / "kibera_raster_stack.tif"
+    newer = tmp_path / "kibera_raster_stack (2).tif"
+    other = tmp_path / "mathare_raster_stack.tif"
+    older.write_bytes(b"old")
+    newer.write_bytes(b"new")
+    other.write_bytes(b"mathare")
+    now = time.time()
+    os.utime(older, (now - 50, now - 50))
+    os.utime(newer, (now, now))
+    found = newest_geotiff([tmp_path, tmp_path / "missing"], "kibera_raster_stack")
+    assert found == newer
+    assert newest_geotiff([tmp_path], "mukuru_raster_stack") is None
 
 
 def test_sample_geotiff_roundtrip(tmp_path):

@@ -733,6 +733,26 @@ def aggregate_tile_probabilities(parcel_rows, parcel_cols, tiles) -> np.ndarray:
     return out
 
 
+def newest_geotiff(directories, prefix: str):
+    """
+    Newest ``.tif`` whose filename starts with ``prefix``.
+
+    Earth Engine will not overwrite an export, so a re-run leaves
+    ``kibera_raster_stack.tif`` and ``kibera_raster_stack (1).tif`` side by
+    side in the Drive folder (the Sprint 1 export prefix), not under
+    ``data/raster_stacks/``. Missing directories are skipped.
+    """
+    matches = []
+    for directory in directories:
+        directory = Path(directory)
+        if not directory.exists():
+            continue
+        matches.extend(path for path in directory.glob(f"{prefix}*.tif") if path.is_file())
+    if not matches:
+        return None
+    return max(matches, key=lambda path: path.stat().st_mtime)
+
+
 def sample_geotiff_at_pos(path, pos, pos_crs) -> np.ndarray:
     """Sample band 1 of a GeoTIFF at ``pos`` (N, 2) in ``pos_crs``."""
     import rasterio
