@@ -304,11 +304,25 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     data.x = (data.x - mean) / std
     data.feature_names = list(NODE_FEATURE_NAMES)
 
-    if graph.number_of_nodes() > 0 and "deprivation_class" in next(iter(graph.nodes(data=True)))[1]:
-        # from_networkx preserves node insertion order for attribute tensors
-        # when group_node_attrs is used; rebuild y in the same node order.
-        node_order = list(graph.nodes())
+    # Preserve insertion order so Sprint 5 can join GraphSAGE probabilities
+    # back onto building footprints. from_networkx would otherwise stash the
+    # centroid y-coordinate on data.y (colliding with the deprivation label).
+    node_order = list(graph.nodes())
+    if node_order:
+        data.node_ids = torch.tensor([int(n) for n in node_order], dtype=torch.long)
+        first = graph.nodes[node_order[0]]
+        if "x" in first and "y" in first:
+            data.pos = torch.tensor(
+                [[float(graph.nodes[n]["x"]), float(graph.nodes[n]["y"])] for n in node_order],
+                dtype=torch.float32,
+            )
+
+    if node_order and "deprivation_class" in graph.nodes[node_order[0]]:
         labels = [int(graph.nodes[n]["deprivation_class"]) for n in node_order]
         data.y = torch.tensor(labels, dtype=torch.long)
+    else:
+        # from_networkx copies the centroid `y` attribute onto data.y; drop it
+        # so the label slot stays empty until deprivation classes exist.
+        data.y = None
 
     return data

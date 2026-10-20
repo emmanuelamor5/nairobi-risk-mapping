@@ -97,6 +97,12 @@ def test_pyg_conversion_preserves_node_count():
     assert data.num_nodes == len(coords)
     # area, dist_to_water, dist_to_sanitation, dist_to_road, roof_material_score
     assert data.x.shape[1] == 5
+    # Sprint 5 join keys: node order + metric centroids, not the 'y' coord
+    # colliding with the deprivation label.
+    assert data.pos.shape == (3, 2)
+    assert data.pos[0].tolist() == [0.0, 0.0]
+    assert data.node_ids.tolist() == [0, 1, 2]
+    assert data.y is None  # no deprivation_class on these synthetic nodes
 
 
 def test_enrichment_attaches_deprivation_labels_to_pyg_data():

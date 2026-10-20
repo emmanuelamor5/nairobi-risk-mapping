@@ -1,5 +1,6 @@
 # Data (regenerate via DataPipeline, don't commit raw/exported rasters)
 data/
+outputs/
 *.tif
 *.tiff
 *.npy
