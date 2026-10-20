@@ -114,6 +114,8 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
     ordered_keys += [k for k in graphs if k not in ordered_keys]
 
     x_parts, y_parts, edge_parts = [], [], []
+    pos_parts = []
+    has_all_pos = True
     settlement_ids = []
     node_offset = {}
     offset = 0
@@ -127,6 +129,10 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
             raise ValueError(f"Graph for '{key}' has no data.y labels.")
         y_parts.append(data.y.view(-1).long())
         settlement_ids.append(torch.full((n,), sid, dtype=torch.long))
+        if hasattr(data, "pos") and data.pos is not None and data.pos.shape == (n, 2):
+            pos_parts.append(data.pos.float())
+        else:
+            has_all_pos = False
 
         if data.edge_index is not None and data.edge_index.numel() > 0:
             edge_parts.append(data.edge_index + offset)
@@ -141,6 +147,8 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
         ),
         y=torch.cat(y_parts, dim=0),
     )
+    if has_all_pos and pos_parts:
+        combined.pos = torch.cat(pos_parts, dim=0)
     combined.settlement_id = torch.cat(settlement_ids, dim=0)
     combined.settlement_keys = list(ordered_keys)
     combined.node_offset = dict(node_offset)

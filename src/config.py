@@ -193,9 +193,51 @@ RASTER_MIN_TILE_LOCATIONS = 2
 RASTER_EXPORT_BASE_BUFFER_M = 200   # floor; never buffer less than this
 RASTER_EXPORT_BUFFER_MARGIN = 1.10  # 10% headroom over the strict minimum
 
+# --- Late-fusion policy decision engine (Sprint 5) -----------------------
+# Proposal Sec 3.2.3 / FR-05 / Sec 3.4.3 (weeks 9-10):
+# The FusionEngine combines the Attention U-Net's flood hazard probability
+# with GraphSAGE's 3-class deprivation severity probability vector into one
+# of three governance categories per parcel:
+#
+#   0 = Retain and Formalise     (low flood risk, low deprivation)
+#   1 = Retain and Upgrade       (safe/moderate flood risk with medium/high
+#                                 deprivation, or moderate flood risk with
+#                                 low deprivation needing drainage investment)
+#   2 = Compensated Resettlement (high flood risk, or moderate flood risk
+#                                 compounded by high structural deprivation)
+POLICY_CLASS_NAMES = (
+    "Retain and Formalise",
+    "Retain and Upgrade",
+    "Compensated Resettlement",
+)
+POLICY_NUM_CLASSES = 3
+# Choropleth dashboard colors per proposal Sec 3.6.3 / 4.4.2 (green / amber / red).
+POLICY_CLASS_COLORS = (
+    "#2ecc71",  # Retain and Formalise (green)
+    "#f39c12",  # Retain and Upgrade (amber)
+    "#e74c3c",  # Compensated Resettlement (red)
+)
+# Flood probability cuts separating low / moderate / high flood hazard.
+# Isolated as config constants so policy thresholds can be recalibrated for
+# different cities or risk tolerances without modifying trained model weights
+# (proposal Sec 3.6.1 Class Diagram).
+FUSION_FLOOD_LOW_THRESHOLD = 0.30
+FUSION_FLOOD_HIGH_THRESHOLD = 0.60
+# Default buffer (metres) around OSM river/stream corridors when the 37 NRRP
+# high-risk zone polygons are not supplied as an external file.
+NRRP_FALLBACK_RIVER_BUFFER_M = 120.0
+# Sprint 5 validation bar: Compensated Resettlement recommendations must
+# concentrate inside the NRRP / riparian high-risk reference zone relative to
+# the settlement baseline (lift > 1.0).
+FUSION_NRRP_MIN_LIFT = 1.0
+
 # --- Output paths (relative to repo root; mount Drive at this path in Colab) ---
 DATA_ROOT = "data"
 RAW_DIR = f"{DATA_ROOT}/raw"
 STACKS_DIR = f"{DATA_ROOT}/raster_stacks"
 TILES_DIR = f"{DATA_ROOT}/tiles"
 GRAPHS_DIR = f"{DATA_ROOT}/graphs"
+OUTPUTS_DIR = "outputs"
+CLASSIFICATIONS_DIR = f"{OUTPUTS_DIR}/classifications"
+XAI_DIR = f"{OUTPUTS_DIR}/xai"
+DASHBOARD_DIR = "dashboard"

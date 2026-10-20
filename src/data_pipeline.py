@@ -274,6 +274,19 @@ class DataPipeline:
         import torch
         torch.save(data, out_path)
 
+        # Also persist the pruned building footprints (in WGS84) in the same
+        # node order as ``data`` so Sprint 5's FusionEngine and Sprint 6's
+        # Folium dashboard can render exact building polygons per node.
+        buildings_path = out_dir / f"{self.settlement_key}_buildings.geojson"
+        try:
+            node_order = list(graph.nodes())
+            ordered = buildings.set_index("node_id").loc[node_order].reset_index()
+            # Drop non-serialisable secondary geometry column ("centroid") before GeoJSON export.
+            export_gdf = ordered.drop(columns=["centroid"], errors="ignore").to_crs(config.CRS_WGS84)
+            export_gdf.to_file(buildings_path, driver="GeoJSON")
+        except Exception as exc:
+            logger.warning("Could not write buildings GeoJSON to %s: %s", buildings_path, exc)
+
         integrity_path = out_dir / f"{self.settlement_key}_graph_integrity.json"
         with open(integrity_path, "w") as f:
             json.dump(integrity, f, indent=2)
