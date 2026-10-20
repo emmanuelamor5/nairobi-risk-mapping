@@ -274,6 +274,13 @@ class DataPipeline:
         import torch
         torch.save(data, out_path)
 
+        # Sprint 5 join key: footprints in graph node order, so the fusion
+        # engine can sample the U-Net flood surface at each centroid without
+        # a second Overpass round-trip.
+        from .utils.parcel_io import save_buildings_geojson
+        geojson_path = out_dir / f"{self.settlement_key}_buildings.geojson"
+        save_buildings_geojson(buildings, geojson_path)
+
         integrity_path = out_dir / f"{self.settlement_key}_graph_integrity.json"
         with open(integrity_path, "w") as f:
             json.dump(integrity, f, indent=2)

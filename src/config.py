@@ -174,6 +174,50 @@ ATTENTION_UNET_FINAL_F1_TARGET = 0.75
 # Canonical settlement order for multi-settlement training / reporting.
 SETTLEMENT_KEYS = tuple(SETTLEMENTS.keys())
 
+# --- Late-fusion policy engine (Sprint 5 / FR-05) ---------------------------
+# Three governance categories assigned per parcel by concatenating the U-Net
+# flood probability with the GraphSAGE deprivation probability vector and
+# looking up a rule-based matrix. Isolated here so a different city can retune
+# thresholds without touching trained weights (proposal Sec 3.6.1).
+#
+#   0 = Retain and Formalise     -- safe ground, low deprivation (tenure)
+#   1 = Retain and Upgrade       -- safe/moderate flood or in-situ WASH need
+#   2 = Compensated Resettlement -- acute flood (NRRP-aligned relocate class)
+POLICY_CLASS_NAMES = (
+    "retain_and_formalise",
+    "retain_and_upgrade",
+    "compensated_resettlement",
+)
+POLICY_CLASS_LABELS = (
+    "Retain and Formalise",
+    "Retain and Upgrade",
+    "Compensated Resettlement",
+)
+POLICY_NUM_CLASSES = 3
+
+# Flood-probability bins feeding the matrix. Low = tenure-security candidate
+# (if deprivation is also low); high = relocate regardless of deprivation.
+POLICY_FLOOD_LOW_MAX = 0.30
+POLICY_FLOOD_HIGH_MIN = 0.60
+
+# rows = flood bin (low, medium, high); cols = deprivation class (0, 1, 2).
+# Medium flood + high deprivation is treated as compounded vulnerability and
+# maps to resettlement; everything else in the middle band is in-situ upgrade
+# (drainage / WASH). High flood always resettles -- even durable housing in a
+# floodway is unsafe, which is the distinction the NRRP 37-zone overlay is
+# meant to capture at parcel rather than buffer scale.
+DEFAULT_POLICY_MATRIX = (
+    (0, 1, 1),  # low flood
+    (1, 1, 2),  # medium flood
+    (2, 2, 2),  # high flood
+)
+
+# Sprint 5 exit statistic: Compensated Resettlement parcels should concentrate
+# inside NRRP high-risk polygons (or the OSM river-corridor fallback). Lift is
+# P(in reference | resettle) / P(in reference). Lift > 1 is enrichment; 1.5 is
+# a deliberately modest bar given that NRRP zones are coarser than parcels.
+POLICY_NRRP_LIFT_TARGET = 1.5
+
 # --- Raster tiling ---
 TILE_SIZE_PX = 256
 TILE_OVERLAP_PX = 50
@@ -199,3 +243,6 @@ RAW_DIR = f"{DATA_ROOT}/raw"
 STACKS_DIR = f"{DATA_ROOT}/raster_stacks"
 TILES_DIR = f"{DATA_ROOT}/tiles"
 GRAPHS_DIR = f"{DATA_ROOT}/graphs"
+# Sprint 5 parcel-policy GeoJSON (proposal Sec 4.4.1 /outputs/classifications/).
+OUTPUTS_DIR = "outputs"
+CLASSIFICATIONS_DIR = f"{OUTPUTS_DIR}/classifications"
