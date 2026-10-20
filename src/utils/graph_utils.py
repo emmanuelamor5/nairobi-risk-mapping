@@ -297,6 +297,25 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     data = from_networkx(graph, group_node_attrs=list(NODE_FEATURE_NAMES))
     data.x = data.x.float()
 
+    # Preserve metric building centroid coordinates (CRS_METRIC, EPSG:32737)
+    # from the NetworkX node attributes BEFORE they collide with PyG's
+    # ``data.x`` / ``data.y`` conventions. from_networkx copies node attr
+    # ``y`` (the northing) onto ``data.y``, which GraphSAGE then overwrites
+    # with the deprivation class target. Sprint 5's FusionEngine uses
+    # ``data.pos`` to sample the U-Net flood probability raster at each
+    # building and to export the policy GeoJSON even when the original OSM
+    # GeoDataFrame is not cached on disk.
+    node_order = list(graph.nodes())
+    if node_order:
+        first_attrs = graph.nodes[node_order[0]]
+        if "x" in first_attrs and "y" in first_attrs:
+            coords = [
+                [float(graph.nodes[n]["x"]), float(graph.nodes[n]["y"])]
+                for n in node_order
+            ]
+            data.pos = torch.tensor(coords, dtype=torch.float32)
+        data.node_id = torch.tensor([int(n) for n in node_order], dtype=torch.long)
+
     # z-score normalise node features so GraphSAGE's mean aggregator isn't
     # dominated by raw metre-scale distances vs. area in square metres.
     mean = data.x.mean(dim=0, keepdim=True)
@@ -304,10 +323,9 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     data.x = (data.x - mean) / std
     data.feature_names = list(NODE_FEATURE_NAMES)
 
-    if graph.number_of_nodes() > 0 and "deprivation_class" in next(iter(graph.nodes(data=True)))[1]:
+    if node_order and "deprivation_class" in graph.nodes[node_order[0]]:
         # from_networkx preserves node insertion order for attribute tensors
         # when group_node_attrs is used; rebuild y in the same node order.
-        node_order = list(graph.nodes())
         labels = [int(graph.nodes[n]["deprivation_class"]) for n in node_order]
         data.y = torch.tensor(labels, dtype=torch.long)
 

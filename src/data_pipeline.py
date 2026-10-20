@@ -43,7 +43,10 @@ class DataPipeline:
         self.gee_project_id = gee_project_id or config.GEE_PROJECT_ID
         self.data_root = Path(data_root or config.DATA_ROOT)
 
-        for d in [config.RAW_DIR, config.STACKS_DIR, config.TILES_DIR, config.GRAPHS_DIR]:
+        for d in [
+            config.RAW_DIR, config.STACKS_DIR, config.TILES_DIR, config.GRAPHS_DIR,
+            config.CLASSIFICATIONS_DIR,
+        ]:
             (self.data_root.parent / d).mkdir(parents=True, exist_ok=True)
 
         self._boundary = None
@@ -273,6 +276,27 @@ class DataPipeline:
 
         import torch
         torch.save(data, out_path)
+
+        # Persist the pruned building footprints (WGS84) in the same node
+        # order as ``data`` so Sprint 5's FusionEngine and Sprint 6's Folium
+        # dashboard can render exact building polygons per node.
+        buildings_path = out_dir / f"{self.settlement_key}_buildings.geojson"
+        try:
+            node_order = list(graph.nodes())
+            ordered = buildings.set_index("node_id").loc[node_order].reset_index()
+            export_gdf = ordered.drop(columns=["centroid"], errors="ignore").to_crs(
+                config.CRS_WGS84
+            )
+            for col in list(export_gdf.columns):
+                if col == "geometry":
+                    continue
+                series = export_gdf[col]
+                sample = series.dropna()
+                if len(sample) and hasattr(sample.iloc[0], "geom_type"):
+                    export_gdf = export_gdf.drop(columns=[col])
+            export_gdf.to_file(buildings_path, driver="GeoJSON")
+        except Exception as exc:
+            logger.warning("Could not write buildings GeoJSON to %s: %s", buildings_path, exc)
 
         integrity_path = out_dir / f"{self.settlement_key}_graph_integrity.json"
         with open(integrity_path, "w") as f:

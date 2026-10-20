@@ -105,6 +105,8 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
       - ``settlement_keys``: list of keys in index order (also on ``.keys`` for
         notebook convenience)
       - ``node_offset``: dict key -> starting node index in the combined graph
+      - ``pos`` / ``node_id``: concatenated when every component graph has them
+        (Sprint 5 spatial alignment)
     """
     if not graphs:
         raise ValueError("combine_settlement_graphs requires at least one graph.")
@@ -114,6 +116,9 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
     ordered_keys += [k for k in graphs if k not in ordered_keys]
 
     x_parts, y_parts, edge_parts = [], [], []
+    pos_parts, node_id_parts = [], []
+    has_all_pos = True
+    has_all_node_id = True
     settlement_ids = []
     node_offset = {}
     offset = 0
@@ -127,6 +132,14 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
             raise ValueError(f"Graph for '{key}' has no data.y labels.")
         y_parts.append(data.y.view(-1).long())
         settlement_ids.append(torch.full((n,), sid, dtype=torch.long))
+        if hasattr(data, "pos") and data.pos is not None and data.pos.shape == (n, 2):
+            pos_parts.append(data.pos.float())
+        else:
+            has_all_pos = False
+        if hasattr(data, "node_id") and data.node_id is not None and data.node_id.numel() == n:
+            node_id_parts.append(data.node_id.view(-1).long())
+        else:
+            has_all_node_id = False
 
         if data.edge_index is not None and data.edge_index.numel() > 0:
             edge_parts.append(data.edge_index + offset)
@@ -141,6 +154,10 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
         ),
         y=torch.cat(y_parts, dim=0),
     )
+    if has_all_pos and pos_parts:
+        combined.pos = torch.cat(pos_parts, dim=0)
+    if has_all_node_id and node_id_parts:
+        combined.node_id = torch.cat(node_id_parts, dim=0)
     combined.settlement_id = torch.cat(settlement_ids, dim=0)
     combined.settlement_keys = list(ordered_keys)
     combined.node_offset = dict(node_offset)
