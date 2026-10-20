@@ -99,6 +99,24 @@ def test_pyg_conversion_preserves_node_count():
     assert data.x.shape[1] == 5
 
 
+def test_pyg_data_keeps_metric_centroids_in_node_order():
+    """Sprint 5 samples flood at data.pos; it must match GraphSAGE's node order."""
+    coords = [(500000.0, 9850000.0), (500010.0, 9850000.0), (500025.0, 9850008.0)]
+    buildings = _make_buildings(coords)
+    buildings["area_m2"] = [10.0, 40.0, 80.0]
+    graph = graph_utils.build_proximity_graph(buildings, threshold_m=30.0)
+    data = graph_utils.graph_to_pyg_data(graph)
+    assert data.pos.shape == (3, 2)
+    assert data.pos_crs == config.CRS_METRIC
+    np.testing.assert_allclose(data.pos.numpy(), coords)
+    # No deprivation label on this graph: the centroid northing must not
+    # occupy data.y, or GraphSAGE would train on a coordinate.
+    assert data.y is None
+    # z-scoring preserves area order, so feature row 0 is still the first building.
+    assert data.x[:, 0].argmax().item() == 2
+    assert data.x[:, 0].argmin().item() == 0
+
+
 def test_enrichment_attaches_deprivation_labels_to_pyg_data():
     """Varying infra distances must produce a three-class y tensor on the PyG object."""
     coords = [(i * 10, 0) for i in range(12)]

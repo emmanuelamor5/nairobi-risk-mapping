@@ -293,6 +293,11 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     object. Node features follow ``NODE_FEATURE_NAMES`` (area + three
     infrastructure distances + roof-material score). When nodes carry
     ``deprivation_class``, that becomes ``data.y`` for GraphSAGE training.
+
+    Centroid coordinates are stored on ``data.pos`` (N, 2) in
+    ``data.pos_crs`` (EPSG:32737), in the same node order as ``data.x``.
+    Sprint 5 samples the flood raster at these points; the coordinates are
+    not GraphSAGE features.
     """
     data = from_networkx(graph, group_node_attrs=list(NODE_FEATURE_NAMES))
     data.x = data.x.float()
@@ -304,10 +309,28 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     data.x = (data.x - mean) / std
     data.feature_names = list(NODE_FEATURE_NAMES)
 
-    if graph.number_of_nodes() > 0 and "deprivation_class" in next(iter(graph.nodes(data=True)))[1]:
-        # from_networkx preserves node insertion order for attribute tensors
-        # when group_node_attrs is used; rebuild y in the same node order.
-        node_order = list(graph.nodes())
+    # Centroid easting/northing are node attributes named "x" and "y" (metric
+    # CRS, see build_proximity_graph). from_networkx stores the northing on
+    # data.y, which would be read as a class label, and the grouped feature
+    # matrix overwrites the easting. Keep both on data.pos so Sprint 5 can
+    # sample the flood raster at the same node order GraphSAGE uses, then
+    # drop the stray northing tensor.
+    node_order = list(graph.nodes())
+    has_xy = (
+        len(node_order) > 0
+        and "x" in graph.nodes[node_order[0]]
+        and "y" in graph.nodes[node_order[0]]
+    )
+    if has_xy:
+        data.pos = torch.tensor(
+            [[float(graph.nodes[n]["x"]), float(graph.nodes[n]["y"])] for n in node_order],
+            dtype=torch.float64,
+        )
+        data.pos_crs = config.CRS_METRIC
+        if "y" in data:
+            del data.y
+
+    if node_order and "deprivation_class" in graph.nodes[node_order[0]]:
         labels = [int(graph.nodes[n]["deprivation_class"]) for n in node_order]
         data.y = torch.tensor(labels, dtype=torch.long)
 
