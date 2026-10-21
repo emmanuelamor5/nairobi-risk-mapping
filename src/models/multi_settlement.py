@@ -117,6 +117,13 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
     settlement_ids = []
     node_offset = {}
     offset = 0
+    # Parcel centroids (Sprint 5 flood sampling) are kept only when every
+    # settlement has them, in the same node order as x/y. A mix of old graphs
+    # (no pos) and new ones would silently mis-align, so drop pos entirely
+    # rather than concatenate a subset.
+    pos_parts = []
+    pos_crs = []
+    keep_pos = True
 
     for sid, key in enumerate(ordered_keys):
         data = graphs[key]
@@ -127,6 +134,18 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
             raise ValueError(f"Graph for '{key}' has no data.y labels.")
         y_parts.append(data.y.view(-1).long())
         settlement_ids.append(torch.full((n,), sid, dtype=torch.long))
+
+        pos = getattr(data, "pos", None)
+        if pos is None:
+            keep_pos = False
+        else:
+            if int(pos.shape[0]) != n:
+                raise ValueError(
+                    f"Graph for '{key}' has pos length {int(pos.shape[0])} "
+                    f"but {n} nodes."
+                )
+            pos_parts.append(pos)
+            pos_crs.append(getattr(data, "pos_crs", None))
 
         if data.edge_index is not None and data.edge_index.numel() > 0:
             edge_parts.append(data.edge_index + offset)
@@ -144,6 +163,17 @@ def combine_settlement_graphs(graphs: Mapping[str, Data]) -> Data:
     combined.settlement_id = torch.cat(settlement_ids, dim=0)
     combined.settlement_keys = list(ordered_keys)
     combined.node_offset = dict(node_offset)
+    if keep_pos and pos_parts:
+        combined.pos = torch.cat([p.double() for p in pos_parts], dim=0)
+        crs_names = {str(c) for c in pos_crs}
+        if len(crs_names) == 1 and pos_crs[0] is not None:
+            combined.pos_crs = pos_crs[0]
+    elif any(getattr(graphs[k], "pos", None) is not None for k in ordered_keys):
+        logger.warning(
+            "Not all settlement graphs carry data.pos -- combined graph has no "
+            "parcel coordinates. Rebuild graphs so Sprint 5 can sample flood "
+            "probabilities at building centroids."
+        )
     # Preserve feature-name metadata when every component agrees.
     feature_names = getattr(next(iter(graphs.values())), "feature_names", None)
     if feature_names is not None:
@@ -248,20 +278,24 @@ def evaluate_graphsage_by_settlement(
         )
 
     device = next(model.network.parameters()).device
-    data = data.to(device)
-    split_mask = getattr(data, mask_attr)
+    # Do not Data.to(device): that moves data.pos onto the GPU as well, and
+    # Sprint 5 still needs those centroids on the host for raster sampling.
+    # Host copies also keep a graph that fit() already parked on CUDA working.
     model.network.eval()
-    logits = model.network(data.x, data.edge_index)
+    logits = model.network(data.x.to(device), data.edge_index.to(device)).cpu()
+    split_mask = getattr(data, mask_attr).detach().cpu()
+    settlement_id = data.settlement_id.detach().cpu()
+    labels = data.y.detach().cpu()
 
     per_settlement = {}
     cms = []
     for sid, key in enumerate(data.settlement_keys):
-        node_mask = (data.settlement_id == sid) & split_mask
+        node_mask = (settlement_id == sid) & split_mask
         if int(node_mask.sum()) == 0:
             logger.warning("No %s nodes for settlement %s -- skipping.", split, key)
             continue
         report = classification_report_from_logits(
-            logits[node_mask], data.y[node_mask], num_classes=num_classes,
+            logits[node_mask], labels[node_mask], num_classes=num_classes,
         )
         per_settlement[key] = report
         cms.append(np.asarray(report["confusion_matrix"], dtype=np.int64))

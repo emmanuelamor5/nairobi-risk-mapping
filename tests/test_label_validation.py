@@ -87,3 +87,23 @@ def test_rasterize_reference_against_grid():
     assert mask.shape == (10, 10)
     assert mask[:, :5].all()         # left half burned
     assert not mask[:, 5:].any()     # right half empty
+
+
+def test_waterway_corridor_contains_points_near_the_channel():
+    gpd = pytest.importorskip("geopandas")
+    from shapely.geometry import LineString, Point
+
+    from src.models.fusion import parcel_reference_mask
+    from src.utils.label_validation import waterway_corridor_polygons
+
+    channel = gpd.GeoDataFrame(
+        geometry=[LineString([(500000, 9850000), (500200, 9850000)])],
+        crs="EPSG:32737",
+    )
+    corridor = waterway_corridor_polygons(channel, buffer_m=20.0)
+    parcels = gpd.GeoDataFrame(
+        geometry=[Point(500100, 9850005), Point(500100, 9850080)],
+        crs="EPSG:32737",
+    )
+    assert parcel_reference_mask(parcels, corridor).tolist() == [True, False]
+    assert len(waterway_corridor_polygons(gpd.GeoDataFrame(geometry=[], crs="EPSG:32737"))) == 0

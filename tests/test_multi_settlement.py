@@ -64,6 +64,29 @@ def test_combine_settlement_graphs_is_disjoint_union():
     assert combined.node_offset == {"kibera": 0, "mathare": 30, "mukuru": 50}
 
 
+def test_combine_settlement_graphs_concatenates_pos_when_every_graph_has_it():
+    graphs = {
+        "kibera": _synth_graph(4, seed=1),
+        "mathare": _synth_graph(3, seed=2),
+    }
+    graphs["kibera"].pos = torch.arange(8, dtype=torch.float64).reshape(4, 2)
+    graphs["mathare"].pos = torch.arange(6, dtype=torch.float64).reshape(3, 2)
+    graphs["kibera"].pos_crs = "EPSG:32737"
+    graphs["mathare"].pos_crs = "EPSG:32737"
+    combined = combine_settlement_graphs(graphs)
+    assert combined.pos.shape == (7, 2)
+    assert combined.pos_crs == "EPSG:32737"
+    assert torch.equal(combined.pos[:4], graphs["kibera"].pos)
+
+    graphs["mukuru"] = _synth_graph(2, seed=3)  # no pos
+    mixed = {
+        "kibera": graphs["kibera"],
+        "mukuru": graphs["mukuru"],
+    }
+    combined_mixed = combine_settlement_graphs(mixed)
+    assert combined_mixed.pos is None
+
+
 def test_stratified_multi_settlement_split_preserves_each_settlement():
     labels = np.array([0, 1, 2] * 20 + [0, 1, 2] * 10)  # 60 + 30
     sids = np.array([0] * 60 + [1] * 30)

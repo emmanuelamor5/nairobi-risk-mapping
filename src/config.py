@@ -174,6 +174,34 @@ ATTENTION_UNET_FINAL_F1_TARGET = 0.75
 # Canonical settlement order for multi-settlement training / reporting.
 SETTLEMENT_KEYS = tuple(SETTLEMENTS.keys())
 
+# --- Late-fusion policy engine (Sprint 5) --------------------------------
+# The U-Net sigmoid is read as P(flood). Parcels at or above this value take
+# the high-hazard row of the policy matrix. The boundary is inclusive: a
+# coin-flip hazard is treated as hazard (precaution). Compensated resettlement
+# still also requires a majority high-deprivation probability, so the
+# precautionary flood rule cannot by itself authorise displacement.
+FUSION_FLOOD_THRESHOLD = 0.5
+
+# The NRRP 37 high-risk riparian zones are a planning constraint independent
+# of the U-Net. When True, a parcel that intersects a zone is forced onto the
+# high-hazard row of the matrix. The zone does not by itself authorise
+# resettlement -- high deprivation is still required. See src/models/fusion.py.
+FUSION_NRRP_OVERRIDES_FLOOD = True
+
+# Sprint 5 exit bar. Same enrichment test as the Sprint 2 v2 flood-label
+# lift: flood-responsive *model* actions (computed before the NRRP override,
+# so the test is not circular) must concentrate inside the reference zone.
+# The report passes only when lift is strictly greater than this value.
+# Measuring it on real parcels needs Colab, the trained heads, and the NRRP
+# polygons (or the OSM river-corridor fallback).
+FUSION_NRRP_LIFT_TARGET = 1.0
+# Used when the 37 NRRP zone polygons are not available. Parcels within this
+# distance of an OSM river, stream, or drain count as inside the reference.
+# Same width as the Sprint 2 v2 notebook fallback. It is a coarser prior
+# than the NRRP zones: a pass here means flood-responsive actions concentrate
+# on the river corridor, not that they match the official high-risk map.
+FUSION_RIVER_BUFFER_M = 120.0
+
 # --- Raster tiling ---
 TILE_SIZE_PX = 256
 TILE_OVERLAP_PX = 50

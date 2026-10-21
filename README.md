@@ -67,8 +67,43 @@ v1 baseline and a v2 improvement pass.
   Attention U-Net on pooled tiles when Drive manifests exist, and prints
   whether thresholds are met.
 
-Sprints 5–6 (late-fusion / NRRP policy validation, XAI dashboard) are not
-yet implemented.
+**Sprint 5 (weeks 9-10): Late-fusion policy engine** — implemented
+(offline engine + Colab notebook; a real NRRP lift needs Colab).
+
+- `src/models/fusion.py` concatenates the U-Net flood probability with the
+  GraphSAGE deprivation softmax and reads the pair off a fixed policy
+  matrix (the governance rule, not a third trained network). The six cells
+  are five actions:
+  retain and formalise, retain and upgrade, priority in-situ upgrade,
+  flood-resilient upgrade, and compensated resettlement.
+- Compensated resettlement is only reached when hazard is high (U-Net
+  probability ≥ `config.FUSION_FLOOD_THRESHOLD`, or the parcel intersects
+  an NRRP high-risk zone) and high-deprivation probability is a
+  majority (`> 0.5`). A plurality is not enough: the matrix cell is
+  rewritten to in-place resilient upgrade. The zone forces the high-hazard
+  row; it does not skip the deprivation gate.
+- Validation reuses the Sprint 2 lift statistic on the **model** action,
+  computed before the NRRP override so the test is not circular
+  (`config.FUSION_NRRP_LIFT_TARGET`, lift must be strictly greater). A
+  separate justice audit checks that no resettlement decision violates
+  the majority-hazard rule; that audit has to pass even when the lift
+  does not.
+- Parcel centroids are stored on `data.pos` (EPSG:32737) in GraphSAGE node
+  order so a flood raster or overlapping U-Net tiles can be sampled at
+  buildings. Graphs written before Sprint 5 have no `data.pos`. The Sprint 5
+  notebook re-fetches OSM once, copies centroids onto the saved graph when
+  the node features still match, and reads flood stacks from the Drive
+  export names (`{settlement}_raster_stack.tif`, including Earth Engine's
+  ` (1)` re-export suffix).
+- `notebooks/05_sprint5_late_fusion.ipynb` runs the matrix on synthetic
+  parcels and, when checkpoints are present, on the three settlements.
+  With no NRRP GeoJSON it fetches OSM rivers, streams, and drains once
+  and scores lift against a 120 m corridor around them. The executed
+  Colab run fused all 18,005 parcels (justice audit passed; 1,265
+  resettlements). River-corridor lift was 0.929, so the exit bar was
+  not met. That figure is the fallback, not the 37-zone test.
+
+Sprint 6 (XAI dashboard: SHAP / Grad-CAM + Folium) is not yet implemented.
 
 ## Repo structure
 
@@ -93,12 +128,14 @@ src/
     graphsage_model.py      # training/inference wrapper (stratified split, macro-F1)
     graphsage_metrics.py    # macro-F1 + stratified 60/20/20 node split
     multi_settlement.py     # Sprint 4: combine graphs/tiles, splits, pooled metrics
+    fusion.py               # Sprint 5: policy matrix, NRRP lift, parcel sampling
 notebooks/
   01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
   02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
   02_sprint2_attention_unet_v2.ipynb    # Sprint 2 v2: event label + validation + regularisation
   03_sprint3_graphsage.ipynb            # Sprint 3: GraphSAGE deprivation head on Kibera
   04_sprint4_three_settlements.ipynb    # Sprint 4: both heads on Kibera+Mathare+Mukuru
+  05_sprint5_late_fusion.ipynb          # Sprint 5: policy matrix + NRRP validation
 tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```

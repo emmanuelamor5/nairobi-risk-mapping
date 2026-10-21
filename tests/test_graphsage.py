@@ -130,6 +130,27 @@ def test_graphsage_model_fit_smoke_and_checkpoint():
         assert "macro_f1" in test_report
 
 
+def test_predict_proba_does_not_move_parcel_centroids():
+    """Data.to(device) would park data.pos on CUDA and break flood sampling."""
+    data = _synthetic_graph(30, seed=3)
+    pos = torch.arange(60, dtype=torch.float64).reshape(30, 2)
+    data.pos = pos
+    model = GraphSAGEModel(in_channels=5, hidden_channels=16, num_classes=3)
+    original = Data.to
+
+    def _reject_full_move(self, *args, **kwargs):
+        raise AssertionError("predict_proba must not Data.to() the caller graph")
+
+    Data.to = _reject_full_move
+    try:
+        probs = model.predict_proba(data)
+    finally:
+        Data.to = original
+    assert probs.shape == (30, 3)
+    assert data.pos.data_ptr() == pos.data_ptr()
+    assert data.pos.device.type == "cpu"
+
+
 def test_graphsage_model_rejects_missing_labels():
     data = Data(
         x=torch.randn(10, 5),

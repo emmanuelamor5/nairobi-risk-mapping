@@ -17,7 +17,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.utils import graph_utils
+from src.utils.graph_utils import align_parcel_positions, graph_has_positions
 from src import config
+from torch_geometric.data import Data
 
 
 def _make_buildings(coords, crs=config.CRS_METRIC):
@@ -97,6 +99,59 @@ def test_pyg_conversion_preserves_node_count():
     assert data.num_nodes == len(coords)
     # area, dist_to_water, dist_to_sanitation, dist_to_road, roof_material_score
     assert data.x.shape[1] == 5
+
+
+def test_align_parcel_positions_keeps_the_saved_graph_when_features_match():
+    existing = Data(x=torch.randn(5, 5), y=torch.arange(5), edge_index=torch.zeros(2, 0, dtype=torch.long))
+    refreshed = Data(x=existing.x.clone(), y=torch.zeros(5, dtype=torch.long),
+                     edge_index=torch.zeros(2, 0, dtype=torch.long))
+    refreshed.pos = torch.arange(10, dtype=torch.float64).reshape(5, 2)
+    refreshed.pos_crs = "EPSG:32737"
+    updated, status = align_parcel_positions(existing, refreshed)
+    assert status == "aligned"
+    assert updated is existing
+    assert torch.equal(updated.pos, refreshed.pos)
+    assert updated.pos_crs == "EPSG:32737"
+    # Training labels stay on the saved graph; the fresh OSM labels are not copied.
+    assert torch.equal(updated.y, torch.arange(5))
+
+
+def test_align_parcel_positions_replaces_when_the_node_set_changed():
+    existing = Data(x=torch.randn(4, 5), y=torch.arange(4), edge_index=torch.zeros(2, 0, dtype=torch.long))
+    refreshed = Data(x=torch.randn(6, 5), y=torch.arange(6), edge_index=torch.zeros(2, 0, dtype=torch.long))
+    refreshed.pos = torch.zeros((6, 2), dtype=torch.float64)
+    updated, status = align_parcel_positions(existing, refreshed)
+    assert status == "replaced"
+    assert updated is refreshed
+    assert graph_has_positions(updated)
+
+
+def test_align_parcel_positions_leaves_an_already_positioned_graph():
+    existing = Data(x=torch.randn(3, 5), edge_index=torch.zeros(2, 0, dtype=torch.long))
+    existing.pos = torch.ones((3, 2), dtype=torch.float64)
+    refreshed = Data(x=existing.x.clone(), edge_index=torch.zeros(2, 0, dtype=torch.long))
+    refreshed.pos = torch.zeros((3, 2), dtype=torch.float64)
+    updated, status = align_parcel_positions(existing, refreshed)
+    assert status == "present"
+    assert torch.equal(updated.pos, torch.ones((3, 2), dtype=torch.float64))
+
+
+def test_pyg_data_keeps_metric_centroids_in_node_order():
+    """Sprint 5 samples flood at data.pos; it must match GraphSAGE's node order."""
+    coords = [(500000.0, 9850000.0), (500010.0, 9850000.0), (500025.0, 9850008.0)]
+    buildings = _make_buildings(coords)
+    buildings["area_m2"] = [10.0, 40.0, 80.0]
+    graph = graph_utils.build_proximity_graph(buildings, threshold_m=30.0)
+    data = graph_utils.graph_to_pyg_data(graph)
+    assert data.pos.shape == (3, 2)
+    assert data.pos_crs == config.CRS_METRIC
+    np.testing.assert_allclose(data.pos.numpy(), coords)
+    # No deprivation label on this graph: the centroid northing must not
+    # occupy data.y, or GraphSAGE would train on a coordinate.
+    assert data.y is None
+    # z-scoring preserves area order, so feature row 0 is still the first building.
+    assert data.x[:, 0].argmax().item() == 2
+    assert data.x[:, 0].argmin().item() == 0
 
 
 def test_enrichment_attaches_deprivation_labels_to_pyg_data():

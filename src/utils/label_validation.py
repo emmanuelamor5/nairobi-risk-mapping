@@ -122,6 +122,34 @@ def rasterize_reference(reference_gdf, transform, out_shape, raster_crs) -> np.n
     return mask
 
 
+def waterway_corridor_polygons(waterways_gdf, buffer_m: float = 120.0,
+                              metric_crs: str = "EPSG:32737"):
+    """
+    Buffer OSM waterway lines into corridor polygons.
+
+    The parcel-level Sprint 5 lift test asks which building centroids sit
+    inside a river corridor. ``river_corridor_reference`` burns the same
+    idea onto a raster; this returns the polygons so a point-in-polygon
+    test can run without a grid. Lines are buffered in ``metric_crs``
+    (UTM 37S for Nairobi) and returned in that CRS. Empty input returns
+    an empty frame rather than raising.
+    """
+    import geopandas as gpd
+
+    empty = gpd.GeoDataFrame(geometry=[], crs=metric_crs)
+    if waterways_gdf is None or len(waterways_gdf) == 0:
+        return empty
+    lines = waterways_gdf[waterways_gdf.geometry.geom_type.isin(
+        ["LineString", "MultiLineString"]
+    )].copy()
+    if lines.empty:
+        return empty
+    metric = lines.to_crs(metric_crs)
+    buffered = metric.buffer(float(buffer_m))
+    buffered = buffered[(buffered.notna()) & (~buffered.is_empty)]
+    return gpd.GeoDataFrame(geometry=list(buffered), crs=metric_crs)
+
+
 def river_corridor_reference(waterways_gdf, transform, out_shape, raster_crs,
                              buffer_m: float = 100.0) -> np.ndarray:
     """

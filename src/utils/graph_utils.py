@@ -112,6 +112,39 @@ def fetch_osm_buildings(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return buildings
 
 
+def fetch_river_corridor(settlement_keys=None, buffer_m: float = None):
+    """
+    One Overpass query for river, stream, and drain lines over the settlement
+    bboxes, buffered into a corridor for the Sprint 5 lift test.
+
+    This is the fallback reference when the NRRP 37-zone polygons are not
+    on disk. The query polygon is the union of the configured bboxes, expanded
+    by the buffer so a river just outside a bbox still counts for buildings
+    on the edge. Returns corridor polygons in ``config.CRS_METRIC``.
+    """
+    from shapely.geometry import box
+    from shapely.ops import unary_union
+
+    from .label_validation import waterway_corridor_polygons
+
+    buffer_m = float(buffer_m if buffer_m is not None else config.FUSION_RIVER_BUFFER_M)
+    keys = list(settlement_keys) if settlement_keys is not None else list(config.SETTLEMENT_KEYS)
+    boxes = []
+    for key in keys:
+        if key not in config.SETTLEMENTS:
+            raise ValueError(f"Unknown settlement '{key}'.")
+        min_lon, min_lat, max_lon, max_lat = config.SETTLEMENTS[key].fallback_bbox
+        boxes.append(box(min_lon, min_lat, max_lon, max_lat))
+    query_area = gpd.GeoDataFrame(geometry=[unary_union(boxes)], crs=config.CRS_WGS84)
+    # Expand in metres so the fetch includes channels just outside the bbox.
+    query_area = query_area.to_crs(config.CRS_METRIC).buffer(buffer_m).to_crs(config.CRS_WGS84)
+    raw = _features_from_polygon_with_retry(
+        query_area.geometry.iloc[0],
+        {"waterway": ["river", "stream", "drain"]},
+    )
+    return waterway_corridor_polygons(raw, buffer_m=buffer_m, metric_crs=config.CRS_METRIC)
+
+
 def fetch_osm_infrastructure(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Fetch water points, sanitation points, and road network for proximity features."""
     polygon = boundary.geometry.iloc[0]
@@ -293,6 +326,11 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     object. Node features follow ``NODE_FEATURE_NAMES`` (area + three
     infrastructure distances + roof-material score). When nodes carry
     ``deprivation_class``, that becomes ``data.y`` for GraphSAGE training.
+
+    Centroid coordinates are stored on ``data.pos`` (N, 2) in
+    ``data.pos_crs`` (EPSG:32737), in the same node order as ``data.x``.
+    Sprint 5 samples the flood raster at these points; the coordinates are
+    not GraphSAGE features.
     """
     data = from_networkx(graph, group_node_attrs=list(NODE_FEATURE_NAMES))
     data.x = data.x.float()
@@ -304,11 +342,82 @@ def graph_to_pyg_data(graph: nx.Graph) -> Data:
     data.x = (data.x - mean) / std
     data.feature_names = list(NODE_FEATURE_NAMES)
 
-    if graph.number_of_nodes() > 0 and "deprivation_class" in next(iter(graph.nodes(data=True)))[1]:
-        # from_networkx preserves node insertion order for attribute tensors
-        # when group_node_attrs is used; rebuild y in the same node order.
-        node_order = list(graph.nodes())
+    # Centroid easting/northing are node attributes named "x" and "y" (metric
+    # CRS, see build_proximity_graph). from_networkx stores the northing on
+    # data.y, which would be read as a class label, and the grouped feature
+    # matrix overwrites the easting. Keep both on data.pos so Sprint 5 can
+    # sample the flood raster at the same node order GraphSAGE uses, then
+    # drop the stray northing tensor.
+    node_order = list(graph.nodes())
+    has_xy = (
+        len(node_order) > 0
+        and "x" in graph.nodes[node_order[0]]
+        and "y" in graph.nodes[node_order[0]]
+    )
+    if has_xy:
+        data.pos = torch.tensor(
+            [[float(graph.nodes[n]["x"]), float(graph.nodes[n]["y"])] for n in node_order],
+            dtype=torch.float64,
+        )
+        data.pos_crs = config.CRS_METRIC
+        if "y" in data:
+            del data.y
+
+    if node_order and "deprivation_class" in graph.nodes[node_order[0]]:
         labels = [int(graph.nodes[n]["deprivation_class"]) for n in node_order]
         data.y = torch.tensor(labels, dtype=torch.long)
 
     return data
+
+
+def graph_has_positions(data) -> bool:
+    """True when ``data.pos`` is an (N, 2) centroid tensor aligned to the nodes."""
+    pos = getattr(data, "pos", None)
+    if pos is None or not hasattr(pos, "shape"):
+        return False
+    return (
+        int(getattr(pos, "ndim", 0)) == 2
+        and int(pos.shape[0]) == int(data.num_nodes)
+        and int(pos.shape[1]) == 2
+    )
+
+
+def align_parcel_positions(existing: Data, refreshed: Data,
+                           atol: float = 1e-4, rtol: float = 1e-4):
+    """
+    Put centroids on a graph that was saved before Sprint 5 stored ``data.pos``.
+
+    ``refreshed`` is a graph just built from OSM (it has ``pos``). Returns
+    ``(graph, status)``:
+
+    - ``"present"`` — ``existing`` already has centroids.
+    - ``"aligned"`` — same nodes in the same order (feature tensors match).
+      Centroids are copied onto ``existing``, so the training-graph node
+      order and labels stay put and a saved softmax still lines up.
+    - ``"replaced"`` — OSM no longer reproduces that node set. The refreshed
+      graph is returned. GraphSAGE weights do not depend on node index, so
+      the caller reruns ``predict_proba`` on it.
+
+    Matching on the z-scored features is the identity check. A changed
+    building inventory shifts those values, and guessing an alignment from
+    the node count alone would sample the flood raster at the wrong roof.
+    """
+    if graph_has_positions(existing):
+        return existing, "present"
+    if not graph_has_positions(refreshed):
+        raise ValueError("refreshed graph has no data.pos; cannot attach centroids.")
+
+    same_nodes = int(existing.num_nodes) == int(refreshed.num_nodes)
+    features_match = False
+    if same_nodes and existing.x is not None and refreshed.x is not None:
+        if tuple(existing.x.shape) == tuple(refreshed.x.shape):
+            features_match = torch.allclose(
+                existing.x.float(), refreshed.x.float(), atol=atol, rtol=rtol,
+            )
+    if same_nodes and features_match:
+        existing.pos = refreshed.pos.double()
+        crs = getattr(refreshed, "pos_crs", None)
+        if crs is not None:
+            existing.pos_crs = crs
+        return existing, "aligned"
+    return refreshed, "replaced"
