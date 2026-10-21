@@ -217,6 +217,10 @@ def test_summarize_and_roundtrip(tmp_path):
     np.testing.assert_array_equal(from_gzip["action_index"], decision["action_index"])
     found = resolve_policy_table(extra_dirs=[tmp_path])
     assert found == gz_path
+    plain = tmp_path / "nested"
+    plain.mkdir()
+    (plain / "policy_table.npz").write_bytes(path.read_bytes())
+    assert resolve_policy_table(extra_dirs=[plain]) == plain / "policy_table.npz"
 
 
 def test_sample_raster_and_aggregate_tiles():

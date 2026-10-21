@@ -550,8 +550,14 @@ def resolve_policy_table(extra_dirs=None) -> Path:
     """
     names = ("policy_table.npz", "policy_table.npz.gz", "policy_table.npz.zip")
     roots = [
+        Path("."),
         Path("data"),
         Path("checkpoints/sprint5"),
+        Path("/content"),
+        Path("/content/nairobi-risk-mapping"),
+        Path("/content/nairobi-risk-mapping/data"),
+        Path("/content/drive/MyDrive"),
+        Path("/content/drive/MyDrive/nairobi_risk_mapping"),
         Path("/content/drive/MyDrive/nairobi_risk_mapping/data"),
         Path("/content/drive/MyDrive/nairobi_risk_mapping/checkpoints/sprint5"),
     ]
