@@ -178,14 +178,64 @@ def serve(records: dict, host: str = "127.0.0.1", port: int = 8765, verifier=Non
     return server
 
 
+def public_url_from_cloudflared_log(line: str):
+    """Return the trycloudflare URL from one cloudflared log line, if present."""
+    import re
+
+    match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line or "")
+    return match.group(0) if match else None
+
+
+def _start_cloudflared(port: int):
+    """
+    Open a public HTTPS tunnel to a port on this machine.
+
+    Colab's notebook iframe points at localhost on the laptop, so the frame
+    stays blank. cloudflared gives a real address the laptop browser can open.
+    The sign-in page is what that address shows; parcel data still requires MFA.
+    """
+    import os
+    import shutil
+    import subprocess
+    import time
+    import urllib.request
+
+    binary = shutil.which("cloudflared")
+    if binary is None:
+        binary = "/tmp/cloudflared"
+        if not os.path.exists(binary):
+            print("Downloading cloudflared so Colab can publish a browser URL...")
+            urllib.request.urlretrieve(
+                "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
+                binary,
+            )
+            os.chmod(binary, 0o755)
+    process = subprocess.Popen(
+        [binary, "tunnel", "--url", f"http://127.0.0.1:{int(port)}", "--no-autoupdate"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    deadline = time.time() + 40
+    while time.time() < deadline:
+        line = process.stdout.readline()
+        if not line:
+            if process.poll() is not None:
+                break
+            continue
+        found = public_url_from_cloudflared_log(line)
+        if found:
+            return found
+    return None
+
+
 def launch(records: dict, port: int = 8765, web_config: dict = None):
     """
     Serve the dashboard in a background thread and return the server.
 
-    Colab's ``serve_kernel_port_as_window`` opens ``https://localhost``, which
-    the laptop browser cannot reach. The page is embedded in the notebook
-    output with ``serve_kernel_port_as_iframe`` instead. The socket listens
-    on all interfaces so Colab's proxy can connect.
+    On Colab, also print a public HTTPS URL. The embedded iframe and the
+    ``colab.dev`` link both resolve to localhost in the laptop browser, so
+    they stay blank.
     """
     import threading
 
@@ -194,12 +244,16 @@ def launch(records: dict, port: int = 8765, web_config: dict = None):
     thread.start()
     print(f"Dashboard listening on port {port}  parcels={records['positions'].shape[0]}")
     try:
-        from google.colab import output
-
-        print("The sign-in page is embedded below. Do not open localhost or the raw colab.dev URL.")
-        output.serve_kernel_port_as_iframe(int(port), height=720)
-    except Exception as exc:
-        print(f"Not inside Colab ({exc}). Local URL: http://127.0.0.1:{port}")
+        import google.colab  # noqa: F401
+    except ImportError:
+        print(f"Open http://127.0.0.1:{port} in a browser on this computer.")
+        return server
+    print("Colab cannot show this server inside the notebook. Opening a public URL...")
+    public = _start_cloudflared(port)
+    if public:
+        print("Open this address on your laptop:", public)
+    else:
+        print("Could not open a public URL. Download policy_map.html instead.")
     return server
 
 

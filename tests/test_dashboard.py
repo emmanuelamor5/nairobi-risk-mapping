@@ -175,6 +175,14 @@ def test_join_graph_positions_follows_settlement_key_order():
     assert joined["positions"][-1].tolist() == [5.0, 6.0]
 
 
+def test_cloudflared_log_line_yields_the_public_url():
+    from src.dashboard.app import public_url_from_cloudflared_log
+
+    line = "INF |  https://random-name.trycloudflare.com  |"
+    assert public_url_from_cloudflared_log(line) == "https://random-name.trycloudflare.com"
+    assert public_url_from_cloudflared_log("no url here") is None
+
+
 def test_launch_serves_the_shell_without_blocking():
     from urllib.request import urlopen
 
