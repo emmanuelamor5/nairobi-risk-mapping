@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nairobi parcel policy</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1c2833;
+      --muted: #5d6d7e;
+      --line: #d5d8dc;
+      --paper: #f4f6f7;
+      --card: #ffffff;
+      --accent: #1b4f72;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header, main, aside, section { min-width: 0; }
+    .gate {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(440px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 28px 24px;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 8px; }
+    p { margin: 0 0 14px; line-height: 1.45; }
+    label { display: block; font-size: 0.85rem; margin: 12px 0 4px; }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      font: inherit;
+    }
+    button {
+      margin-top: 16px;
+      background: var(--accent);
+      color: white;
+      border: 0;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.secondary { background: white; color: var(--accent); border: 1px solid var(--accent); }
+    .error { color: #922b21; min-height: 1.2em; }
+    .app { display: none; min-height: 100vh; grid-template-rows: auto auto 1fr; }
+    .app.on { display: grid; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 18px;
+      background: white;
+      border-bottom: 1px solid var(--line);
+    }
+    .banner {
+      padding: 10px 18px;
+      background: #fdebd0;
+      border-bottom: 1px solid #e59866;
+      font-size: 0.92rem;
+    }
+    .body {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 0;
+    }
+    aside {
+      padding: 16px;
+      border-right: 1px solid var(--line);
+      background: white;
+      overflow: auto;
+    }
+    .map-frame { width: 100%; height: 100%; min-height: 70vh; border: 0; background: #e5e8e8; }
+    .swatch { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 0.92rem; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 16px; }
+    .filters button { margin-top: 0; padding: 6px 10px; }
+    .filters button[aria-pressed="true"] { background: var(--accent); color: white; }
+    @media (max-width: 800px) {
+      .body { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <section class="gate" id="gate">
+    <div class="card">
+      <h1>Nairobi parcel policy</h1>
+      <p id="gate-copy">Sign in with your email, password, and an authenticator code. Resettlement decisions are not shown until the second factor succeeds.</p>
+      <p class="error" id="gate-error" role="alert"></p>
+      <form id="sign-in">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <form id="challenge" hidden>
+        <label for="otp">Authenticator code</label>
+        <input id="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required>
+        <button type="submit">Verify code</button>
+      </form>
+      <form id="enroll" hidden>
+        <p>This account has no second factor. Add an authenticator app, then sign in again. The map stays closed until that second sign-in.</p>
+        <p id="secret"></p>
+        <label for="enroll-code">Code from the app</label>
+        <input id="enroll-code" inputmode="numeric" pattern="[0-9]{6}" required>
+        <button type="submit">Enroll authenticator</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="app" id="app">
+    <header class="top">
+      <div>
+        <strong>Nairobi parcel policy</strong>
+        <div id="who"></div>
+      </div>
+      <button type="button" class="secondary" id="sign-out">Sign out</button>
+    </header>
+    <div class="banner" id="banner"></div>
+    <div class="body">
+      <aside>
+        <div>Settlement</div>
+        <div class="filters" id="filters"></div>
+        <div>Actions</div>
+        <div id="legend"></div>
+        <div id="counts"></div>
+      </aside>
+      <iframe class="map-frame" id="map" title="Parcel policy map"></iframe>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import {
+      getAuth, signInWithEmailAndPassword, signOut, multiFactor,
+      TotpMultiFactorGenerator, getMultiFactorResolver, onAuthStateChanged,
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+    const firebaseConfig = {{FIREBASE_CONFIG_JSON}};
+    const liftNote = {{LIFT_NOTE_JSON}};
+    const settlements = {{SETTLEMENTS_JSON}};
+    const colors = {{COLORS_JSON}};
+
+    const gate = document.getElementById("gate");
+    const appEl = document.getElementById("app");
+    const errorEl = document.getElementById("gate-error");
+    let resolver = null;
+    let totpSecret = null;
+
+    if (!firebaseConfig || !firebaseConfig.apiKey) {
+      errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
+    }
+    const auth = firebaseConfig && firebaseConfig.apiKey ? getAuth(initializeApp(firebaseConfig)) : null;
+
+    function show(id) {
+      for (const form of ["sign-in", "challenge", "enroll"]) {
+        document.getElementById(form).hidden = form !== id;
+      }
+    }
+
+    async function openMap(user) {
+      const token = await user.getIdToken(true);
+      const factors = multiFactor(user).enrolledFactors || [];
+      if (factors.length === 0) {
+        show("enroll");
+        gate.hidden = false;
+        appEl.classList.remove("on");
+        const session = await multiFactor(user).getSession();
+        totpSecret = await TotpMultiFactorGenerator.generateSecret(session);
+        document.getElementById("secret").textContent =
+          "Secret key: " + totpSecret.secretKey;
+        return;
+      }
+      const response = await fetch("/api/map", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (response.status === 403) {
+        errorEl.textContent = "Sign-in did not include a second factor. Sign out and sign in again to enter the authenticator code.";
+        show("sign-in");
+        return;
+      }
+      if (!response.ok) {
+        errorEl.textContent = "The map request was refused.";
+        return;
+      }
+      document.getElementById("map").srcdoc = await response.text();
+      const summary = await fetch("/api/summary", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const counts = summary.ok ? await summary.json() : {};
+      const legend = document.getElementById("legend");
+      const countBox = document.getElementById("counts");
+      legend.replaceChildren();
+      countBox.replaceChildren();
+      for (const [name, color] of Object.entries(colors)) {
+        const row = document.createElement("div");
+        row.className = "swatch";
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        dot.style.background = color;
+        row.append(dot, document.createTextNode(name.replaceAll("_", " ") + " (" + (counts[name] || 0) + ")"));
+        legend.append(row);
+      }
+      document.getElementById("who").textContent = user.email || "";
+      document.getElementById("banner").textContent = liftNote;
+      gate.hidden = true;
+      appEl.classList.add("on");
+    }
+
+    document.getElementById("sign-in").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      if (!auth) return;
+      try {
+        const cred = await signInWithEmailAndPassword(
+          auth,
+          document.getElementById("email").value.trim(),
+          document.getElementById("password").value,
+        );
+        await openMap(cred.user);
+      } catch (err) {
+        if (err.code === "auth/multi-factor-auth-required") {
+          resolver = getMultiFactorResolver(auth, err);
+          show("challenge");
+          return;
+        }
+        errorEl.textContent = err.message || "Sign-in failed.";
+      }
+    });
+
+    document.getElementById("challenge").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      try {
+        const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
+        const assertion = TotpMultiFactorGenerator.assertionForSignIn(
+          hint.uid,
+          document.getElementById("otp").value.trim(),
+        );
+        const cred = await resolver.resolveSignIn(assertion);
+        await openMap(cred.user);
+      } catch (err) {
+        errorEl.textContent = err.message || "The authenticator code was rejected.";
+      }
+    });
+
+    document.getElementById("enroll").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      try {
+        const assertion = TotpMultiFactorGenerator.assertionForEnrollment(
+          totpSecret,
+          document.getElementById("enroll-code").value.trim(),
+        );
+        await multiFactor(auth.currentUser).enroll(assertion, "Authenticator app");
+        await signOut(auth);
+        show("sign-in");
+        errorEl.textContent = "Authenticator enrolled. Sign in again and enter the current code.";
+      } catch (err) {
+        errorEl.textContent = err.message || "Enrollment failed.";
+      }
+    });
+
+    document.getElementById("sign-out").addEventListener("click", async () => {
+      if (auth) await signOut(auth);
+      document.getElementById("map").srcdoc = "";
+      appEl.classList.remove("on");
+      gate.hidden = false;
+      show("sign-in");
+    });
+
+    const filters = document.getElementById("filters");
+    async function loadSettlement(name, button) {
+      if (!auth || !auth.currentUser) return;
+      for (const item of filters.querySelectorAll("button")) item.setAttribute("aria-pressed", "false");
+      button.setAttribute("aria-pressed", "true");
+      const token = await auth.currentUser.getIdToken();
+      const query = name ? "?settlement=" + encodeURIComponent(name) : "";
+      const response = await fetch("/api/map" + query, { headers: { Authorization: "Bearer " + token } });
+      if (response.ok) document.getElementById("map").srcdoc = await response.text();
+    }
+    const all = document.createElement("button");
+    all.type = "button";
+    all.textContent = "All";
+    all.setAttribute("aria-pressed", "true");
+    all.addEventListener("click", () => loadSettlement("", all));
+    filters.append(all);
+    for (const name of settlements) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = name;
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", () => loadSettlement(name, button));
+      filters.append(button);
+    }
+
+    if (auth) {
+      onAuthStateChanged(auth, (user) => {
+        if (!user) {
+          appEl.classList.remove("on");
+          gate.hidden = false;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 """
 GraphSAGEModel: wraps the two-layer GraphSAGE module with training,
-inference, and (stubbed for Sprint 6) SHAP extraction methods, per
+inference, and SHAP extraction methods, per
 proposal Sec 'Initial Prototype Development': "a GraphSAGE Model class
 wrapping the PyTorch Geometric model with equivalent methods."
 
@@ -9,8 +9,8 @@ Training hyper-parameters follow proposal Sec 3.2.3:
   - Stratified 60/20/20 node split
   - Macro-F1 as the selection metric (Sprint 3 target >= 0.60)
 
-SHAP integration is intentionally left as a documented stub -- that is
-Sprint 6 scope (XAI + dashboard), not Sprint 3.
+SHAP for a single building is ``explain`` (exact local Shapley values).
+The Folium dashboard calls it only after a multi-factor session.
 """
 
 from __future__ import annotations
@@ -311,16 +311,14 @@ class GraphSAGEModel:
             self, data, split=split, num_classes=self.num_classes,
         )
 
-    def explain(self, *args, **kwargs):
+    def explain(self, data, node_index: int) -> dict:
         """
-        SHAP feature attribution for GraphSAGE node classifications --
-        Sprint 6 scope per proposal Sec 'Iterative Refinement'. Stubbed so
-        the public interface matches the OOAD design now.
+        Exact local SHAP of one building's features for the predicted
+        deprivation class. See ``explanations.explain_graphsage_node``.
         """
-        raise NotImplementedError(
-            "SHAP attribution is Sprint 6 scope, not Sprint 3. "
-            "This method is stubbed to match the proposal's class design."
-        )
+        from .explanations import explain_graphsage_node
+
+        return explain_graphsage_node(self, data, node_index)
 
     def load_checkpoint(self, checkpoint_path: str):
         self.network.load_state_dict(

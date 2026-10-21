@@ -1,17 +1,13 @@
 """
 AttentionUNetModel: wraps the AttentionUNet PyTorch module with training,
-inference, and (stubbed for Sprint 6) Captum XAI extraction methods, per
+inference, and Grad-CAM extraction methods, per
 proposal Sec 'Initial Prototype Development': "an Attention U Net class
 wrapping the PyTorch model with methods for training, inference, and
 Captum XAI extraction."
 
-Captum integration is intentionally left as a documented stub here --
-that's explicitly Sprint 6 scope (XAI integration and dashboard
-development), not Sprint 2. Building it now would be speculative, since
-Sprint 6 may want Grad-CAM specifically targeting the attention gates
-(per proposal Sec 'Model Training' rationale: "verifying that the network
-is attending to hydrologically relevant regions"), which is easier to
-design well once the trained model's actual attention behaviour is known.
+``explain`` returns a Grad-CAM map on the last decoder convolution, the
+layer that sits downstream of the attention gates. The dashboard does not
+embed those maps in the unauthenticated page.
 """
 
 import logging
@@ -192,19 +188,21 @@ class AttentionUNetModel:
         logits = self.network(inputs)
         return torch.sigmoid(logits).cpu()
 
-    def explain(self, *args, **kwargs):
+    def explain(self, inputs: torch.Tensor):
         """
-        Captum XAI extraction (Grad-CAM over the attention gates) -- Sprint 6
-        scope per proposal Sec 'Iterative Refinement'. Not implemented yet;
-        stubbed here so the class's public interface matches the proposal's
-        OOAD design now, with the actual Captum wiring deferred until the
-        model is trained and Sprint 6 begins.
+        Grad-CAM heatmap for a batch of tiles, one (H, W) map in [0, 1]
+        taken from the first item. The target is the last decoder
+        convolution, downstream of the attention gates.
         """
-        raise NotImplementedError(
-            "Captum Grad-CAM extraction is Sprint 6 scope, not Sprint 2. "
-            "This method is stubbed to match the proposal's class design "
-            "ahead of time."
-        )
+        import numpy as np
+
+        from .explanations import grad_cam_decoder
+
+        batch = inputs.to(self.device).float()
+        if batch.ndim == 3:
+            batch = batch.unsqueeze(0)
+        heat = grad_cam_decoder(self.network, batch)
+        return np.asarray(heat)
 
     def load_checkpoint(self, checkpoint_path: str):
         self.network.load_state_dict(torch.load(checkpoint_path, map_location=self.device))
