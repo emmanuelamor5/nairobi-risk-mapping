@@ -574,9 +574,24 @@ def resolve_policy_table(extra_dirs=None) -> Path:
             for candidate in sorted(root.glob("policy_table.npz*")):
                 if candidate.is_file():
                     return candidate
-    raise FileNotFoundError(
-        "No policy_table.npz (or .npz.gz) found. Looked in:\n  " + "\n  ".join(tried)
-    )
+    lines = ["No policy_table.npz (or .npz.gz) found. Looked in:", *["  " + item for item in tried]]
+    drive_root = Path("/content/drive/MyDrive")
+    project = drive_root / "nairobi_risk_mapping"
+    if Path("/content").exists() and not drive_root.exists():
+        lines.append(
+            "Google Drive is not mounted. Run drive.mount('/content/drive') and re-run this cell. "
+            "The table is MyDrive/nairobi_risk_mapping/policy_table.npz."
+        )
+    elif project.is_dir():
+        names = sorted(path.name for path in project.iterdir())
+        lines.append("Files currently visible in MyDrive/nairobi_risk_mapping:")
+        lines.extend("  " + name for name in names[:40])
+        if "policy_table.npz" not in names:
+            lines.append(
+                "policy_table.npz is not visible to this runtime. In Colab, run "
+                "drive.mount('/content/drive', force_remount=True) and re-run this cell."
+            )
+    raise FileNotFoundError("\n".join(lines))
 
 
 def resolve_graphs_dir(extra_dirs=None) -> Path:
