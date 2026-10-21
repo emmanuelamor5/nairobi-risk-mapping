@@ -27,6 +27,7 @@ from src.models.fusion import (
     justice_audit,
     load_policy_table,
     newest_geotiff,
+    resolve_policy_table,
     parcel_reference_mask,
     sample_flood_at_pos,
     sample_geotiff_at_pos,
@@ -208,6 +209,18 @@ def test_summarize_and_roundtrip(tmp_path):
     assert loaded["action_index"].shape == (6,)
     assert list(loaded["settlement_keys"]) == ["kibera", "mathare"]
     np.testing.assert_array_equal(loaded["action_index"], decision["action_index"])
+
+    import gzip
+    gz_path = tmp_path / "policy_table.npz.gz"
+    gz_path.write_bytes(gzip.compress(path.read_bytes()))
+    from_gzip = load_policy_table(gz_path)
+    np.testing.assert_array_equal(from_gzip["action_index"], decision["action_index"])
+    found = resolve_policy_table(extra_dirs=[tmp_path])
+    assert found == gz_path
+    plain = tmp_path / "nested"
+    plain.mkdir()
+    (plain / "policy_table.npz").write_bytes(path.read_bytes())
+    assert resolve_policy_table(extra_dirs=[plain]) == plain / "policy_table.npz"
 
 
 def test_sample_raster_and_aggregate_tiles():

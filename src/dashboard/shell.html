@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Folium — parcel policy</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --ink: #1c2833;
+      --muted: #5d6d7e;
+      --line: #e5e8eb;
+      --paper: #f7f8f9;
+      --card: #ffffff;
+      --nav: #111827;
+      --nav-soft: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
+    button, input { font: inherit; }
+    .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f6f7; }
+    .gate-card { width: min(440px, 100%); background: white; border: 1px solid var(--line); padding: 28px 24px; }
+    .gate-card h1 { margin: 0 0 8px; font-size: 1.3rem; }
+    label { display: block; margin: 12px 0 4px; font-size: 0.85rem; }
+    input[type="email"], input[type="password"], input[type="text"] {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+    }
+    .primary { background: var(--nav); color: white; border: 0; padding: 10px 14px; cursor: pointer; }
+    .ghost { background: white; border: 1px solid var(--line); padding: 8px 12px; cursor: pointer; }
+    .error { color: #922b21; min-height: 1.2em; }
+    .app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
+    .app.on { display: grid; }
+    aside { background: white; border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 100vh; }
+    .brand { display: flex; gap: 8px; align-items: center; padding: 16px; font-weight: 700; }
+    .mark { width: 28px; height: 28px; background: var(--nav); color: white; display: grid; place-items: center; font-size: 0.75rem; }
+    .group { padding: 8px 12px; color: var(--muted); font-size: 0.72rem; letter-spacing: 0.04em; }
+    .nav-btn, .side-note { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 12px; cursor: pointer; }
+    .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; }
+    .side-note { color: var(--muted); cursor: default; }
+    .analyst { margin-top: auto; padding: 14px; border-top: 1px solid var(--line); font-size: 0.88rem; }
+    .workspace { display: flex; flex-direction: column; min-width: 0; }
+    .top { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 18px; background: white; border-bottom: 1px solid var(--line); }
+    .top h1 { margin: 0; font-size: 1.05rem; }
+    .sub { color: var(--muted); font-size: 0.85rem; }
+    .tools { display: flex; gap: 8px; align-items: center; }
+    .search { padding: 8px 10px; border: 1px solid var(--line); width: 200px; }
+    .banner { padding: 8px 18px; background: #fdebd0; font-size: 0.85rem; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 18px; background: white; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+    .swatch { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .stage { position: relative; flex: 1; min-height: 70vh; }
+    #map { height: 100%; min-height: 70vh; }
+    .card {
+      position: absolute; top: 16px; right: 16px; width: min(360px, calc(100% - 32px));
+      background: white; border: 1px solid var(--line); padding: 16px; z-index: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .card h2 { margin: 0 0 4px; font-size: 1rem; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .metric { border: 1px solid var(--line); padding: 8px; }
+    .metric strong { display: block; font-size: 1.2rem; }
+    .cam {
+      border: 1px dashed #b0b7c3; min-height: 120px; display: grid; place-items: center;
+      text-align: center; color: var(--muted); padding: 12px; font-size: 0.85rem;
+    }
+    .xai { display: none; padding: 18px; gap: 12px; }
+    .xai.on { display: grid; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .panel { background: white; border: 1px solid var(--line); padding: 14px; }
+    .split { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 12px; }
+    .bar-row { display: grid; grid-template-columns: 180px 1fr 52px; gap: 8px; align-items: center; margin: 6px 0; font-size: 0.86rem; }
+    .track { background: #eef0f2; height: 14px; }
+    .fill { height: 14px; background: #111827; }
+    .fill.neg { background: #d5d8dc; }
+    .path { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .chip { border: 1px solid var(--line); padding: 8px 10px; background: white; }
+    .chip.final { background: #111827; color: white; }
+    footer { padding: 8px 18px; color: var(--muted); font-size: 0.8rem; background: white; border-top: 1px solid var(--line); }
+    @media (max-width: 900px) {
+      .app.on { grid-template-columns: 1fr; }
+      .stat-row, .split { grid-template-columns: 1fr; }
+      aside { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <section class="gate" id="gate">
+    <div class="gate-card">
+      <h1>Nairobi parcel policy</h1>
+      <p>Sign in, then enter the code from the text message. Parcel locations stay on the server until that second factor succeeds.</p>
+      <p class="error" id="gate-error" role="alert"></p>
+      <form id="sign-in">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button class="primary" type="submit">Sign in</button>
+      </form>
+      <button class="ghost" id="google" type="button" style="width:100%;margin-top:8px;">Sign in with Google</button>
+      <button class="ghost" id="apple" type="button" style="width:100%;margin-top:8px;">Sign in with Apple</button>
+      <form id="phone-sign-in">
+        <p>Or sign in with a phone number. Firebase texts a one-time code. Standard rates may apply.</p>
+        <label for="signin-phone">Phone number</label>
+        <input id="signin-phone" type="tel" autocomplete="tel" placeholder="+16505553434">
+        <div id="signin-recaptcha"></div>
+        <button class="ghost" id="send-signin-code" type="button">Send code</button>
+        <label for="signin-code">Verification code</label>
+        <input id="signin-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+        <button class="primary" type="submit">Sign in with phone</button>
+      </form>
+      <form id="challenge" hidden>
+        <p id="challenge-copy">Enter the code from the text message.</p>
+        <div id="challenge-recaptcha"></div>
+        <label for="otp">Text message code</label>
+        <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" required>
+        <button class="primary" type="submit">Verify code</button>
+      </form>
+      <form id="enroll" hidden>
+        <p>This account has no phone second factor. Enter a number in international form, such as +254712345678. After the code is saved, sign in again.</p>
+        <label for="phone">Phone number</label>
+        <input id="phone" type="tel" autocomplete="tel" placeholder="+254712345678" required>
+        <div id="enroll-recaptcha"></div>
+        <button class="ghost" id="send-enroll" type="button">Send code</button>
+        <label for="enroll-code">Text message code</label>
+        <input id="enroll-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+        <button class="primary" type="submit">Verify and enroll</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="app" id="app">
+    <aside>
+      <div class="brand"><span class="mark">F</span> Folium</div>
+      <div class="group">VIEWS</div>
+      <button class="nav-btn" id="nav-map" type="button" aria-pressed="true">Choropleth Map</button>
+      <button class="nav-btn" id="nav-xai" type="button" aria-pressed="false">XAI Summary</button>
+      <div class="group">DATA SET</div>
+      <div id="settlement-notes"></div>
+      <div class="side-note">Run history: Sprint 5 Colab fusion. River-corridor lift 0.929.</div>
+      <div class="group">MODEL</div>
+      <div class="side-note">GraphSAGE, two-layer mean aggregation</div>
+      <div class="side-note">Attention U-Net flood head</div>
+      <div class="analyst" id="analyst">Signed in</div>
+    </aside>
+    <div class="workspace">
+      <div id="map-view">
+        <header class="top">
+          <div>
+            <h1>Full-settlement choropleth map</h1>
+            <div class="sub" id="map-sub">Parcel-level policy classification</div>
+          </div>
+          <div class="tools">
+            <input class="search" id="search" type="search" placeholder="Search parcel ID">
+            <button class="ghost" id="export-map" type="button">Export</button>
+            <button class="ghost" id="sign-out" type="button">Sign out</button>
+          </div>
+        </header>
+        <div class="banner" id="banner"></div>
+        <div class="legend" id="legend"></div>
+        <div class="stage">
+          <div id="map"></div>
+          <article class="card" id="parcel-card" hidden>
+            <div style="display:flex;justify-content:space-between;gap:8px;">
+              <h2 id="card-id">Parcel</h2>
+              <button class="ghost" id="card-close" type="button">Close</button>
+            </div>
+            <div class="sub" id="card-settlement"></div>
+            <p>Assigned policy <strong id="card-action"></strong></p>
+            <div class="metrics">
+              <div class="metric">Flood probability<strong id="card-flood"></strong></div>
+              <div class="metric">Deprivation class<strong id="card-dep"></strong></div>
+            </div>
+            <div class="cam" id="card-cam">Grad-CAM is produced per raster tile by the Attention U-Net. This card does not invent a satellite chip for the parcel.</div>
+            <button class="primary" id="open-xai" type="button" style="width:100%;margin-top:12px;">View full XAI summary</button>
+          </article>
+        </div>
+        <footer id="map-foot"></footer>
+      </div>
+      <div class="xai" id="xai-view">
+        <header class="top">
+          <div>
+            <h1 id="xai-title">XAI summary</h1>
+            <div class="sub">GraphSAGE classification explainability</div>
+          </div>
+          <div class="tools">
+            <button class="ghost" id="back-map" type="button">Back to map</button>
+            <button class="ghost" id="export-xai" type="button">Export</button>
+          </div>
+        </header>
+        <div class="stat-row">
+          <div class="panel">Assigned policy<strong id="xai-action"></strong></div>
+          <div class="panel">Flood probability<strong id="xai-flood"></strong></div>
+          <div class="panel">Deprivation class probability<strong id="xai-dep"></strong></div>
+          <div class="panel">Model confidence<strong id="xai-conf"></strong></div>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <strong>Top SHAP feature contributors</strong>
+            <div class="sub">Exact local Shapley values of this building's five model inputs. Neighbours stay fixed.</div>
+            <div id="shap-bars"></div>
+          </div>
+          <div>
+            <div class="panel cam">Grad-CAM heatmap is computed on the flood tile, not stored per building. Run AttentionUNetModel.explain on the parcel's tile to fill this panel.</div>
+            <div class="panel" style="margin-top:12px;">
+              <strong>Feature values</strong>
+              <div id="feature-values"></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <strong>Prediction path</strong>
+          <div class="path" id="path"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import {
+      getAuth, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor,
+      TotpMultiFactorGenerator, PhoneAuthProvider, PhoneMultiFactorGenerator,
+      RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+    const firebaseConfig = {{FIREBASE_CONFIG_JSON}};
+    const liftNote = {{LIFT_NOTE_JSON}};
+    const settlements = {{SETTLEMENTS_JSON}};
+    const colors = {{COLORS_JSON}};
+    const errorEl = document.getElementById("gate-error");
+    let resolver = null;
+    let confirmationResult = null;
+    let verificationId = null;
+    let challengeKind = "phone";
+    let recaptcha = null;
+    let parcels = [];
+    let selected = null;
+    let map;
+    let layer;
+
+    if (!firebaseConfig || !firebaseConfig.apiKey) {
+      errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
+    }
+    const auth = firebaseConfig && firebaseConfig.apiKey ? getAuth(initializeApp(firebaseConfig)) : null;
+
+    function showForm(id) {
+      for (const form of ["sign-in", "challenge", "enroll"]) {
+        document.getElementById(form).hidden = form !== id;
+      }
+    }
+
+    function tokenHeader(user) {
+      return user.getIdToken(true).then((token) => ({ Authorization: "Bearer " + token }));
+    }
+
+    function drawLegend() {
+      const legend = document.getElementById("legend");
+      legend.replaceChildren();
+      for (const [name, color] of Object.entries(colors)) {
+        const row = document.createElement("span");
+        row.className = "swatch";
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        dot.style.background = color;
+        row.append(dot, document.createTextNode(" " + name.replaceAll("_", " ")));
+        legend.append(row);
+      }
+    }
+
+    function showMap() {
+      document.getElementById("map-view").hidden = false;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("nav-map").setAttribute("aria-pressed", "true");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      if (map) setTimeout(() => map.invalidateSize(), 0);
+    }
+
+    function showXai() {
+      if (!selected) return;
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.add("on");
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "true");
+    }
+
+    function renderCard(parcel) {
+      selected = parcel;
+      document.getElementById("parcel-card").hidden = false;
+      document.getElementById("card-id").textContent = "Parcel " + parcel.id;
+      document.getElementById("card-settlement").textContent = parcel.settlement || "";
+      document.getElementById("card-action").textContent = parcel.action.replaceAll("_", " ");
+      document.getElementById("card-flood").textContent = parcel.flood_proba == null ? "—" : parcel.flood_proba.toFixed(2);
+      document.getElementById("card-dep").textContent = parcel.deprivation_class || "—";
+    }
+
+    function renderXai(detail) {
+      document.getElementById("xai-title").textContent = "XAI summary — parcel " + detail.id;
+      document.getElementById("xai-action").textContent = detail.action.replaceAll("_", " ");
+      document.getElementById("xai-flood").textContent = detail.flood_proba == null ? "—" : detail.flood_proba.toFixed(2);
+      document.getElementById("xai-dep").textContent = detail.class_probability == null ? (detail.deprivation_class || "—") : detail.class_probability.toFixed(2);
+      document.getElementById("xai-conf").textContent = detail.confidence == null ? "—" : Math.round(detail.confidence * 1000) / 10 + "%";
+      const bars = document.getElementById("shap-bars");
+      const values = document.getElementById("feature-values");
+      const path = document.getElementById("path");
+      bars.replaceChildren();
+      values.replaceChildren();
+      path.replaceChildren();
+      const features = detail.features || [];
+      if (!features.length) {
+        bars.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
+      }
+      const maxAbs = Math.max(0.01, ...features.map((f) => Math.abs(f.attribution || 0)));
+      for (const feature of features) {
+        const row = document.createElement("div");
+        row.textContent = feature.label + ": " + feature.value.toFixed(3);
+        values.append(row);
+        if (feature.attribution == null) continue;
+        const line = document.createElement("div");
+        line.className = "bar-row";
+        const track = document.createElement("div");
+        track.className = "track";
+        const fill = document.createElement("div");
+        fill.className = "fill" + (feature.attribution < 0 ? " neg" : "");
+        fill.style.width = Math.round(Math.abs(feature.attribution) / maxAbs * 100) + "%";
+        track.append(fill);
+        line.append(document.createTextNode(feature.label), track, document.createTextNode(feature.attribution.toFixed(2)));
+        bars.append(line);
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = (feature.attribution >= 0 ? "+" : "") + feature.attribution.toFixed(2);
+        path.append(chip, document.createTextNode("→"));
+      }
+      if (detail.confidence != null) {
+        const finalChip = document.createElement("span");
+        finalChip.className = "chip final";
+        finalChip.textContent = detail.confidence.toFixed(3);
+        path.append(finalChip);
+      }
+    }
+
+    async function openDetail(index) {
+      const headers = await tokenHeader(auth.currentUser);
+      const response = await fetch("/api/parcel/" + index, { headers });
+      if (!response.ok) return;
+      const detail = await response.json();
+      renderCard(detail);
+      renderXai(detail);
+    }
+
+    function draw(list) {
+      if (!map) {
+        map = L.map("map");
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap",
+        }).addTo(map);
+      }
+      if (layer) layer.remove();
+      layer = L.layerGroup().addTo(map);
+      const bounds = [];
+      for (const parcel of list) {
+        const marker = L.circleMarker([parcel.lat, parcel.lon], {
+          radius: 5,
+          color: colors[parcel.action] || "#7f8c8d",
+          fillColor: colors[parcel.action] || "#7f8c8d",
+          fillOpacity: 0.9,
+          weight: 1,
+        });
+        marker.on("click", () => openDetail(parcel.index));
+        marker.addTo(layer);
+        bounds.push([parcel.lat, parcel.lon]);
+      }
+      if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
+      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + list.length + " parcels";
+    }
+
+    async function loadParcels(query) {
+      const headers = await tokenHeader(auth.currentUser);
+      const response = await fetch("/api/parcels", { headers });
+      if (!response.ok) {
+        errorEl.textContent = "The parcel request was refused.";
+        return;
+      }
+      parcels = await response.json();
+      const needle = (query || "").trim().toLowerCase();
+      const shown = needle ? parcels.filter((p) => p.id.toLowerCase().includes(needle)) : parcels;
+      draw(shown);
+      const counts = {};
+      for (const parcel of parcels) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
+      const bits = Object.entries(counts).map(([name, n]) => n + " " + name.replaceAll("_", " "));
+      document.getElementById("map-foot").textContent = parcels.length + " parcels · " + bits.join(" · ");
+    }
+
+    function resetRecaptcha(containerId) {
+      if (recaptcha) {
+        try { recaptcha.clear(); } catch (err) { /* a fresh widget replaces it */ }
+        recaptcha = null;
+      }
+      const container = document.getElementById(containerId);
+      container.replaceChildren();
+      recaptcha = new RecaptchaVerifier(auth, container, { size: "normal" });
+      return recaptcha;
+    }
+
+    async function beginChallenge(err) {
+      resolver = getMultiFactorResolver(auth, err);
+      const phoneHint = resolver.hints.find((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID);
+      showForm("challenge");
+      if (phoneHint) {
+        challengeKind = "phone";
+        const shown = phoneHint.phoneNumber || "your phone";
+        document.getElementById("challenge-copy").textContent = "Sending a code to " + shown + ".";
+        const verifier = resetRecaptcha("challenge-recaptcha");
+        verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(
+          { multiFactorHint: phoneHint, session: resolver.session },
+          verifier,
+        );
+        document.getElementById("challenge-copy").textContent = "Enter the code texted to " + shown + ".";
+        return;
+      }
+      challengeKind = "totp";
+      document.getElementById("challenge-copy").textContent = "Enter the code from your authenticator app.";
+    }
+
+    async function enterApp(user) {
+      const tokenResult = await user.getIdTokenResult();
+      const signInProvider = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_provider;
+      if (signInProvider === "phone") {
+        /* SMS one-time code already proved possession of the handset. */
+      } else {
+      const factors = multiFactor(user).enrolledFactors || [];
+      const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
+      if (!hasSecondFactor) {
+        showForm("enroll");
+        document.getElementById("gate").hidden = false;
+        return;
+      }
+      }
+      document.getElementById("gate").hidden = true;
+      document.getElementById("app").classList.add("on");
+      document.getElementById("analyst").textContent = (user.email || "Signed in") + " · policy analyst";
+      document.getElementById("banner").textContent = liftNote;
+      const notes = document.getElementById("settlement-notes");
+      notes.replaceChildren();
+      for (const name of settlements) {
+        const line = document.createElement("div");
+        line.className = "side-note";
+        line.textContent = "Settlement: " + name;
+        notes.append(line);
+      }
+      drawLegend();
+      await loadParcels("");
+      setTimeout(() => map && map.invalidateSize(), 50);
+    }
+
+    async function signedIn(cred) {
+      await enterApp(cred.user);
+    }
+
+    async function authError(err) {
+      if (err.code === "auth/multi-factor-auth-required") {
+        try {
+          await beginChallenge(err);
+        } catch (sendErr) {
+          errorEl.textContent = sendErr.message || "Could not send the text message.";
+        }
+        return;
+      }
+      errorEl.textContent = err.message || "Sign-in failed.";
+    }
+
+    document.getElementById("send-signin-code").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      if (!auth) return;
+      const phoneNumber = document.getElementById("signin-phone").value.trim();
+      const verifier = resetRecaptcha("signin-recaptcha");
+      try {
+        confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+        errorEl.textContent = "Code sent. Enter it below.";
+      } catch (err) {
+        errorEl.textContent = err.message || "SMS was not sent.";
+        try { verifier.clear(); } catch (ignore) { /* let the next attempt render a new widget */ }
+      }
+    });
+
+    document.getElementById("phone-sign-in").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      try {
+        const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
+        await enterApp(result.user);
+      } catch (err) {
+        errorEl.textContent = err.message || "That code was rejected.";
+      }
+    });
+
+    document.getElementById("sign-in").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      if (!auth) return;
+      try {
+        await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
+      } catch (err) {
+        await authError(err);
+      }
+    });
+
+    document.getElementById("google").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      if (!auth) return;
+      try {
+        await signedIn(await signInWithPopup(auth, new GoogleAuthProvider()));
+      } catch (err) {
+        await authError(err);
+      }
+    });
+
+    document.getElementById("apple").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      if (!auth) return;
+      const apple = new OAuthProvider("apple.com");
+      apple.addScope("email");
+      apple.addScope("name");
+      try {
+        await signedIn(await signInWithPopup(auth, apple));
+      } catch (err) {
+        await authError(err);
+      }
+    });
+
+    document.getElementById("challenge").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      try {
+        const code = document.getElementById("otp").value.trim();
+        let assertion;
+        if (challengeKind === "phone") {
+          assertion = PhoneMultiFactorGenerator.assertion(PhoneAuthProvider.credential(verificationId, code));
+        } else {
+          const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
+          assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+        }
+        await enterApp((await resolver.resolveSignIn(assertion)).user);
+      } catch (err) {
+        errorEl.textContent = err.message || "That code was rejected.";
+      }
+    });
+
+    document.getElementById("send-enroll").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      try {
+        const session = await multiFactor(auth.currentUser).getSession();
+        const verifier = resetRecaptcha("enroll-recaptcha");
+        verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(
+          { phoneNumber: document.getElementById("phone").value.trim(), session },
+          verifier,
+        );
+        errorEl.textContent = "Code sent. Enter it below.";
+      } catch (err) {
+        errorEl.textContent = err.message || "Could not send the text message.";
+      }
+    });
+
+    document.getElementById("enroll").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      try {
+        const credential = PhoneAuthProvider.credential(verificationId, document.getElementById("enroll-code").value.trim());
+        await multiFactor(auth.currentUser).enroll(PhoneMultiFactorGenerator.assertion(credential), "Phone");
+        await signOut(auth);
+        showForm("sign-in");
+        errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
+      } catch (err) {
+        errorEl.textContent = err.message || "Enrollment failed.";
+      }
+    });
+
+    document.getElementById("sign-out").addEventListener("click", async () => {
+      if (auth) await signOut(auth);
+      document.getElementById("app").classList.remove("on");
+      document.getElementById("gate").hidden = false;
+      showForm("sign-in");
+    });
+    document.getElementById("nav-map").addEventListener("click", showMap);
+    document.getElementById("back-map").addEventListener("click", showMap);
+    document.getElementById("nav-xai").addEventListener("click", showXai);
+    document.getElementById("card-close").addEventListener("click", () => {
+      document.getElementById("parcel-card").hidden = true;
+    });
+    document.getElementById("open-xai").addEventListener("click", showXai);
+    document.getElementById("search").addEventListener("input", (event) => {
+      const needle = event.target.value.trim().toLowerCase();
+      draw(needle ? parcels.filter((p) => p.id.toLowerCase().includes(needle)) : parcels);
+    });
+    async function download(path, name) {
+      const headers = await tokenHeader(auth.currentUser);
+      const response = await fetch(path, { headers });
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      link.click();
+    }
+    document.getElementById("export-map").addEventListener("click", () => download("/api/summary", "policy-counts.json"));
+    document.getElementById("export-xai").addEventListener("click", () => {
+      if (selected) download("/api/parcel/" + selected.index, selected.id + ".json");
+    });
+  </script>
+</body>
+</html>

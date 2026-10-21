@@ -161,7 +161,12 @@ def test_graphsage_model_rejects_missing_labels():
         model.prepare_data(data)
 
 
-def test_explain_stub_is_sprint6():
-    model = GraphSAGEModel()
-    with pytest.raises(NotImplementedError, match="Sprint 6"):
-        model.explain()
+def test_explain_returns_local_shap_for_one_node():
+    data = _synthetic_graph(12, seed=2)
+    model = GraphSAGEModel(in_channels=5, hidden_channels=8, num_classes=3, dropout=0.0)
+    report = model.explain(data, node_index=0)
+    assert report["attributions"].shape == (5,)
+    assert len(report["ranked_features"]) == 5
+    # Efficiency: Shapley values sum to the gap between the full logit and the mean baseline.
+    gap = report["predicted_logit"] - report["baseline_logit"]
+    assert float(report["attributions"].sum()) == pytest.approx(gap, abs=1e-4)

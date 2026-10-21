@@ -103,7 +103,16 @@ v1 baseline and a v2 improvement pass.
   resettlements). River-corridor lift was 0.929, so the exit bar was
   not met. That figure is the fallback, not the 37-zone test.
 
-Sprint 6 (XAI dashboard: SHAP / Grad-CAM + Folium) is not yet implemented.
+**Sprint 6: XAI dashboard** — implemented. The Folium map is served only
+after Firebase email/password sign-in plus a TOTP or phone second factor.
+`GraphSAGEModel.explain` returns exact local Shapley values for one
+building. `AttentionUNetModel.explain` returns a Grad-CAM map from the
+last decoder convolution. The signed-in page follows the supplied wireframes: a choropleth map
+with a parcel card, and an XAI summary with SHAP bars, feature values,
+and a prediction path. See
+`notebooks/06_sprint6_dashboard.ipynb`. The Sprint 5 river-corridor lift
+(0.929) is printed on the map page so the actions are not presented as
+a validated flood-hazard layer.
 
 ## Repo structure
 
@@ -129,6 +138,11 @@ src/
     graphsage_metrics.py    # macro-F1 + stratified 60/20/20 node split
     multi_settlement.py     # Sprint 4: combine graphs/tiles, splits, pooled metrics
     fusion.py               # Sprint 5: policy matrix, NRRP lift, parcel sampling
+    explanations.py         # Sprint 6: local SHAP and decoder Grad-CAM
+  dashboard/
+    app.py                  # MFA-gated Folium server
+    auth_gate.py            # Firebase second-factor check
+    map_view.py             # parcel policy map
 notebooks/
   01_sprint1_data_pipeline.ipynb        # Sprint 1 pipeline, end-to-end
   02_sprint2_attention_unet.ipynb       # Sprint 2 v1 baseline (overfit; label-limited)
@@ -136,6 +150,7 @@ notebooks/
   03_sprint3_graphsage.ipynb            # Sprint 3: GraphSAGE deprivation head on Kibera
   04_sprint4_three_settlements.ipynb    # Sprint 4: both heads on Kibera+Mathare+Mukuru
   05_sprint5_late_fusion.ipynb          # Sprint 5: policy matrix + NRRP validation
+  06_sprint6_dashboard.ipynb            # Sprint 6: MFA gate + Folium policy map
 tests/                     # offline unit tests (no network / GPU needed)
 data/                      # gitignored; populated at runtime
 ```
