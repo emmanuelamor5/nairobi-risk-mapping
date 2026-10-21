@@ -87,7 +87,7 @@
   <section class="gate" id="gate">
     <div class="gate-card">
       <h1>Nairobi parcel policy</h1>
-      <p>Sign in with email, password, and an authenticator code. Parcel locations stay on the server until that second factor succeeds.</p>
+      <p>Sign in, then enter the code from the text message. Parcel locations stay on the server until that second factor succeeds.</p>
       <p class="error" id="gate-error" role="alert"></p>
       <form id="sign-in">
         <label for="email">Email</label>
@@ -99,16 +99,21 @@
       <button class="ghost" id="google" type="button" style="width:100%;margin-top:8px;">Sign in with Google</button>
       <button class="ghost" id="apple" type="button" style="width:100%;margin-top:8px;">Sign in with Apple</button>
       <form id="challenge" hidden>
-        <label for="otp">Authenticator code</label>
+        <p id="challenge-copy">Enter the code from the text message.</p>
+        <div id="challenge-recaptcha"></div>
+        <label for="otp">Text message code</label>
         <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" required>
         <button class="primary" type="submit">Verify code</button>
       </form>
       <form id="enroll" hidden>
-        <p>This account has no second factor. Add the secret to an authenticator app, then sign in again.</p>
-        <p id="secret"></p>
-        <label for="enroll-code">Code from the app</label>
-        <input id="enroll-code" type="text" inputmode="numeric" required>
-        <button class="primary" type="submit">Enroll authenticator</button>
+        <p>This account has no phone second factor. Enter a number in international form, such as +254712345678. After the code is saved, sign in again.</p>
+        <label for="phone">Phone number</label>
+        <input id="phone" type="tel" autocomplete="tel" placeholder="+254712345678" required>
+        <div id="enroll-recaptcha"></div>
+        <button class="ghost" id="send-enroll" type="button">Send code</button>
+        <label for="enroll-code">Text message code</label>
+        <input id="enroll-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+        <button class="primary" type="submit">Verify and enroll</button>
       </form>
     </div>
   </section>
@@ -204,7 +209,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
     import {
       getAuth, signInWithEmailAndPassword, signInWithPopup, signOut, multiFactor,
-      TotpMultiFactorGenerator, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
+      TotpMultiFactorGenerator, PhoneAuthProvider, PhoneMultiFactorGenerator,
+      RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
     const firebaseConfig = {{FIREBASE_CONFIG_JSON}};
@@ -213,7 +219,9 @@
     const colors = {{COLORS_JSON}};
     const errorEl = document.getElementById("gate-error");
     let resolver = null;
-    let totpSecret = null;
+    let verificationId = null;
+    let challengeKind = "phone";
+    let recaptcha = null;
     let parcels = [];
     let selected = null;
     let map;
@@ -371,13 +379,43 @@
       document.getElementById("map-foot").textContent = parcels.length + " parcels · " + bits.join(" · ");
     }
 
+    function resetRecaptcha(containerId) {
+      if (recaptcha) {
+        try { recaptcha.clear(); } catch (err) { /* a fresh widget replaces it */ }
+        recaptcha = null;
+      }
+      const container = document.getElementById(containerId);
+      container.replaceChildren();
+      recaptcha = new RecaptchaVerifier(auth, container, { size: "normal" });
+      return recaptcha;
+    }
+
+    async function beginChallenge(err) {
+      resolver = getMultiFactorResolver(auth, err);
+      const phoneHint = resolver.hints.find((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID);
+      showForm("challenge");
+      if (phoneHint) {
+        challengeKind = "phone";
+        const shown = phoneHint.phoneNumber || "your phone";
+        document.getElementById("challenge-copy").textContent = "Sending a code to " + shown + ".";
+        const verifier = resetRecaptcha("challenge-recaptcha");
+        verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(
+          { multiFactorHint: phoneHint, session: resolver.session },
+          verifier,
+        );
+        document.getElementById("challenge-copy").textContent = "Enter the code texted to " + shown + ".";
+        return;
+      }
+      challengeKind = "totp";
+      document.getElementById("challenge-copy").textContent = "Enter the code from your authenticator app.";
+    }
+
     async function enterApp(user) {
       const factors = multiFactor(user).enrolledFactors || [];
-      if (!factors.length) {
+      const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
+      if (!hasSecondFactor) {
         showForm("enroll");
-        const session = await multiFactor(user).getSession();
-        totpSecret = await TotpMultiFactorGenerator.generateSecret(session);
-        document.getElementById("secret").textContent = "Secret key: " + totpSecret.secretKey;
+        document.getElementById("gate").hidden = false;
         return;
       }
       document.getElementById("gate").hidden = true;
@@ -401,10 +439,13 @@
       await enterApp(cred.user);
     }
 
-    function authError(err) {
+    async function authError(err) {
       if (err.code === "auth/multi-factor-auth-required") {
-        resolver = getMultiFactorResolver(auth, err);
-        showForm("challenge");
+        try {
+          await beginChallenge(err);
+        } catch (sendErr) {
+          errorEl.textContent = sendErr.message || "Could not send the text message.";
+        }
         return;
       }
       errorEl.textContent = err.message || "Sign-in failed.";
@@ -417,7 +458,7 @@
       try {
         await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
       } catch (err) {
-        authError(err);
+        await authError(err);
       }
     });
 
@@ -427,7 +468,7 @@
       try {
         await signedIn(await signInWithPopup(auth, new GoogleAuthProvider()));
       } catch (err) {
-        authError(err);
+        await authError(err);
       }
     });
 
@@ -440,30 +481,52 @@
       try {
         await signedIn(await signInWithPopup(auth, apple));
       } catch (err) {
-        authError(err);
+        await authError(err);
       }
     });
 
     document.getElementById("challenge").addEventListener("submit", async (event) => {
       event.preventDefault();
+      errorEl.textContent = "";
       try {
-        const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
-        const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, document.getElementById("otp").value.trim());
-        const cred = await resolver.resolveSignIn(assertion);
-        await enterApp(cred.user);
+        const code = document.getElementById("otp").value.trim();
+        let assertion;
+        if (challengeKind === "phone") {
+          assertion = PhoneMultiFactorGenerator.assertion(PhoneAuthProvider.credential(verificationId, code));
+        } else {
+          const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
+          assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+        }
+        await enterApp((await resolver.resolveSignIn(assertion)).user);
       } catch (err) {
-        errorEl.textContent = err.message || "The authenticator code was rejected.";
+        errorEl.textContent = err.message || "That code was rejected.";
+      }
+    });
+
+    document.getElementById("send-enroll").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      try {
+        const session = await multiFactor(auth.currentUser).getSession();
+        const verifier = resetRecaptcha("enroll-recaptcha");
+        verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(
+          { phoneNumber: document.getElementById("phone").value.trim(), session },
+          verifier,
+        );
+        errorEl.textContent = "Code sent. Enter it below.";
+      } catch (err) {
+        errorEl.textContent = err.message || "Could not send the text message.";
       }
     });
 
     document.getElementById("enroll").addEventListener("submit", async (event) => {
       event.preventDefault();
+      errorEl.textContent = "";
       try {
-        const assertion = TotpMultiFactorGenerator.assertionForEnrollment(totpSecret, document.getElementById("enroll-code").value.trim());
-        await multiFactor(auth.currentUser).enroll(assertion, "Authenticator app");
+        const credential = PhoneAuthProvider.credential(verificationId, document.getElementById("enroll-code").value.trim());
+        await multiFactor(auth.currentUser).enroll(PhoneMultiFactorGenerator.assertion(credential), "Phone");
         await signOut(auth);
         showForm("sign-in");
-        errorEl.textContent = "Authenticator enrolled. Sign in again and enter the current code.";
+        errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
       } catch (err) {
         errorEl.textContent = err.message || "Enrollment failed.";
       }

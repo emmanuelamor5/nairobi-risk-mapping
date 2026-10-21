@@ -114,6 +114,8 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Sign in" in shell
         assert "Sign in with Google" in shell
         assert "Sign in with Apple" in shell
+        assert "Phone number" in shell
+        assert "Text message code" in shell
         assert str(SECRET_LON) not in shell
         assert "compensated resettlement" not in shell
 
