@@ -523,9 +523,71 @@ def save_policy_table(path, decision: dict, settlement_index=None, settlement_ke
 
 
 def load_policy_table(path) -> dict:
-    """Load a table written by ``save_policy_table``."""
-    with np.load(path, allow_pickle=False) as archive:
+    """
+    Load a table written by ``save_policy_table``.
+
+    ``np.savez_compressed`` already writes a zip-compressed ``.npz``. A
+    second gzip pass (``.npz.gz``, or a ``.npz`` whose bytes are gzip)
+    is unwrapped first. Drive's "compress" download is the usual source.
+    """
+    import gzip
+    import io
+
+    path = Path(path)
+    blob = path.read_bytes()
+    if blob[:2] == b"\x1f\x8b":
+        blob = gzip.decompress(blob)
+    with np.load(io.BytesIO(blob), allow_pickle=False) as archive:
         return {key: archive[key] for key in archive.files}
+
+
+def resolve_policy_table(extra_dirs=None) -> Path:
+    """
+    Find the Sprint 5 policy table.
+
+    Search order is the repo ``data/`` folder, ``checkpoints/sprint5/``,
+    then the Drive copies Colab uses. A gzip of the ``.npz`` is accepted.
+    """
+    names = ("policy_table.npz", "policy_table.npz.gz", "policy_table.npz.zip")
+    roots = [
+        Path("data"),
+        Path("checkpoints/sprint5"),
+        Path("/content/drive/MyDrive/nairobi_risk_mapping/data"),
+        Path("/content/drive/MyDrive/nairobi_risk_mapping/checkpoints/sprint5"),
+    ]
+    if extra_dirs:
+        roots = [Path(p) for p in extra_dirs] + roots
+    tried = []
+    for root in roots:
+        for name in names:
+            candidate = root / name
+            tried.append(str(candidate))
+            if candidate.is_file():
+                return candidate
+        if root.is_dir():
+            for candidate in sorted(root.glob("policy_table.npz*")):
+                if candidate.is_file():
+                    return candidate
+    raise FileNotFoundError(
+        "No policy_table.npz (or .npz.gz) found. Looked in:\n  " + "\n  ".join(tried)
+    )
+
+
+def resolve_graphs_dir(extra_dirs=None) -> Path:
+    """Directory that contains ``{settlement}_graph.pt`` files."""
+    roots = [
+        Path("data/graphs"),
+        Path("/content/drive/MyDrive/nairobi_risk_mapping/data/graphs"),
+    ]
+    if extra_dirs:
+        roots = [Path(p) for p in extra_dirs] + roots
+    for root in roots:
+        if root.is_dir() and any(root.glob("*_graph.pt")):
+            return root
+    raise FileNotFoundError(
+        "No settlement graphs found. Expected data/graphs/{kibera,mathare,mukuru}_graph.pt "
+        "or the same folder on Drive."
+    )
 
 
 def format_policy_report(summary: dict, validation: dict = None, justice: dict = None) -> str:

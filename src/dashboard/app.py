@@ -171,14 +171,22 @@ def serve(records: dict, host: str = "127.0.0.1", port: int = 8765, verifier=Non
     return server
 
 
-def _load_records(table_path: str, graphs_dir: str) -> dict:
-    from ..models.fusion import load_policy_table
+def _load_records(table_path: str = None, graphs_dir: str = None) -> dict:
+    from ..models.fusion import load_policy_table, resolve_graphs_dir, resolve_policy_table
     from ..models.multi_settlement import load_settlement_graphs
     from .map_view import join_graph_positions
 
-    table = load_policy_table(table_path)
+    table_file = Path(table_path) if table_path else None
+    if table_file is None or not table_file.is_file():
+        table_file = resolve_policy_table()
+    graph_root = Path(graphs_dir) if graphs_dir else None
+    if graph_root is None or not graph_root.is_dir():
+        graph_root = resolve_graphs_dir()
+    table = load_policy_table(table_file)
     keys = [str(key) for key in table.get("settlement_keys", [])]
-    graphs = load_settlement_graphs(graphs_dir, keys)
+    graphs = load_settlement_graphs(graph_root, keys)
+    print(f"policy table: {table_file}")
+    print(f"graphs: {graph_root}")
     return join_graph_positions(table, graphs)
 
 
@@ -186,8 +194,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Parcel policy dashboard")
-    parser.add_argument("--table", default="data/policy_table.npz")
-    parser.add_argument("--graphs", default="data/graphs")
+    parser.add_argument("--table", default=None, help="policy_table.npz or .npz.gz; searched if omitted")
+    parser.add_argument("--graphs", default=None, help="directory of {settlement}_graph.pt files")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
