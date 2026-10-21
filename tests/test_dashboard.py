@@ -175,6 +175,22 @@ def test_join_graph_positions_follows_settlement_key_order():
     assert joined["positions"][-1].tolist() == [5.0, 6.0]
 
 
+def test_launch_serves_the_shell_without_blocking():
+    from urllib.request import urlopen
+
+    from src.dashboard.app import launch
+
+    server = launch(_records(), port=0, web_config={"apiKey": "", "authDomain": "", "projectId": ""})
+    port = server.server_address[1]
+    try:
+        body = urlopen(f"http://127.0.0.1:{port}/", timeout=5).read().decode()
+        assert "Sign in" in body
+        assert str(SECRET_LON) not in body
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_shell_renders_without_a_firebase_project():
     html = render_shell({}, ["kibera"])
     assert "Firebase web config is not set" in html or "apiKey" in html

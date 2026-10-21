@@ -178,6 +178,33 @@ def serve(records: dict, host: str = "127.0.0.1", port: int = 8765, verifier=Non
     return server
 
 
+def launch(records: dict, port: int = 8765, web_config: dict = None):
+    """
+    Serve the dashboard in a background thread and return the server.
+
+    ``127.0.0.1`` inside Colab is the VM, not the laptop, so opening that
+    address locally reports that the site cannot be reached. In Colab this
+    prints the proxied URL and asks Colab to open it.
+    """
+    import threading
+
+    server = serve(records, host="127.0.0.1", port=port, web_config=web_config)
+    thread = threading.Thread(target=server.serve_forever, name="parcel-dashboard", daemon=True)
+    thread.start()
+    print(f"Dashboard listening on the Colab VM at 127.0.0.1:{port}  parcels={records['positions'].shape[0]}")
+    print("Do not open 127.0.0.1 from your own browser. Use the Colab proxy URL below.")
+    try:
+        from google.colab import output
+        from google.colab.output import eval_js
+
+        proxied = eval_js(f"google.colab.kernel.proxyPort({int(port)})")
+        print("Open:", proxied)
+        output.serve_kernel_port_as_window(int(port))
+    except Exception as exc:
+        print(f"Not inside Colab ({exc}). Local URL: http://127.0.0.1:{port}")
+    return server
+
+
 def _load_records(table_path: str = None, graphs_dir: str = None) -> dict:
     from ..models.fusion import load_policy_table, resolve_graphs_dir, resolve_policy_table
     from ..models.multi_settlement import load_settlement_graphs
@@ -207,13 +234,18 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     records = _load_records(args.table, args.graphs)
-    server = serve(records, host=args.host, port=args.port)
-    print(f"Dashboard at http://{args.host}:{args.port}  parcels={records['positions'].shape[0]}")
-    print("The map is served only after a Firebase authenticator sign-in.")
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        server.shutdown()
+        import google.colab  # noqa: F401
+        launch(records, port=args.port)
+        print("The server stays up while this Colab runtime is alive.")
+    except ImportError:
+        server = serve(records, host=args.host, port=args.port)
+        print(f"Dashboard at http://{args.host}:{args.port}  parcels={records['positions'].shape[0]}")
+        print("The map is served only after a Firebase authenticator sign-in.")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            server.shutdown()
 
 
 if __name__ == "__main__":
