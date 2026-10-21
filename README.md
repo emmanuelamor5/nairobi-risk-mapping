@@ -98,7 +98,10 @@ v1 baseline and a v2 improvement pass.
 - `notebooks/05_sprint5_late_fusion.ipynb` runs the matrix on synthetic
   parcels and, when checkpoints are present, on the three settlements.
   With no NRRP GeoJSON it fetches OSM rivers, streams, and drains once
-  and scores lift against a 120 m corridor around them.
+  and scores lift against a 120 m corridor around them. The executed
+  Colab run fused all 18,005 parcels (justice audit passed; 1,265
+  resettlements). River-corridor lift was 0.929, so the exit bar was
+  not met. That figure is the fallback, not the 37-zone test.
 
 Sprint 6 (XAI dashboard: SHAP / Grad-CAM + Folium) is not yet implemented.
 
