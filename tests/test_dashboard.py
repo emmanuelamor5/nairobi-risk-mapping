@@ -44,6 +44,7 @@ def _records():
 def test_mfa_claim_requires_a_second_factor():
     assert mfa_satisfied({"firebase": {"sign_in_provider": "password", "sign_in_second_factor": "totp"}})
     assert mfa_satisfied({"firebase": {"sign_in_second_factor": "phone"}})
+    assert mfa_satisfied({"firebase": {"sign_in_provider": "phone"}})
     assert not mfa_satisfied({"firebase": {"sign_in_provider": "password"}})
     assert not mfa_satisfied({})
     assert bearer_token("Bearer abc.def") == "abc.def"
@@ -114,6 +115,7 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Sign in" in shell
         assert "Sign in with Google" in shell
         assert "Sign in with Apple" in shell
+        assert "Sign in with phone" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
         assert str(SECRET_LON) not in shell

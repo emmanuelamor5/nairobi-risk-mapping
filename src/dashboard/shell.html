@@ -98,6 +98,16 @@
       </form>
       <button class="ghost" id="google" type="button" style="width:100%;margin-top:8px;">Sign in with Google</button>
       <button class="ghost" id="apple" type="button" style="width:100%;margin-top:8px;">Sign in with Apple</button>
+      <form id="phone-sign-in">
+        <p>Or sign in with a phone number. Firebase texts a one-time code. Standard rates may apply.</p>
+        <label for="signin-phone">Phone number</label>
+        <input id="signin-phone" type="tel" autocomplete="tel" placeholder="+16505553434">
+        <div id="signin-recaptcha"></div>
+        <button class="ghost" id="send-signin-code" type="button">Send code</button>
+        <label for="signin-code">Verification code</label>
+        <input id="signin-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+        <button class="primary" type="submit">Sign in with phone</button>
+      </form>
       <form id="challenge" hidden>
         <p id="challenge-copy">Enter the code from the text message.</p>
         <div id="challenge-recaptcha"></div>
@@ -208,7 +218,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
     import {
-      getAuth, signInWithEmailAndPassword, signInWithPopup, signOut, multiFactor,
+      getAuth, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor,
       TotpMultiFactorGenerator, PhoneAuthProvider, PhoneMultiFactorGenerator,
       RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
@@ -219,6 +229,7 @@
     const colors = {{COLORS_JSON}};
     const errorEl = document.getElementById("gate-error");
     let resolver = null;
+    let confirmationResult = null;
     let verificationId = null;
     let challengeKind = "phone";
     let recaptcha = null;
@@ -411,12 +422,18 @@
     }
 
     async function enterApp(user) {
+      const tokenResult = await user.getIdTokenResult();
+      const signInProvider = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_provider;
+      if (signInProvider === "phone") {
+        /* SMS one-time code already proved possession of the handset. */
+      } else {
       const factors = multiFactor(user).enrolledFactors || [];
       const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
       if (!hasSecondFactor) {
         showForm("enroll");
         document.getElementById("gate").hidden = false;
         return;
+      }
       }
       document.getElementById("gate").hidden = true;
       document.getElementById("app").classList.add("on");
@@ -450,6 +467,31 @@
       }
       errorEl.textContent = err.message || "Sign-in failed.";
     }
+
+    document.getElementById("send-signin-code").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      if (!auth) return;
+      const phoneNumber = document.getElementById("signin-phone").value.trim();
+      const verifier = resetRecaptcha("signin-recaptcha");
+      try {
+        confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+        errorEl.textContent = "Code sent. Enter it below.";
+      } catch (err) {
+        errorEl.textContent = err.message || "SMS was not sent.";
+        try { verifier.clear(); } catch (ignore) { /* let the next attempt render a new widget */ }
+      }
+    });
+
+    document.getElementById("phone-sign-in").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      try {
+        const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
+        await enterApp(result.user);
+      } catch (err) {
+        errorEl.textContent = err.message || "That code was rejected.";
+      }
+    });
 
     document.getElementById("sign-in").addEventListener("submit", async (event) => {
       event.preventDefault();
