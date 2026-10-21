@@ -96,6 +96,8 @@
         <input id="password" type="password" autocomplete="current-password" required>
         <button class="primary" type="submit">Sign in</button>
       </form>
+      <button class="ghost" id="google" type="button" style="width:100%;margin-top:8px;">Sign in with Google</button>
+      <button class="ghost" id="apple" type="button" style="width:100%;margin-top:8px;">Sign in with Apple</button>
       <form id="challenge" hidden>
         <label for="otp">Authenticator code</label>
         <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" required>
@@ -201,8 +203,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
     import {
-      getAuth, signInWithEmailAndPassword, signOut, multiFactor,
-      TotpMultiFactorGenerator, getMultiFactorResolver,
+      getAuth, signInWithEmailAndPassword, signInWithPopup, signOut, multiFactor,
+      TotpMultiFactorGenerator, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
     const firebaseConfig = {{FIREBASE_CONFIG_JSON}};
@@ -395,20 +397,50 @@
       setTimeout(() => map && map.invalidateSize(), 50);
     }
 
+    async function signedIn(cred) {
+      await enterApp(cred.user);
+    }
+
+    function authError(err) {
+      if (err.code === "auth/multi-factor-auth-required") {
+        resolver = getMultiFactorResolver(auth, err);
+        showForm("challenge");
+        return;
+      }
+      errorEl.textContent = err.message || "Sign-in failed.";
+    }
+
     document.getElementById("sign-in").addEventListener("submit", async (event) => {
       event.preventDefault();
       errorEl.textContent = "";
       if (!auth) return;
       try {
-        const cred = await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value);
-        await enterApp(cred.user);
+        await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
       } catch (err) {
-        if (err.code === "auth/multi-factor-auth-required") {
-          resolver = getMultiFactorResolver(auth, err);
-          showForm("challenge");
-          return;
-        }
-        errorEl.textContent = err.message || "Sign-in failed.";
+        authError(err);
+      }
+    });
+
+    document.getElementById("google").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      if (!auth) return;
+      try {
+        await signedIn(await signInWithPopup(auth, new GoogleAuthProvider()));
+      } catch (err) {
+        authError(err);
+      }
+    });
+
+    document.getElementById("apple").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      if (!auth) return;
+      const apple = new OAuthProvider("apple.com");
+      apple.addScope("email");
+      apple.addScope("name");
+      try {
+        await signedIn(await signInWithPopup(auth, apple));
+      } catch (err) {
+        authError(err);
       }
     });
 
