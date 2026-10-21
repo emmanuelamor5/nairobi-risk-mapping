@@ -182,24 +182,22 @@ def launch(records: dict, port: int = 8765, web_config: dict = None):
     """
     Serve the dashboard in a background thread and return the server.
 
-    ``127.0.0.1`` inside Colab is the VM, not the laptop, so opening that
-    address locally reports that the site cannot be reached. In Colab this
-    prints the proxied URL and asks Colab to open it.
+    Colab's ``serve_kernel_port_as_window`` opens ``https://localhost``, which
+    the laptop browser cannot reach. The page is embedded in the notebook
+    output with ``serve_kernel_port_as_iframe`` instead. The socket listens
+    on all interfaces so Colab's proxy can connect.
     """
     import threading
 
-    server = serve(records, host="127.0.0.1", port=port, web_config=web_config)
+    server = serve(records, host="0.0.0.0", port=port, web_config=web_config)
     thread = threading.Thread(target=server.serve_forever, name="parcel-dashboard", daemon=True)
     thread.start()
-    print(f"Dashboard listening on the Colab VM at 127.0.0.1:{port}  parcels={records['positions'].shape[0]}")
-    print("Do not open 127.0.0.1 from your own browser. Use the Colab proxy URL below.")
+    print(f"Dashboard listening on port {port}  parcels={records['positions'].shape[0]}")
     try:
         from google.colab import output
-        from google.colab.output import eval_js
 
-        proxied = eval_js(f"google.colab.kernel.proxyPort({int(port)})")
-        print("Open:", proxied)
-        output.serve_kernel_port_as_window(int(port))
+        print("The sign-in page is embedded below. Do not open localhost or the raw colab.dev URL.")
+        output.serve_kernel_port_as_iframe(int(port), height=720)
     except Exception as exc:
         print(f"Not inside Colab ({exc}). Local URL: http://127.0.0.1:{port}")
     return server
