@@ -179,3 +179,8 @@ def test_shell_renders_without_a_firebase_project():
     html = render_shell({}, ["kibera"])
     assert "Firebase web config is not set" in html or "apiKey" in html
     assert "kibera" in html
+
+
+def test_shell_accepts_settlement_keys_loaded_from_npz():
+    html = render_shell({}, np.array(["kibera", "mathare", "mukuru"]))
+    assert "kibera" in html and "mukuru" in html

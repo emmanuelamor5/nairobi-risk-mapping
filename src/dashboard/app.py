@@ -46,12 +46,19 @@ def firebase_web_config() -> dict:
     }
 
 
+def _settlement_names(settlement_keys) -> list:
+    """Plain strings. A loaded ``.npz`` stores the keys as a NumPy array, and ``array or []`` raises."""
+    if settlement_keys is None:
+        return []
+    return [str(key) for key in settlement_keys]
+
+
 def render_shell(web_config: dict, settlement_keys, lift_note: str = LIFT_NOTE) -> str:
     html = SHELL_PATH.read_text(encoding="utf-8")
     replacements = {
         "{{FIREBASE_CONFIG_JSON}}": json.dumps(web_config),
         "{{LIFT_NOTE_JSON}}": json.dumps(lift_note),
-        "{{SETTLEMENTS_JSON}}": json.dumps(list(settlement_keys or [])),
+        "{{SETTLEMENTS_JSON}}": json.dumps(_settlement_names(settlement_keys)),
         "{{COLORS_JSON}}": json.dumps(ACTION_COLORS),
     }
     for needle, value in replacements.items():
