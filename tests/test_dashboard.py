@@ -139,6 +139,18 @@ def test_map_route_refuses_sessions_without_mfa():
         status, summary = fetch("/api/summary", "totp-session")
         assert status == 200
         assert json.loads(summary)["compensated_resettlement"] == 1
+
+        status, listing = fetch("/api/parcels", "totp-session")
+        assert status == 200
+        rows = json.loads(listing)
+        assert rows[0]["id"] == "KB-00001"
+        assert rows[0]["lon"] == pytest.approx(SECRET_LON)
+
+        status, detail = fetch("/api/parcel/0", "password-only")
+        assert status == 403
+        status, detail = fetch("/api/parcel/0", "totp-session")
+        assert status == 200
+        assert json.loads(detail)["action"] == "compensated_resettlement"
     finally:
         server.shutdown()
         server.server_close()

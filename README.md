@@ -107,9 +107,9 @@ v1 baseline and a v2 improvement pass.
 after Firebase email/password sign-in plus a TOTP or phone second factor.
 `GraphSAGEModel.explain` returns exact local Shapley values for one
 building. `AttentionUNetModel.explain` returns a Grad-CAM map from the
-last decoder convolution. No wireframe file was in the repo, Drive, or
-the signed-in Figma account; the page is a sign-in wall, then a legend
-and settlement filter beside the map. See
+last decoder convolution. The signed-in page follows the supplied wireframes: a choropleth map
+with a parcel card, and an XAI summary with SHAP bars, feature values,
+and a prediction path. See
 `notebooks/06_sprint6_dashboard.ipynb`. The Sprint 5 river-corridor lift
 (0.929) is printed on the map page so the actions are not presented as
 a validated flood-hazard layer.

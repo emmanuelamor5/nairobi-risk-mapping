@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .auth_gate import bearer_token, mfa_satisfied, verify_firebase_id_token
-from .map_view import ACTION_COLORS, action_counts, build_policy_map
+from .map_view import ACTION_COLORS, action_counts, build_policy_map, parcel_rows
 
 SHELL_PATH = Path(__file__).with_name("shell.html")
 
@@ -112,7 +112,7 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            if parsed.path not in {"/api/map", "/api/summary"}:
+            if parsed.path not in {"/api/map", "/api/summary", "/api/parcels"} and not parsed.path.startswith("/api/parcel/"):
                 _unauthorised(self, 404, "Not found.")
                 return
             if self._claims() is None:
@@ -120,6 +120,24 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
             settlement = parse_qs(parsed.query).get("settlement", [None])[0] or None
             if parsed.path == "/api/summary":
                 payload = json.dumps(action_counts(records["action_index"])).encode("utf-8")
+                content_type = "application/json; charset=utf-8"
+            elif parsed.path == "/api/parcels":
+                # List payload omits per-feature vectors; the XAI route has those.
+                rows = parcel_rows(records, settlement=settlement)
+                brief = [{k: row[k] for k in row if k != "features"} for row in rows]
+                payload = json.dumps(brief).encode("utf-8")
+                content_type = "application/json; charset=utf-8"
+            elif parsed.path.startswith("/api/parcel/"):
+                try:
+                    index = int(parsed.path.rsplit("/", 1)[-1])
+                except ValueError:
+                    _unauthorised(self, 404, "Unknown parcel.")
+                    return
+                match = [row for row in parcel_rows(records) if row["index"] == index]
+                if not match:
+                    _unauthorised(self, 404, "Unknown parcel.")
+                    return
+                payload = json.dumps(match[0]).encode("utf-8")
                 content_type = "application/json; charset=utf-8"
             else:
                 fmap = build_policy_map(
