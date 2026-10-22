@@ -4,10 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Folium — parcel policy</title>
+  <script>
+    try {
+      if (localStorage.getItem("folium-theme") === "dark") document.documentElement.dataset.theme = "dark";
+    } catch (err) { /* private browsing can block storage */ }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/vendor/leaflet.css">
   <style>
     :root {
       --ink: #17212f;
@@ -26,11 +31,33 @@
     body { margin: 0; font-family: Inter, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
     button, input { font: inherit; color: inherit; }
     img { display: block; }
-    .gate { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr); align-items: center; background: #fff; color: #0f1419; position: relative; padding: 32px 4vw 72px; }
-    .auth-copy { width: min(440px, 100%); margin-left: auto; padding-right: 24px; }
-    .gate h1 { margin: 0 0 48px; font-size: clamp(52px, 5vw, 76px); line-height: 1.05; font-weight: 800; letter-spacing: -1.6px; color: #0f1419; }
-    .auth-stack { width: 300px; display: flex; flex-direction: column; gap: 12px; }
-    .auth-pill { width: 100%; height: 40px; border-radius: 999px; border: 1px solid #cfd9de; background: #fff; color: #0f1419; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; }
+    .gate {
+      min-height: 100vh; height: 100vh; overflow: auto;
+      display: grid; grid-template-columns: minmax(340px, 1.1fr) minmax(280px, 0.9fr);
+      align-items: center; position: relative; padding: 32px 5vw 72px; color: #102033;
+      background:
+        radial-gradient(820px 480px at 12% 18%, rgba(72, 168, 150, 0.45), transparent 62%),
+        radial-gradient(640px 420px at 88% 78%, rgba(23, 50, 78, 0.28), transparent 60%),
+        linear-gradient(155deg, #e7f1f4 0%, #f7f4ef 48%, #d5e3ea 100%);
+    }
+    .gate::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.28), transparent 30%, rgba(255,255,255,0.12));
+    }
+    .auth-copy {
+      position: relative; width: min(460px, 100%); margin-left: auto; padding: 36px 32px 28px;
+      border-radius: 28px; background: rgba(255,255,255,0.46);
+      border: 1px solid rgba(255,255,255,0.72);
+      box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
+      backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    }
+    .brand-kicker { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.16em; color: #1d6b5a; }
+    .gate h1 { margin: 0 0 8px; font-size: clamp(42px, 4.4vw, 64px); line-height: 0.98; font-weight: 800; letter-spacing: -1.4px; color: #102033; }
+    .gate-lead { margin: 0 0 28px; color: #3d4d5c; font-size: 15px; line-height: 1.45; }
+    .auth-stack { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
+    .auth-pill { position: relative; width: 100%; height: 40px; border-radius: 999px; border: 1px solid #cfd9de; background: #fff; color: #0f1419; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; transition: background 0.15s ease, border-color 0.15s ease; }
+    .auth-pill:hover:not(:disabled) { background: #f0f3f5; }
+    .auth-dark:hover:not(:disabled), .auth-continue:not(:disabled):hover { background: #272c30; }
     .auth-pill svg { flex: none; }
     .auth-dark { background: #0f1419; color: #fff; border-color: #0f1419; }
     .auth-continue { background: #eff3f4; color: #8b98a5; border-color: #eff3f4; cursor: default; }
@@ -46,8 +73,16 @@
     .gate .error:empty { display: none; }
     .auth-note, .gate form p { margin: 0; color: #536471; font-size: 13px; line-height: 1.4; }
     .auth-back { border: 0; background: transparent; color: #1d9bf0; padding: 0 0 8px; cursor: pointer; font-size: 15px; font-weight: 400; text-align: left; }
-    .auth-mark { justify-self: center; font-size: min(34vw, 380px); font-weight: 800; letter-spacing: -0.08em; line-height: 0.8; color: #0f1419; user-select: none; }
-    .auth-foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: #536471; font-size: 13px; }
+    .auth-mark {
+      position: relative; justify-self: center; width: min(280px, 70%); aspect-ratio: 1;
+      display: grid; place-items: center; border-radius: 36px;
+      background: rgba(255,255,255,0.38); border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
+      backdrop-filter: blur(18px); color: #102033; text-align: center; user-select: none;
+    }
+    .auth-mark strong { display: block; font-size: clamp(28px, 3vw, 40px); letter-spacing: -0.04em; line-height: 1; }
+    .auth-mark span { display: block; margin-top: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.12em; color: #1d6b5a; }
+    .auth-foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: #3d4d5c; font-size: 13px; }
     .mark { width: 32px; height: 32px; background: var(--nav); border-radius: 6px; display: grid; place-items: center; flex: none; }
     .brand strong { font-size: 22px; font-weight: 700; }
     @media (max-width: 880px) {
@@ -60,7 +95,8 @@
       width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: white;
     }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    .primary { background: var(--nav); color: white; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    .primary { position: relative; background: var(--nav); color: white; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    .tool { position: relative; }
     .ghost { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
     .error { color: #922b21; min-height: 1.2em; font-size: 13px; }
     .app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
@@ -69,8 +105,10 @@
     .brand { display: flex; gap: 10px; align-items: center; height: 80px; padding: 0 24px; border-bottom: 1px solid var(--line); }
     .nav-scroll { flex: 1; overflow: auto; padding: 27px 16px 12px; display: flex; flex-direction: column; gap: 26px; }
     .group-label { margin: 0 0 8px; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
-    .nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; }
+    .nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease; }
     .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; font-weight: 600; }
+    .nav-btn:hover:not([aria-pressed="true"]),
+    .settle-opt:hover { background: #dce8f3; color: #102033; transform: translateX(3px); }
     .dataset-name { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; }
     .settle { position: relative; }
     .settle-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; }
@@ -101,34 +139,139 @@
     .search-wrap input::placeholder { color: var(--faint); }
     .tool { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; }
     .tool.square { width: 36px; padding: 0; }
+    .tool:hover:not(:disabled) { background: #f4f7f8; }
     .tool[aria-pressed="true"] { background: var(--nav); color: white; border-color: var(--nav); }
+    .tool[aria-pressed="true"]:hover { background: #272c30; }
+    .primary:hover:not(:disabled) { filter: brightness(1.12); }
+    .ghost:hover:not(:disabled), .settle-btn:hover, .zoom-stack button:hover, .icon-btn:hover { background: #f4f7f8; }
+    .auth-pill.is-loading, .tool.is-loading, .primary.is-loading { color: transparent; }
+    .auth-pill.is-loading > *, .tool.is-loading > *, .primary.is-loading > * { visibility: hidden; }
+    .auth-pill.is-loading::after, .tool.is-loading::after, .primary.is-loading::after {
+      content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #0f1419; border-right-color: transparent; animation: spin 0.7s linear infinite;
+    }
+    .auth-dark.is-loading::after, .primary.is-loading::after { border-color: #fff; border-right-color: transparent; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .map-loading {
+      position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px; background: rgba(246, 248, 250, 0.92);
+      color: var(--ink); font-size: 15px; font-weight: 600;
+    }
+    .map-loading .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #cfd9de; border-top-color: #152331; animation: spin 0.7s linear infinite; }
+    .page { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--paper); }
+    .page-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; overflow: auto; }
+    .setting-row { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .switch { width: 44px; height: 26px; border-radius: 999px; border: 0; background: #cfd9de; padding: 3px; cursor: pointer; flex: none; }
+    .switch:hover { filter: brightness(0.95); }
+    .switch-knob { display: block; width: 20px; height: 20px; border-radius: 50%; background: white; transition: transform 0.15s ease; }
+    .switch.on { background: #152331; }
+    .switch.on .switch-knob { transform: translateX(18px); }
+    .avatar.lg { width: 72px; height: 72px; font-size: 22px; }
+    .avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
+    .profile-layout { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 980px; }
+    .profile-id { display: flex; gap: 16px; align-items: center; }
+    .profile-id h2, .profile-phone h2 { margin: 0; font-size: 16px; }
+    .profile-id p { margin: 4px 0 0; }
+    .phone-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-top: 8px; }
+    .auth-pill.compact { width: auto; min-width: 132px; padding: 0 18px; }
+    .profile-phone .auth-pill.auth-dark { margin-top: 16px; }
+    @media (max-width: 800px) { .profile-layout { grid-template-columns: 1fr; } .phone-line { grid-template-columns: 1fr; } }
+    html[data-theme="dark"] body,
+    html[data-theme="dark"] .workspace,
+    html[data-theme="dark"] .page { background: #0f1419; color: #e7e9ea; }
+    html[data-theme="dark"] .gate {
+      background:
+        radial-gradient(820px 480px at 12% 18%, rgba(40, 110, 100, 0.35), transparent 62%),
+        linear-gradient(155deg, #0c141c 0%, #15202b 100%);
+    }
+    html[data-theme="dark"] .auth-copy,
+    html[data-theme="dark"] .auth-mark {
+      background: rgba(21, 32, 43, 0.62); color: #e7e9ea;
+      border-color: rgba(255,255,255,0.16);
+    }
+    html[data-theme="dark"] .gate h1,
+    html[data-theme="dark"] .auth-mark,
+    html[data-theme="dark"] .auth-or { color: #e7e9ea; }
+    html[data-theme="dark"] aside,
+    html[data-theme="dark"] .top,
+    html[data-theme="dark"] .panel,
+    html[data-theme="dark"] .card,
+    html[data-theme="dark"] footer,
+    html[data-theme="dark"] .tool,
+    html[data-theme="dark"] .search-wrap,
+    html[data-theme="dark"] .auth-pill,
+    html[data-theme="dark"] .settle-btn,
+    html[data-theme="dark"] .note { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .legend,
+    html[data-theme="dark"] .legend .swatch,
+    html[data-theme="dark"] .legend-label { color: #ffffff; }
+    html[data-theme="dark"] .map-legend {
+      background: #101820; color: #ffffff;
+      border: 1px solid #3d4f63;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    }
+    html[data-theme="dark"] .map-legend strong,
+    html[data-theme="dark"] .map-legend .legend-head,
+    html[data-theme="dark"] .map-legend b,
+    html[data-theme="dark"] .legend-row,
+    html[data-theme="dark"] .legend-row em,
+    html[data-theme="dark"] .select-key { color: #ffffff; }
+    html[data-theme="dark"] .win-min { background: #1c2b3a; color: #ffffff; border-color: #5c738a; }
+    html[data-theme="dark"] .nav-btn:hover:not([aria-pressed="true"]),
+    html[data-theme="dark"] .settle-opt:hover { background: #243140; color: #ffffff; transform: translateX(3px); }
+    html[data-theme="dark"] .tool:hover:not(:disabled),
+    html[data-theme="dark"] .auth-pill:hover:not(:disabled):not(.auth-dark) { background: #1e2732; }
+    html[data-theme="dark"] .auth-dark,
+    html[data-theme="dark"] .nav-btn[aria-pressed="true"],
+    html[data-theme="dark"] .primary,
+    html[data-theme="dark"] .switch.on { background: #e7e9ea; color: #0f1419; }
+    html[data-theme="dark"] .layer-menu { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] #map,
+    html[data-theme="dark"] .leaflet-container,
+    html[data-theme="dark"] .leaflet-tile { filter: none; background: #ddd; }
+    html[data-theme="dark"] input,
+    html[data-theme="dark"] .gate input { background: #0f1419; color: #e7e9ea; border-color: #38444d; }
     .notice { position: absolute; right: 0; top: 44px; width: 320px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 20; }
     .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 64px; padding: 12px 24px; }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: var(--muted); }
     .legend-label { font-weight: 500; }
     .swatch { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
     .dot { width: 7px; height: 7px; border-radius: 100px; display: inline-block; flex: none; }
-    .map-tools { display: flex; gap: 8px; }
+    .map-tools { display: flex; gap: 8px; position: relative; }
     .map-tools .tool { height: 32px; font-size: 11px; }
     .stage { position: relative; flex: 1; min-height: 560px; margin: 0 20px 20px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #d7e0d4; }
     #map { height: 100%; min-height: 560px; background: #d7e0d4; }
+    .leaflet-container { width: 100%; height: 100%; min-height: 560px; background: #d7e0d4; font: inherit; }
+    #map, .leaflet-container, .leaflet-tile, .leaflet-tile-pane { filter: none; mix-blend-mode: normal; }
     .hud { position: absolute; z-index: 500; left: 18px; top: 18px; display: flex; flex-direction: column; gap: 16px; }
     .tile-source { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; background: rgba(255, 255, 255, 0.94); border-radius: 6px; color: var(--muted); font-size: 11px; }
     .zoom-stack { width: 34px; display: flex; flex-direction: column; gap: 7px; }
     .zoom-stack button { width: 34px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 16px; line-height: 1; }
     .measure-readout { background: white; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; }
-    .layer-menu { position: absolute; z-index: 500; top: 64px; right: 250px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; box-shadow: 0 2px 8px rgba(23, 33, 47, 0.07); }
+    .layer-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 168px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.12); }
     .layer-menu button { display: block; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
     .layer-menu button[aria-pressed="true"] { background: #eaf5ef; color: var(--green); font-weight: 600; }
     .map-legend { position: absolute; z-index: 500; left: 18px; bottom: 18px; width: 292px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); }
-    .legend-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
+    .legend-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: grab; }
+    .legend-head:active { cursor: grabbing; }
+    .win-min { width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 4px; background: #f4f7f8; padding: 0; display: grid; place-items: center; cursor: pointer; flex: none; }
+    .win-min:hover { background: #e7eef5; }
+    .map-legend.is-min { width: 240px; }
+    .map-legend.is-min #legend-body { display: none; }
+    .parcel-pin {
+      position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+      border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 3px #ff5a4e, 0 0 18px rgba(255,90,78,0.85);
+      pointer-events: none; z-index: 2;
+    }
     .legend-head button { border: 0; background: transparent; padding: 0; cursor: pointer; }
     .legend-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 9px; margin-top: 14px; }
     .swatch-sq { width: 10px; height: 10px; border-radius: 2px; margin-top: 2px; }
     .legend-row strong { display: block; font-size: 11px; font-weight: 600; }
     .legend-row em { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-style: normal; }
     .legend-row b { font-size: 11px; font-weight: 500; color: var(--muted); }
-    .select-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; color: var(--muted); font-size: 10px; }
+    .select-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; color: var(--muted); font-size: 11px; cursor: pointer; }
+    .select-key input { width: 14px; height: 14px; margin: 0; }
+    .page-body p { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .select-box { width: 10px; height: 10px; border: 1.5px solid var(--ink); border-radius: 2px; }
     .scale-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 10px; }
     .scale-bar { width: 60px; height: 3px; background: var(--ink); }
@@ -226,7 +369,9 @@
 <body>
   <section class="gate" id="gate">
     <div class="auth-copy">
-      <h1>Parcel<br>policy.</h1>
+      <p class="brand-kicker">Nairobi Risk Mapping</p>
+      <h1>Nairobi<br>Risk Mapping</h1>
+      <p class="gate-lead">Folium parcel policy for Kibera, Mathare, and Mukuru.</p>
       <p class="error" id="gate-error" role="alert"></p>
       <div class="auth-stack" id="auth-home">
         <button class="auth-pill auth-dark" id="show-phone" type="button">
@@ -284,9 +429,32 @@
         <input id="enroll-code" type="text" inputmode="numeric" autocomplete="one-time-code">
         <button class="auth-pill auth-dark" type="submit">Verify and enroll</button>
       </form>
+      <form id="code-choice" class="auth-stack" hidden>
+        <button class="auth-back" id="code-back" type="button">All sign-in options</button>
+        <p>Choose where this sign-in code should arrive. It expires after 5 minutes.</p>
+        <div id="code-channels">
+          <button class="auth-pill" id="choose-email" type="button">Send code to email</button>
+          <button class="auth-pill" id="choose-phone-code" type="button">Send code to phone</button>
+        </div>
+        <div id="code-phone-fields" hidden>
+          <label for="login-phone">Phone number</label>
+          <input id="login-phone" type="tel" autocomplete="tel" placeholder="+254712345678">
+          <div id="login-recaptcha"></div>
+          <button class="auth-pill" id="send-login-phone" type="button">Send phone code</button>
+        </div>
+        <div id="code-entry" hidden>
+          <p id="code-destination"></p>
+          <p id="code-timer">5:00</p>
+          <label for="login-code">Text message code</label>
+          <input id="login-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+          <button class="auth-pill auth-dark" id="confirm-login-code" type="button">Continue</button>
+          <button class="auth-pill" id="resend-login-code" type="button">Send a new code</button>
+        </div>
+        <p class="error" id="code-error" role="alert"></p>
+      </form>
     </div>
-    <div class="auth-mark" aria-hidden="true">F</div>
-    <div class="auth-foot">Folium · Nairobi parcel policy</div>
+    <div class="auth-mark" aria-hidden="true"><div><strong>Nairobi Risk Mapping</strong><span>FOLIUM</span></div></div>
+    <div class="auth-foot">Nairobi Risk Mapping · Folium</div>
   </section>
 
   <div class="app" id="app">
@@ -328,6 +496,14 @@
             <img src="/assets/network.svg" alt="">
             GraphSAGE Config
           </button>
+          <button class="nav-btn" id="nav-unet" type="button">
+            <img src="/assets/settings.svg" alt="">
+            Attention U-Net
+          </button>
+          <button class="nav-btn" id="nav-fusion" type="button">
+            <img src="/assets/chart-muted.svg" alt="">
+            Fusion engine
+          </button>
           <button class="nav-btn" id="nav-settings" type="button">
             <img src="/assets/settings.svg" alt="">
             Settings
@@ -348,6 +524,7 @@
           <img src="/assets/ellipsis.svg" alt="">
         </button>
         <div class="account-menu" id="account-menu" hidden>
+          <button id="open-profile" type="button">Profile</button>
           <button id="sign-out" type="button">Sign out</button>
         </div>
       </div>
@@ -377,15 +554,23 @@
         <div class="toolbar">
           <div class="legend" id="legend"></div>
           <div class="map-tools">
-            <button class="tool" id="layers-btn" type="button" aria-expanded="false">Layers</button>
+            <button class="tool" id="layers-btn" type="button" aria-expanded="false" aria-controls="layer-menu">Layers</button>
             <button class="tool" id="measure-btn" type="button" aria-pressed="false">Measure</button>
             <button class="tool" id="fullscreen-btn" type="button">Full screen</button>
+            <div class="layer-menu" id="layer-menu" hidden>
+              <button type="button" data-layer="streets" aria-pressed="true">Street map</button>
+              <button type="button" data-layer="satellite" aria-pressed="false">Satellite</button>
+            </div>
           </div>
         </div>
         <div class="stage" id="stage">
+          <div class="map-loading" id="map-loading" hidden>
+            <span class="spin" aria-hidden="true"></span>
+            Loading the map
+          </div>
           <div id="map"></div>
           <div class="hud">
-            <div class="tile-source"><img src="/assets/map-muted.svg" alt=""><span id="tile-source">Tile source: satellite imagery</span></div>
+            <div class="tile-source"><img src="/assets/map-muted.svg" alt=""><span id="tile-source">Tile source: OpenStreetMap</span></div>
             <div class="zoom-stack">
               <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
               <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
@@ -393,21 +578,19 @@
             </div>
             <div class="measure-readout" id="measure-readout" hidden></div>
           </div>
-          <div class="layer-menu" id="layer-menu" hidden>
-            <button type="button" data-layer="satellite" aria-pressed="true">Satellite</button>
-            <button type="button" data-layer="streets" aria-pressed="false">Streets</button>
-          </div>
           <aside class="map-legend" id="map-legend">
             <div class="legend-head">
-              Policy &amp; governance categories
-              <button id="legend-toggle" type="button" aria-expanded="true" aria-label="Collapse legend">
-                <img id="legend-chevron-up" src="/assets/chevron-up.svg" alt="">
-                <img id="legend-chevron-down" src="/assets/chevron-down.svg" alt="" hidden>
+              <span>Policy &amp; governance categories</span>
+              <button class="win-min" id="legend-toggle" type="button" aria-expanded="true" aria-label="Minimize" title="Minimize">
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
               </button>
             </div>
             <div id="legend-body">
               <div id="legend-rows"></div>
-              <div class="select-key"><span class="select-box"></span> Outlined parcel is the current selection</div>
+              <label class="select-key" for="outline-selection">
+                <input id="outline-selection" type="checkbox" checked>
+                Outlined parcel is the current selection
+              </label>
               <div class="scale-row"><span>N</span><span class="scale-bar"></span><span id="scale-label"></span></div>
             </div>
           </aside>
@@ -438,14 +621,11 @@
               <div class="heat-wrap">
                 <p class="section-title">Grad-CAM attention overlay</p>
                 <div class="heat">
-                  <img class="sat" src="/assets/satellite.jpg" alt="">
-                  <img class="field" src="/assets/attention-field.svg" alt="">
-                  <img class="secondary" src="/assets/attention-secondary.svg" alt="">
-                  <img class="boundary" src="/assets/parcel-boundary.png" alt="" width="198" height="145">
+                  <img class="sat" src="/assets/satellite.jpg" alt="Satellite view of the selected parcel">
+                  <span class="parcel-pin" aria-hidden="true"></span>
                   <span class="parcel-badge" id="card-heat-id"></span>
-                  <span class="heat-scale"><span>Low</span><i></i><span>High</span></span>
                 </div>
-                <p class="heat-note" id="card-cam">Illustrative satellite and spatial attention, not inference evidence. Grad-CAM is computed on the flood tile, not stored per building.</p>
+                <p class="heat-note" id="card-cam">Satellite image centred on this parcel. The marker sits on the building centroid. A stored Grad-CAM chip is not kept per building.</p>
               </div>
               <div class="mini-shap">
                 <p class="section-title">Top SHAP feature contributors</p>
@@ -515,14 +695,11 @@
                 <h2 style="font-size:14px;">Grad-CAM attention overlay</h2>
                 <div class="sub" id="xai-heat-sub">Satellite image tile</div>
                 <div class="heat tall" style="margin-top:14px;">
-                  <img class="sat" src="/assets/satellite.jpg" alt="">
-                  <img class="field" src="/assets/attention-field.svg" alt="">
-                  <img class="secondary" src="/assets/attention-secondary.svg" alt="">
-                  <img class="boundary" src="/assets/parcel-boundary.png" alt="" width="198" height="145">
+                  <img class="sat" src="/assets/satellite.jpg" alt="Satellite view of the selected parcel">
+                  <span class="parcel-pin" aria-hidden="true"></span>
                   <span class="parcel-badge" id="xai-heat-id"></span>
-                  <span class="heat-scale"><span>Low</span><i></i><span>High</span></span>
                 </div>
-                <p class="heat-note">Illustrative satellite and spatial attention, not inference evidence. Run AttentionUNetModel.explain on the parcel's tile for the real Grad-CAM.</p>
+                <p class="heat-note">Satellite image centred on this parcel. The marker sits on the building centroid. A stored Grad-CAM chip is not kept per building.</p>
               </div>
               <div class="panel feature-values" style="margin-top:20px;">
                 <div class="panel-head">
@@ -545,17 +722,161 @@
           </div>
         </div>
       </div>
+      <div class="page" id="graphsage-view" hidden>
+        <header class="top">
+          <div>
+            <h1>GraphSAGE config</h1>
+            <div class="sub">Structural deprivation head</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Architecture</strong>
+            <p>Two SAGEConv layers, mean aggregation, hidden width 64, dropout 0.5, then a linear layer to three deprivation classes.</p>
+          </section>
+          <section class="panel">
+            <strong>Training</strong>
+            <p>Adam, learning rate 0.005, weight decay 0.0005. Stratified 60/20/20 split. Sprint 3 target is validation macro-F1 of at least 0.60. The three-settlement target is 0.70. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score.</p>
+          </section>
+          <section class="panel">
+            <strong>Colab results</strong>
+            <p>Kibera Sprint 3 validation macro-F1 was 0.9382 (accuracy 0.9371). On the three-settlement run the pooled validation macro-F1 was 0.8813: Kibera 0.8972, Mathare 0.8755, Mukuru 0.7453. That cleared the 0.70 target.</p>
+          </section>
+        </div>
+      </div>
+      <div class="page" id="unet-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Attention U-Net</h1>
+            <div class="sub">Flood hazard head</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Architecture</strong>
+            <p>U-Net encoder and decoder with an attention gate on each skip connection. Default width starts at 32 channels. The default stack has 9 inputs: six Sentinel-2 bands plus elevation, slope, and topographic wetness.</p>
+          </section>
+          <section class="panel">
+            <strong>Training</strong>
+            <p>BCE plus Dice loss, Adam, optional dropout and weight decay, cosine learning-rate schedule, and early stopping. Transfer target is IoU of at least 0.60. The final flood F1 target is 0.75.</p>
+          </section>
+          <section class="panel">
+            <strong>Colab results</strong>
+            <p>The first training run reached a train IoU of about 0.77 while validation stayed near the flood-everywhere baseline of about 0.31. After the event-based label, the three-settlement Colab run reached a pooled IoU of 0.7201 and F1 of 0.8373, above the 0.60 and 0.75 targets.</p>
+          </section>
+        </div>
+      </div>
+      <div class="page" id="fusion-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Fusion engine</h1>
+            <div class="sub">Late-fusion policy matrix</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Rule</strong>
+            <p>The flood probability and the deprivation class are read off a fixed matrix. Compensated resettlement is only reached when hazard is high and high deprivation is a majority, not a mere plurality.</p>
+          </section>
+          <section class="panel">
+            <strong>Colab evaluation</strong>
+            <p>The Sprint 5 Colab run fused 18,005 parcels. The justice audit passed, with 1,265 resettlements. River-corridor lift was 0.929, below the bar of 1, so these actions are not a validated flood-hazard map.</p>
+          </section>
+        </div>
+      </div>
+      <div class="page" id="history-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Run history</h1>
+            <div class="sub">Saved inference runs for this policy table</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Sprint 5 late fusion</strong>
+            <p id="history-lift"></p>
+          </section>
+          <section class="panel">
+            <strong>GraphSAGE</strong>
+            <p>Two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score.</p>
+          </section>
+          <section class="panel">
+            <strong>Attention U-Net</strong>
+            <p>Flood head. Grad-CAM is computed on the flood tile, not stored on each building.</p>
+          </section>
+        </div>
+      </div>
+      <div class="page" id="settings-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Settings</h1>
+            <div class="sub">Appearance for this browser</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel setting-row">
+            <div>
+              <strong>Dark mode</strong>
+              <div class="sub">Switch the dashboard and the sign-in page to a dark background.</div>
+            </div>
+            <button class="switch" id="dark-mode" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
+              <span class="switch-knob"></span>
+            </button>
+          </section>
+          <p class="sub">The policy matrix is fixed. Compensated resettlement still requires high deprivation and high hazard.</p>
+        </div>
+      </div>
+      <div class="page" id="profile-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Profile</h1>
+            <div class="sub">Account details for this sign-in</div>
+          </div>
+        </header>
+        <div class="page-body profile-layout">
+          <section class="panel profile-identity">
+            <div class="profile-id">
+              <div class="avatar lg" id="profile-avatar">—</div>
+              <div>
+                <h2>Profile picture</h2>
+                <p class="sub" id="profile-email">Signed in</p>
+              </div>
+            </div>
+            <div class="profile-actions">
+              <label class="tool" for="avatar-file">Add a profile picture</label>
+              <input id="avatar-file" type="file" accept="image/*" hidden>
+              <button class="ghost" id="avatar-remove" type="button">Remove picture</button>
+            </div>
+          </section>
+          <section class="panel profile-phone">
+            <h2>Change phone number</h2>
+            <p class="sub" id="current-phone">No phone number on this account yet.</p>
+            <div class="phone-line">
+              <div>
+                <label for="new-phone">New phone number</label>
+                <input id="new-phone" type="tel" autocomplete="tel" placeholder="+254712345678">
+              </div>
+              <button class="auth-pill compact" id="send-phone-change" type="button">Send code</button>
+            </div>
+            <div id="phone-change-recaptcha"></div>
+            <label for="phone-change-code">Text message code</label>
+            <input id="phone-change-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+            <p class="error" id="profile-error" role="alert"></p>
+            <button class="auth-pill auth-dark" id="confirm-phone-change" type="button">Update phone number</button>
+          </section>
+        </div>
+      </div>
       <footer>
         <div>GraphSAGE, two-layer mean aggregation · Attention U-Net flood head</div>
         <div class="totals" id="map-foot"></div>
       </footer>
     </div>
   </div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/vendor/leaflet.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
     import {
-      getAuth, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor,
+      getAuth, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor, updatePhoneNumber,
       TotpMultiFactorGenerator, PhoneAuthProvider, PhoneMultiFactorGenerator,
       RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
@@ -588,10 +909,26 @@
       compensated_resettlement: "#fbeeed",
       insufficient_evidence: "#f4f6f8",
     };
+    const DARK_ACTION_COLORS = {
+      retain_formalise: "#00f59a",
+      retain_upgrade: "#ffe14a",
+      in_situ_upgrade_priority: "#5ec8ff",
+      flood_resilient_upgrade: "#5dfff2",
+      compensated_resettlement: "#ff5d57",
+      insufficient_evidence: "#ffffff",
+    };
+    let outlineSelection = true;
     const errorEl = document.getElementById("gate-error");
     let resolver = null;
     let confirmationResult = null;
     let verificationId = null;
+    let phoneChangeId = null;
+    let signedInUser = null;
+    let pendingUser = null;
+    let loginChannel = "";
+    let codeDeadline = 0;
+    let codeTimer = null;
+    let freshCodeOk = false;
     let challengeKind = "phone";
     let recaptcha = null;
     let parcels = [];
@@ -602,7 +939,8 @@
     let streets;
     let satellite;
     let baseLayer;
-    let baseKind = "satellite";
+    let baseKind = "streets";
+    let tileFallbackUsed = false;
     let measuring = false;
     let measurePts = [];
     let measureLayer = null;
@@ -618,10 +956,73 @@
       document.getElementById("phone-sign-in").hidden = id !== "phone";
       document.getElementById("challenge").hidden = id !== "challenge";
       document.getElementById("enroll").hidden = id !== "enroll";
+      document.getElementById("code-choice").hidden = id !== "code-choice";
       if (id === "sign-in") {
         document.getElementById("password-step").hidden = true;
         document.getElementById("email-continue").hidden = false;
         document.getElementById("password").required = false;
+        clearInterval(codeTimer);
+      }
+    }
+
+    function runBusy(button, work) {
+      if (!button) return Promise.resolve().then(work);
+      button.classList.add("is-loading");
+      button.setAttribute("aria-busy", "true");
+      const wasDisabled = button.disabled;
+      button.disabled = true;
+      const started = Date.now();
+      return Promise.resolve().then(work).finally(() => {
+        const delay = Math.max(0, 800 - (Date.now() - started));
+        setTimeout(() => {
+          button.classList.remove("is-loading");
+          button.removeAttribute("aria-busy");
+          button.disabled = wasDisabled;
+        }, delay);
+      });
+    }
+
+    function showMapLoading(hold) {
+      const overlay = document.getElementById("map-loading");
+      overlay.hidden = false;
+      clearTimeout(showMapLoading.timer);
+      if (hold) return () => { overlay.hidden = true; };
+      showMapLoading.timer = setTimeout(() => { overlay.hidden = true; }, 1000);
+      return null;
+    }
+
+    function applyTheme(theme) {
+      if (theme === "dark") document.documentElement.dataset.theme = "dark";
+      else delete document.documentElement.dataset.theme;
+      try { localStorage.setItem("folium-theme", theme === "dark" ? "dark" : "light"); } catch (err) { /* storage may be blocked */ }
+      const toggle = document.getElementById("dark-mode");
+      const on = theme === "dark";
+      toggle.classList.toggle("on", on);
+      toggle.setAttribute("aria-checked", on ? "true" : "false");
+      if (document.getElementById("app").classList.contains("on") && map) {
+        drawLegend();
+        draw(shown, false);
+      }
+    }
+
+    function photoKey(user) {
+      return "folium-photo-" + (user && user.uid ? user.uid : "local");
+    }
+
+    function paintAvatar(user) {
+      let url = "";
+      try { url = localStorage.getItem(photoKey(user)) || ""; } catch (err) { url = ""; }
+      const label = initials((user && (user.email || user.phoneNumber)) || "Signed in");
+      for (const id of ["analyst-initials", "profile-avatar"]) {
+        const node = document.getElementById(id);
+        node.textContent = label;
+        if (url) {
+          node.style.backgroundImage = "url('" + url.replace(/'/g, "") + "')";
+          node.classList.add("has-photo");
+        } else {
+          node.style.backgroundImage = "";
+          node.classList.remove("has-photo");
+        }
       }
     }
 
@@ -638,11 +1039,19 @@
       return ACTION_LABELS[key] || String(key || "").replaceAll("_", " ");
     }
 
+    function markerColor(name) {
+      const dark = document.documentElement.dataset.theme === "dark";
+      if (dark && DARK_ACTION_COLORS[name]) return DARK_ACTION_COLORS[name];
+      return colors[name] || (dark ? "#e4ebf2" : "#a7b4c1");
+    }
+
     function paintPill(pillId, dotId, nameId, action) {
       const pill = document.getElementById(pillId);
-      pill.style.background = ACTION_WASH[action] || "#f6f8fa";
-      pill.style.color = colors[action] || "#17212f";
-      document.getElementById(dotId).style.background = colors[action] || "#a7b4c1";
+      const color = markerColor(action);
+      const dark = document.documentElement.dataset.theme === "dark";
+      pill.style.background = dark ? "rgba(255,255,255,0.08)" : (ACTION_WASH[action] || "#f6f8fa");
+      pill.style.color = color;
+      document.getElementById(dotId).style.background = color;
       document.getElementById(nameId).textContent = actionName(action);
     }
 
@@ -688,14 +1097,14 @@
         swatch.className = "swatch";
         const dot = document.createElement("span");
         dot.className = "dot";
-        dot.style.background = color;
+        dot.style.background = markerColor(name);
         swatch.append(dot, document.createTextNode(actionName(name)));
         legend.append(swatch);
         const row = document.createElement("div");
         row.className = "legend-row";
         const square = document.createElement("span");
         square.className = "swatch-sq";
-        square.style.background = color;
+        square.style.background = markerColor(name);
         const copy = document.createElement("div");
         const strong = document.createElement("strong");
         strong.textContent = actionName(name);
@@ -709,7 +1118,7 @@
         const footItem = document.createElement("span");
         const marker = document.createElement("span");
         marker.className = "dot";
-        marker.style.background = color;
+        marker.style.background = markerColor(name);
         footItem.append(marker, document.createTextNode(count + " " + actionName(name)));
         foot.append(footItem);
       }
@@ -725,10 +1134,37 @@
       document.querySelector("#nav-xai .when-off").hidden = !mapOn;
     }
 
+    function hideSidePages() {
+      for (const id of ["settings-view", "profile-view", "history-view", "graphsage-view", "unet-view", "fusion-view"]) {
+        document.getElementById(id).hidden = true;
+      }
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-config").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-fusion").setAttribute("aria-pressed", "false");
+    }
+
+    function showModel(viewId, buttonId) {
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      hideSidePages();
+      document.getElementById(viewId).hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById(buttonId).setAttribute("aria-pressed", "true");
+      document.querySelector("#nav-map .when-on").hidden = true;
+      document.querySelector("#nav-map .when-off").hidden = false;
+      document.querySelector("#nav-xai .when-on").hidden = true;
+      document.querySelector("#nav-xai .when-off").hidden = false;
+    }
+
     function showMap() {
+      hideSidePages();
       document.getElementById("map-view").hidden = false;
       document.getElementById("xai-view").classList.remove("on");
       setNav("map");
+      showMapLoading();
       if (map) setTimeout(() => map.invalidateSize(), 0);
     }
 
@@ -737,9 +1173,75 @@
         showNotice("Select a parcel on the map to open its explanation.");
         return;
       }
+      hideSidePages();
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.add("on");
       setNav("xai");
+    }
+
+    function showSettings() {
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("profile-view").hidden = true;
+      document.getElementById("history-view").hidden = true;
+      document.getElementById("graphsage-view").hidden = true;
+      document.getElementById("unet-view").hidden = true;
+      document.getElementById("fusion-view").hidden = true;
+      document.getElementById("settings-view").hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "true");
+      document.querySelector("#nav-map .when-on").hidden = true;
+      document.querySelector("#nav-map .when-off").hidden = false;
+      document.querySelector("#nav-xai .when-on").hidden = true;
+      document.querySelector("#nav-xai .when-off").hidden = false;
+    }
+
+    function showHistory() {
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("settings-view").hidden = true;
+      document.getElementById("profile-view").hidden = true;
+      document.getElementById("graphsage-view").hidden = true;
+      document.getElementById("unet-view").hidden = true;
+      document.getElementById("fusion-view").hidden = true;
+      document.getElementById("history-view").hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-config").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-history").setAttribute("aria-pressed", "true");
+      document.querySelector("#nav-map .when-on").hidden = true;
+      document.querySelector("#nav-map .when-off").hidden = false;
+      document.querySelector("#nav-xai .when-on").hidden = true;
+      document.querySelector("#nav-xai .when-off").hidden = false;
+      const note = document.getElementById("history-lift");
+      if (note && !note.textContent) note.textContent = liftNote;
+    }
+
+    function showProfile() {
+      document.getElementById("account-menu").hidden = true;
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("settings-view").hidden = true;
+      document.getElementById("history-view").hidden = true;
+      document.getElementById("graphsage-view").hidden = true;
+      document.getElementById("unet-view").hidden = true;
+      document.getElementById("fusion-view").hidden = true;
+      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
+      document.getElementById("profile-view").hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      if (signedInUser) {
+        paintAvatar(signedInUser);
+        document.getElementById("profile-email").textContent = signedInUser.email || signedInUser.phoneNumber || "Signed in";
+        document.getElementById("current-phone").textContent = signedInUser.phoneNumber
+          ? "Current number: " + signedInUser.phoneNumber
+          : "No phone number on this account yet.";
+      }
     }
 
     function renderClasses(detail, titleId, tagId, rowId, noteId) {
@@ -778,6 +1280,21 @@
       document.getElementById("card-dep-bar").style.width = depScore == null ? "0" : Math.round(depScore * 100) + "%";
       document.getElementById("card-conf").textContent = formatPercent(parcel.confidence);
       renderClasses(parcel, "card-class-title", "card-class-tag", "card-classes", "card-class-note");
+      showParcelSatellite(parcel);
+    }
+
+    function showParcelSatellite(parcel) {
+      if (!Number.isFinite(parcel.lat) || !Number.isFinite(parcel.lon)) return;
+      const dLat = 0.0011;
+      const dLon = 0.0015;
+      const bbox = [parcel.lon - dLon, parcel.lat - dLat, parcel.lon + dLon, parcel.lat + dLat]
+        .map((value) => value.toFixed(6)).join(",");
+      const url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox="
+        + encodeURIComponent(bbox) + "&bboxSR=4326&imageSR=4326&size=688,440&format=jpg&f=image";
+      for (const image of document.querySelectorAll(".heat .sat")) {
+        image.src = url;
+        image.alt = "Satellite view centred on parcel " + parcel.id;
+      }
     }
 
     function renderExplanations(detail) {
@@ -938,15 +1455,15 @@
     }
 
     function useBase(kind) {
-      if (!map) return;
-      baseKind = kind;
+      ensureMap();
+      baseKind = kind === "satellite" ? "satellite" : "streets";
       if (baseLayer) baseLayer.remove();
-      baseLayer = (kind === "streets" ? streets : satellite).addTo(map);
-      document.getElementById("tile-source").textContent = kind === "streets"
+      baseLayer = (baseKind === "streets" ? streets : satellite).addTo(map);
+      document.getElementById("tile-source").textContent = baseKind === "streets"
         ? "Tile source: OpenStreetMap"
         : "Tile source: satellite imagery";
       for (const button of document.querySelectorAll("#layer-menu button")) {
-        button.setAttribute("aria-pressed", button.dataset.layer === kind ? "true" : "false");
+        button.setAttribute("aria-pressed", button.dataset.layer === baseKind ? "true" : "false");
       }
       document.getElementById("layer-menu").hidden = true;
       document.getElementById("layers-btn").setAttribute("aria-expanded", "false");
@@ -959,6 +1476,9 @@
       L.circleMarker(event.latlng, {
         radius: 4, color: "#17212f", weight: 2, fillColor: "#ffffff", fillOpacity: 1,
       }).addTo(measureLayer);
+      if (measurePts.length === 1) {
+        document.getElementById("measure-readout").textContent = "Click the second point.";
+      }
       if (measurePts.length >= 2) {
         const start = measurePts[measurePts.length - 2];
         const end = measurePts[measurePts.length - 1];
@@ -973,14 +1493,16 @@
 
     function ensureMap() {
       if (map) return;
-      map = L.map("map", { zoomControl: false });
+      map = L.map("map", { zoomControl: false }).setView([-1.313, 36.79], 13);
       streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
+        maxZoom: 19,
       });
       satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
         attribution: "Tiles &copy; Esri",
+        maxZoom: 19,
       });
-      useBase(baseKind);
+      useBase("streets");
       map.on("zoomend moveend", updateScale);
       map.on("click", onMeasureClick);
     }
@@ -992,17 +1514,17 @@
       layer = L.layerGroup().addTo(map);
       const bounds = [];
       for (const parcel of list) {
-        const active = selected && selected.index === parcel.index;
-        const color = colors[parcel.action] || "#a7b4c1";
+        const outlined = outlineSelection && selected && selected.index === parcel.index;
+        const fill = markerColor(parcel.action);
         const marker = L.circleMarker([parcel.lat, parcel.lon], {
-          radius: active ? 7 : 5,
-          color: active ? "#17212f" : color,
-          fillColor: color,
-          fillOpacity: 0.92,
-          weight: active ? 3 : 1,
+          radius: outlined ? 7 : 5,
+          color: outlined ? "#ffffff" : fill,
+          fillColor: fill,
+          fillOpacity: 0.95,
+          weight: outlined ? 3 : 1,
         });
         marker.bindTooltip(parcel.id, {
-          permanent: active,
+          permanent: outlined,
           direction: "bottom",
           className: "parcel-tip",
           offset: [0, 6],
@@ -1017,10 +1539,18 @@
         marker.addTo(layer);
         bounds.push([parcel.lat, parcel.lon]);
       }
-      if (fit && bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
-      else if (!bounds.length) map.setView([-1.313, 36.79], 13);
-      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + list.length + " parcels";
-      setTimeout(updateScale, 0);
+      const finite = bounds.filter((pair) => Math.abs(pair[0]) <= 90 && Math.abs(pair[1]) <= 180);
+      try {
+        if (fit && finite.length) map.fitBounds(finite, { padding: [24, 24] });
+        else if (!finite.length) map.setView([-1.313, 36.79], 13);
+      } catch (err) {
+        map.setView([-1.313, 36.79], 13);
+      }
+      if (measureLayer) measureLayer.bringToFront();
+      setTimeout(() => {
+        map.invalidateSize();
+        updateScale();
+      }, 50);
     }
 
     function placeName() {
@@ -1053,6 +1583,7 @@
     }
 
     async function chooseSettlement(name) {
+      const hideLoading = showMapLoading(true);
       activeSettlement = name;
       document.getElementById("settlement-menu").hidden = true;
       document.getElementById("settlement-toggle").setAttribute("aria-expanded", "false");
@@ -1061,7 +1592,11 @@
       renderSettlementMenu();
       selected = null;
       document.getElementById("parcel-card").hidden = true;
-      await loadParcels(true);
+      try {
+        await loadParcels(true);
+      } finally {
+        setTimeout(hideLoading, 1000);
+      }
     }
 
     async function loadParcels(fit) {
@@ -1117,31 +1652,50 @@
     async function enterApp(user) {
       const tokenResult = await user.getIdTokenResult();
       const signInProvider = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_provider;
-      if (signInProvider === "phone") {
-        /* SMS one-time code already proved possession of the handset. */
+      if (signInProvider === "phone" || freshCodeOk) {
+        /* A phone sign-in, or the code chosen after email, Google, or Apple, already proved a second channel. */
       } else {
         const factors = multiFactor(user).enrolledFactors || [];
         const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
-        if (!hasSecondFactor) {
-          showForm("enroll");
+        const sessionFactor = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_second_factor;
+        if (!hasSecondFactor && !sessionFactor) {
+          pendingUser = user;
+          showForm("code-choice");
           document.getElementById("gate").hidden = false;
           return;
         }
       }
       document.getElementById("gate").hidden = true;
       document.getElementById("app").classList.add("on");
+      signedInUser = user;
       const name = user.email ? user.email.split("@")[0] : (user.phoneNumber || "Signed in");
       document.getElementById("analyst-name").textContent = name;
-      document.getElementById("analyst-initials").textContent = initials(name);
+      paintAvatar(user);
       document.getElementById("note-body").textContent = liftNote;
+      const historyLift = document.getElementById("history-lift");
+      if (historyLift) historyLift.textContent = liftNote;
       renderSettlementMenu();
       drawLegend();
+      showMapLoading();
       await loadParcels(true);
       setTimeout(() => map && map.invalidateSize(), 50);
     }
 
     async function signedIn(cred) {
-      await enterApp(cred.user);
+      const tokenResult = await cred.user.getIdTokenResult();
+      const firebaseClaims = (tokenResult.claims && tokenResult.claims.firebase) || {};
+      if (firebaseClaims.sign_in_provider === "phone" || firebaseClaims.sign_in_second_factor) {
+        freshCodeOk = firebaseClaims.sign_in_provider === "phone" || Boolean(firebaseClaims.sign_in_second_factor);
+        await enterApp(cred.user);
+        return;
+      }
+      pendingUser = cred.user;
+      loginChannel = "";
+      document.getElementById("code-channels").hidden = false;
+      document.getElementById("code-phone-fields").hidden = true;
+      document.getElementById("code-entry").hidden = true;
+      document.getElementById("code-error").textContent = "";
+      showForm("code-choice");
     }
 
     async function authError(err) {
@@ -1156,7 +1710,7 @@
       errorEl.textContent = err.message || "Sign-in failed.";
     }
 
-    document.getElementById("send-signin-code").addEventListener("click", async () => {
+    document.getElementById("send-signin-code").addEventListener("click", () => runBusy(document.getElementById("send-signin-code"), async () => {
       errorEl.textContent = "";
       if (!auth) return;
       const phoneNumber = document.getElementById("signin-phone").value.trim();
@@ -1168,51 +1722,180 @@
         errorEl.textContent = err.message || "SMS was not sent.";
         try { verifier.clear(); } catch (ignore) { /* let the next attempt render a new widget */ }
       }
-    });
+    }));
 
-    document.getElementById("phone-sign-in").addEventListener("submit", async (event) => {
+    document.getElementById("phone-sign-in").addEventListener("submit", (event) => {
       event.preventDefault();
-      errorEl.textContent = "";
-      try {
-        const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
-        await enterApp(result.user);
-      } catch (err) {
-        errorEl.textContent = err.message || "That code was rejected.";
-      }
+      const button = event.submitter;
+      return runBusy(button, async () => {
+        errorEl.textContent = "";
+        try {
+          const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
+          await enterApp(result.user);
+        } catch (err) {
+          errorEl.textContent = err.message || "That code was rejected.";
+        }
+      });
     });
 
-    document.getElementById("show-phone").addEventListener("click", () => showForm("phone"));
+    document.getElementById("show-phone").addEventListener("click", () => runBusy(document.getElementById("show-phone"), async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      showForm("phone");
+    }));
     document.getElementById("phone-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("challenge-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("enroll-back").addEventListener("click", () => showForm("sign-in"));
+    document.getElementById("code-back").addEventListener("click", async () => {
+      clearInterval(codeTimer);
+      freshCodeOk = false;
+      pendingUser = null;
+      if (auth && auth.currentUser) await signOut(auth);
+      showForm("sign-in");
+    });
+    function startCodeClock() {
+      codeDeadline = Date.now() + 5 * 60 * 1000;
+      document.getElementById("login-code").disabled = false;
+      clearInterval(codeTimer);
+      const tick = () => {
+        const left = codeDeadline - Date.now();
+        const label = document.getElementById("code-timer");
+        if (left <= 0) {
+          clearInterval(codeTimer);
+          label.textContent = "This code expired. Send a new one.";
+          document.getElementById("login-code").disabled = true;
+          return;
+        }
+        const minutes = Math.floor(left / 60000);
+        const seconds = Math.floor((left % 60000) / 1000);
+        label.textContent = minutes + ":" + String(seconds).padStart(2, "0") + " remaining";
+      };
+      tick();
+      codeTimer = setInterval(tick, 250);
+    }
+    function openCodeEntry(where) {
+      document.getElementById("code-channels").hidden = true;
+      document.getElementById("code-phone-fields").hidden = true;
+      document.getElementById("code-entry").hidden = false;
+      document.getElementById("code-destination").textContent = where;
+      document.getElementById("login-code").value = "";
+      document.getElementById("code-error").textContent = "";
+      startCodeClock();
+    }
+    async function sendEmailLoginCode() {
+      const headers = await tokenHeader(pendingUser);
+      headers["Content-Type"] = "application/json";
+      const response = await fetch("/api/email-code", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action: "send" }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "The email was not sent.");
+      loginChannel = "email";
+      openCodeEntry("Sent to " + (pendingUser.email || "your email") + ".");
+    }
+    async function sendPhoneLoginCode() {
+      const phoneNumber = document.getElementById("login-phone").value.trim();
+      const verifier = resetRecaptcha("login-recaptcha");
+      verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(phoneNumber, verifier);
+      loginChannel = "phone";
+      openCodeEntry("Sent to " + phoneNumber + ".");
+    }
+    document.getElementById("choose-email").addEventListener("click", () => runBusy(document.getElementById("choose-email"), async () => {
+      document.getElementById("code-error").textContent = "";
+      try {
+        await sendEmailLoginCode();
+      } catch (err) {
+        document.getElementById("code-error").textContent = err.message || "The email was not sent.";
+      }
+    }));
+    document.getElementById("choose-phone-code").addEventListener("click", () => {
+      document.getElementById("code-phone-fields").hidden = false;
+      document.getElementById("code-error").textContent = "";
+    });
+    document.getElementById("send-login-phone").addEventListener("click", () => runBusy(document.getElementById("send-login-phone"), async () => {
+      document.getElementById("code-error").textContent = "";
+      try {
+        await sendPhoneLoginCode();
+      } catch (err) {
+        document.getElementById("code-error").textContent = err.message || "The text message was not sent.";
+      }
+    }));
+    document.getElementById("resend-login-code").addEventListener("click", () => runBusy(document.getElementById("resend-login-code"), async () => {
+      document.getElementById("code-error").textContent = "";
+      try {
+        if (loginChannel === "phone") await sendPhoneLoginCode();
+        else await sendEmailLoginCode();
+      } catch (err) {
+        document.getElementById("code-error").textContent = err.message || "A new code was not sent.";
+      }
+    }));
+    document.getElementById("confirm-login-code").addEventListener("click", () => runBusy(document.getElementById("confirm-login-code"), async () => {
+      const codeError = document.getElementById("code-error");
+      codeError.textContent = "";
+      if (Date.now() > codeDeadline) {
+        codeError.textContent = "This code expired. Send a new one.";
+        return;
+      }
+      const code = document.getElementById("login-code").value.trim();
+      try {
+        if (loginChannel === "email") {
+          const headers = await tokenHeader(pendingUser);
+          headers["Content-Type"] = "application/json";
+          const response = await fetch("/api/email-code", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ action: "check", code }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || "That code was rejected.");
+        } else {
+          const credential = PhoneAuthProvider.credential(verificationId, code);
+          try {
+            await updatePhoneNumber(pendingUser, credential);
+          } catch (err) {
+            if (err.code !== "auth/provider-already-linked" && err.code !== "auth/credential-already-in-use") throw err;
+          }
+        }
+        freshCodeOk = true;
+        clearInterval(codeTimer);
+        await enterApp(pendingUser);
+      } catch (err) {
+        codeError.textContent = err.message || "That code was rejected.";
+      }
+    }));
     document.getElementById("email").addEventListener("input", (event) => {
       document.getElementById("email-continue").disabled = event.target.value.trim() === "";
     });
-    document.getElementById("email-continue").addEventListener("click", () => {
+    document.getElementById("email-continue").addEventListener("click", () => runBusy(document.getElementById("email-continue"), async () => {
       if (document.getElementById("email").value.trim() === "") return;
+      await new Promise((resolve) => setTimeout(resolve, 800));
       document.getElementById("password-step").hidden = false;
       document.getElementById("email-continue").hidden = true;
       document.getElementById("password").required = true;
       document.getElementById("password").focus();
-    });
+    }));
 
-    document.getElementById("sign-in").addEventListener("submit", async (event) => {
+    document.getElementById("sign-in").addEventListener("submit", (event) => {
       if (document.getElementById("password-step").hidden) {
         event.preventDefault();
         document.getElementById("email-continue").click();
         return;
       }
       event.preventDefault();
-      errorEl.textContent = "";
-      if (!auth) return;
-      try {
-        await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
-      } catch (err) {
-        await authError(err);
-      }
+      const button = event.submitter;
+      return runBusy(button, async () => {
+        errorEl.textContent = "";
+        if (!auth) return;
+        try {
+          await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
+        } catch (err) {
+          await authError(err);
+        }
+      });
     });
 
-    document.getElementById("google").addEventListener("click", async () => {
+    document.getElementById("google").addEventListener("click", () => runBusy(document.getElementById("google"), async () => {
       errorEl.textContent = "";
       if (!auth) return;
       try {
@@ -1220,9 +1903,9 @@
       } catch (err) {
         await authError(err);
       }
-    });
+    }));
 
-    document.getElementById("apple").addEventListener("click", async () => {
+    document.getElementById("apple").addEventListener("click", () => runBusy(document.getElementById("apple"), async () => {
       errorEl.textContent = "";
       if (!auth) return;
       const apple = new OAuthProvider("apple.com");
@@ -1233,27 +1916,30 @@
       } catch (err) {
         await authError(err);
       }
-    });
+    }));
 
-    document.getElementById("challenge").addEventListener("submit", async (event) => {
+    document.getElementById("challenge").addEventListener("submit", (event) => {
       event.preventDefault();
-      errorEl.textContent = "";
-      try {
-        const code = document.getElementById("otp").value.trim();
-        let assertion;
-        if (challengeKind === "phone") {
-          assertion = PhoneMultiFactorGenerator.assertion(PhoneAuthProvider.credential(verificationId, code));
-        } else {
-          const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
-          assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+      const button = event.submitter;
+      return runBusy(button, async () => {
+        errorEl.textContent = "";
+        try {
+          const code = document.getElementById("otp").value.trim();
+          let assertion;
+          if (challengeKind === "phone") {
+            assertion = PhoneMultiFactorGenerator.assertion(PhoneAuthProvider.credential(verificationId, code));
+          } else {
+            const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
+            assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+          }
+          await enterApp((await resolver.resolveSignIn(assertion)).user);
+        } catch (err) {
+          errorEl.textContent = err.message || "That code was rejected.";
         }
-        await enterApp((await resolver.resolveSignIn(assertion)).user);
-      } catch (err) {
-        errorEl.textContent = err.message || "That code was rejected.";
-      }
+      });
     });
 
-    document.getElementById("send-enroll").addEventListener("click", async () => {
+    document.getElementById("send-enroll").addEventListener("click", () => runBusy(document.getElementById("send-enroll"), async () => {
       errorEl.textContent = "";
       try {
         const session = await multiFactor(auth.currentUser).getSession();
@@ -1266,20 +1952,22 @@
       } catch (err) {
         errorEl.textContent = err.message || "Could not send the text message.";
       }
-    });
+    }));
 
-    document.getElementById("enroll").addEventListener("submit", async (event) => {
+    document.getElementById("enroll").addEventListener("submit", (event) => {
       event.preventDefault();
-      errorEl.textContent = "";
-      try {
-        const credential = PhoneAuthProvider.credential(verificationId, document.getElementById("enroll-code").value.trim());
-        await multiFactor(auth.currentUser).enroll(PhoneMultiFactorGenerator.assertion(credential), "Phone");
-        await signOut(auth);
-        showForm("sign-in");
-        errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
-      } catch (err) {
-        errorEl.textContent = err.message || "Enrollment failed.";
-      }
+      return runBusy(event.submitter, async () => {
+        errorEl.textContent = "";
+        try {
+          const credential = PhoneAuthProvider.credential(verificationId, document.getElementById("enroll-code").value.trim());
+          await multiFactor(auth.currentUser).enroll(PhoneMultiFactorGenerator.assertion(credential), "Phone");
+          await signOut(auth);
+          showForm("sign-in");
+          errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
+        } catch (err) {
+          errorEl.textContent = err.message || "Enrollment failed.";
+        }
+      });
     });
 
     document.getElementById("sign-out").addEventListener("click", async () => {
@@ -1287,6 +1975,8 @@
       document.getElementById("app").classList.remove("on");
       document.getElementById("gate").hidden = false;
       document.getElementById("account-menu").hidden = true;
+      freshCodeOk = false;
+      pendingUser = null;
       showForm("sign-in");
     });
     document.getElementById("analyst-menu").addEventListener("click", () => {
@@ -1297,9 +1987,78 @@
     document.getElementById("nav-map").addEventListener("click", showMap);
     document.getElementById("back-map").addEventListener("click", showMap);
     document.getElementById("nav-xai").addEventListener("click", showXai);
-    document.getElementById("nav-history").addEventListener("click", () => showNotice(liftNote));
-    document.getElementById("nav-config").addEventListener("click", () => showNotice("GraphSAGE, two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score."));
-    document.getElementById("nav-settings").addEventListener("click", () => showNotice("The policy matrix is fixed. Compensated resettlement still requires high deprivation and high hazard."));
+    document.getElementById("nav-history").addEventListener("click", showHistory);
+    document.getElementById("nav-config").addEventListener("click", () => showModel("graphsage-view", "nav-config"));
+    document.getElementById("nav-unet").addEventListener("click", () => showModel("unet-view", "nav-unet"));
+    document.getElementById("nav-fusion").addEventListener("click", () => showModel("fusion-view", "nav-fusion"));
+    document.getElementById("nav-settings").addEventListener("click", showSettings);
+    document.getElementById("open-profile").addEventListener("click", showProfile);
+    document.getElementById("analyst-initials").addEventListener("click", showProfile);
+    document.getElementById("analyst-initials").style.cursor = "pointer";
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    document.getElementById("dark-mode").addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
+    document.getElementById("avatar-file").addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file || !signedInUser) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 128;
+          canvas.height = 128;
+          const ctx = canvas.getContext("2d");
+          const scale = Math.max(128 / image.width, 128 / image.height);
+          const width = image.width * scale;
+          const height = image.height * scale;
+          ctx.drawImage(image, (128 - width) / 2, (128 - height) / 2, width, height);
+          const url = canvas.toDataURL("image/jpeg", 0.85);
+          try { localStorage.setItem(photoKey(signedInUser), url); } catch (err) {
+            document.getElementById("profile-error").textContent = "This browser could not store the picture.";
+            return;
+          }
+          paintAvatar(signedInUser);
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    document.getElementById("avatar-remove").addEventListener("click", () => {
+      if (!signedInUser) return;
+      try { localStorage.removeItem(photoKey(signedInUser)); } catch (err) { /* ignore */ }
+      paintAvatar(signedInUser);
+    });
+    document.getElementById("send-phone-change").addEventListener("click", () => runBusy(document.getElementById("send-phone-change"), async () => {
+      const profileError = document.getElementById("profile-error");
+      profileError.textContent = "";
+      if (!auth || !auth.currentUser) return;
+      try {
+        const verifier = resetRecaptcha("phone-change-recaptcha");
+        phoneChangeId = await new PhoneAuthProvider(auth).verifyPhoneNumber(document.getElementById("new-phone").value.trim(), verifier);
+        profileError.textContent = "Code sent. Enter it below.";
+      } catch (err) {
+        profileError.textContent = err.message || "Could not send the text message.";
+      }
+    }));
+    document.getElementById("confirm-phone-change").addEventListener("click", () => runBusy(document.getElementById("confirm-phone-change"), async () => {
+      const profileError = document.getElementById("profile-error");
+      profileError.textContent = "";
+      if (!auth || !auth.currentUser || !phoneChangeId) {
+        profileError.textContent = "Send a code to the new number first.";
+        return;
+      }
+      try {
+        const credential = PhoneAuthProvider.credential(phoneChangeId, document.getElementById("phone-change-code").value.trim());
+        await updatePhoneNumber(auth.currentUser, credential);
+        signedInUser = auth.currentUser;
+        document.getElementById("current-phone").textContent = "Current number: " + auth.currentUser.phoneNumber;
+        profileError.textContent = "Phone number updated.";
+      } catch (err) {
+        profileError.textContent = err.message || "Could not update the phone number.";
+      }
+    }));
     document.getElementById("bell").addEventListener("click", () => {
       const notice = document.getElementById("notice");
       if (notice.hidden) showNotice(liftNote);
@@ -1316,13 +2075,51 @@
       document.getElementById("chevron-up").hidden = !open;
       document.getElementById("chevron-down").hidden = open;
     });
-    document.getElementById("legend-toggle").addEventListener("click", () => {
+    document.getElementById("legend-toggle").addEventListener("click", (event) => {
+      event.stopPropagation();
+      const legend = document.getElementById("map-legend");
       const body = document.getElementById("legend-body");
-      body.hidden = !body.hidden;
-      const open = !body.hidden;
-      document.getElementById("legend-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-      document.getElementById("legend-chevron-up").hidden = !open;
-      document.getElementById("legend-chevron-down").hidden = open;
+      const minimized = !legend.classList.contains("is-min");
+      legend.classList.toggle("is-min", minimized);
+      body.hidden = minimized;
+      document.getElementById("legend-toggle").setAttribute("aria-expanded", minimized ? "false" : "true");
+      document.getElementById("legend-toggle").setAttribute("aria-label", minimized ? "Restore" : "Minimize");
+      document.getElementById("legend-toggle").innerHTML = minimized
+        ? '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.2" y="2.2" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    });
+    (function dragLegend() {
+      const legend = document.getElementById("map-legend");
+      const handle = legend.querySelector(".legend-head");
+      let drag = null;
+      handle.addEventListener("pointerdown", (event) => {
+        if (event.target.closest("#legend-toggle") || event.target.closest("input") || event.target.closest("label")) return;
+        const stage = document.getElementById("stage").getBoundingClientRect();
+        const box = legend.getBoundingClientRect();
+        drag = { dx: event.clientX - box.left, dy: event.clientY - box.top, stage };
+        handle.setPointerCapture(event.pointerId);
+      });
+      handle.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        const stage = document.getElementById("stage").getBoundingClientRect();
+        const maxLeft = stage.width - legend.offsetWidth;
+        const maxTop = stage.height - legend.offsetHeight;
+        const left = Math.min(Math.max(0, event.clientX - stage.left - drag.dx), Math.max(0, maxLeft));
+        const top = Math.min(Math.max(0, event.clientY - stage.top - drag.dy), Math.max(0, maxTop));
+        legend.style.left = left + "px";
+        legend.style.top = top + "px";
+        legend.style.right = "auto";
+        legend.style.bottom = "auto";
+      });
+      handle.addEventListener("pointerup", () => { drag = null; });
+    })();
+    document.getElementById("outline-selection").addEventListener("change", (event) => {
+      outlineSelection = event.target.checked;
+      if (outlineSelection && !selected) {
+        showNotice("Select a parcel on the map. The outline marks that parcel.");
+      }
+      if (outlineSelection && selected && map) map.panTo([selected.lat, selected.lon]);
+      draw(shown, false);
     });
     document.getElementById("card-close").addEventListener("click", () => {
       document.getElementById("parcel-card").hidden = true;
@@ -1341,6 +2138,7 @@
       map.fitBounds(shown.map((parcel) => [parcel.lat, parcel.lon]), { padding: [24, 24] });
     });
     document.getElementById("layers-btn").addEventListener("click", () => {
+      ensureMap();
       const menu = document.getElementById("layer-menu");
       menu.hidden = !menu.hidden;
       document.getElementById("layers-btn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
@@ -1349,13 +2147,19 @@
       button.addEventListener("click", () => useBase(button.dataset.layer));
     }
     document.getElementById("measure-btn").addEventListener("click", () => {
+      ensureMap();
       measuring = !measuring;
       document.getElementById("measure-btn").setAttribute("aria-pressed", measuring ? "true" : "false");
+      map.getContainer().style.cursor = measuring ? "crosshair" : "";
       measurePts = [];
-      if (!measuring && measureLayer) {
+      const readout = document.getElementById("measure-readout");
+      if (measuring) {
+        readout.hidden = false;
+        readout.textContent = "Click two points on the map.";
+      } else if (measureLayer) {
         measureLayer.remove();
         measureLayer = null;
-        document.getElementById("measure-readout").hidden = true;
+        readout.hidden = true;
       }
     });
     document.getElementById("fullscreen-btn").addEventListener("click", () => {

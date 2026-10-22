@@ -117,6 +117,10 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Continue with Apple" in shell
         assert "Continue with phone" in shell
         assert "Sign in with phone" in shell
+        assert "Loading the map" in shell
+        assert "Dark mode" in shell
+        assert "Add a profile picture" in shell
+        assert "Change phone number" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
         assert str(SECRET_LON) not in shell
@@ -212,6 +216,17 @@ def test_shell_renders_without_a_firebase_project():
     assert "kibera" in html
 
 
+def test_email_code_expires_after_five_minutes():
+    from src.dashboard.app import check_email_code, issue_email_code
+
+    code = issue_email_code("planner", now=1_000.0)
+    assert check_email_code("planner", code, now=1_000.0 + 299)[0] is True
+    fresh = issue_email_code("planner", now=2_000.0)
+    ok, message = check_email_code("planner", fresh, now=2_000.0 + 301)
+    assert ok is False
+    assert "expired" in message
+
+
 def test_shell_accepts_settlement_keys_loaded_from_npz():
     html = render_shell({}, np.array(["kibera", "mathare", "mukuru"]))
     assert "kibera" in html and "mukuru" in html
@@ -233,6 +248,7 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
     assert "XAI Summary" in html
     assert "/assets/map-brand.svg" in html
     assert "/assets/satellite.jpg" in html
+    assert "/vendor/leaflet.js" in html
     assert "#28835b" in html
 
     def verifier(token):
@@ -247,6 +263,8 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
         icon = urlopen(base + "/assets/map-brand.svg").read().decode()
         assert "<svg" in icon
         assert urlopen(base + "/assets/satellite.jpg").status == 200
+        leaflet = urlopen(base + "/vendor/leaflet.js").read()
+        assert leaflet.startswith(b"/* @preserve") or b"leaflet" in leaflet[:400].lower()
         try:
             urlopen(base + "/assets/../app.py")
             raise AssertionError("asset paths must stay inside the asset directory")
