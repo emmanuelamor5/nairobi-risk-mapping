@@ -1,11 +1,14 @@
 """
 Folium map of parcel policy actions.
 
-The shell follows the supplied wireframes: choropleth map with a parcel
-card, then an XAI summary. This module builds the Folium map and the
-parcel records those screens read. Both are returned only after the
-auth gate. Feature labels are the five GraphSAGE inputs, not the
-placeholder names drawn on the wireframe.
+The signed-in shell follows the Folium dashboard mockup: a choropleth
+map with a parcel card, then an XAI summary. Those frames live in
+https://www.figma.com/design/QxnnisSV2NkP5iDsW0YHHl/Folium-Dashboard
+(choropleth map 7:13907, XAI summary 7:16335) and use Inter. This
+module builds the Folium map and the parcel records those screens
+read. Both are returned only after the auth gate. Feature labels are
+the five GraphSAGE inputs, not the placeholder names drawn on the
+mockup.
 
 Coordinates may be geographic (EPSG:4326) or projected. Projected
 positions are transformed with pyproj before Folium sees them.
@@ -18,9 +21,9 @@ import numpy as np
 from .. import config
 from ..models.fusion import POLICY_ACTIONS, action_labels
 
-# Colour is the action. The three governance colours match the Folium
-# dashboard frame (formalise green, upgrade gold, resettlement coral).
-# The other matrix cells stay in that palette so they remain distinct.
+# Colour is the action. Formalise, upgrade, and resettlement use the
+# Folium frame colours. The other matrix cells stay distinct so a
+# six-way map does not collapse them into those three swatches.
 # Labels for the five model inputs. The wireframe's example names
 # (floodplain distance, structural density, and so on) are not features
 # this GraphSAGE was trained on.

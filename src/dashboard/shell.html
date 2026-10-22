@@ -6,27 +6,29 @@
   <title>Folium — parcel policy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
       --ink: #17212f;
       --muted: #657182;
-      --faint: #929ca9;
+      --muted-2: #929ca9;
       --line: #dde3e9;
       --paper: #f6f8fa;
-      --card: #ffffff;
       --nav: #152331;
       --green: #28835b;
+      --wash: #eaf5ef;
       --pos: #354a60;
       --neg: #a7b4c1;
+      --cam: #ecefe8;
     }
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
-    body { margin: 0; font-family: Inter, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: Inter, sans-serif; color: var(--ink); background: var(--paper); overflow: hidden; }
     button, input { font: inherit; color: inherit; }
     img { display: block; }
-    .gate { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr); align-items: center; background: #fff; color: #0f1419; position: relative; padding: 32px 4vw 72px; }
+    .gate { min-height: 100vh; height: 100vh; overflow: auto; display: grid; grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr); align-items: center; background: #fff; color: #0f1419; position: relative; padding: 32px 4vw 72px; }
     .auth-copy { width: min(440px, 100%); margin-left: auto; padding-right: 24px; }
     .gate h1 { margin: 0 0 48px; font-size: clamp(52px, 5vw, 76px); line-height: 1.05; font-weight: 800; letter-spacing: -1.6px; color: #0f1419; }
     .auth-stack { width: 300px; display: flex; flex-direction: column; gap: 12px; }
@@ -48,178 +50,198 @@
     .auth-back { border: 0; background: transparent; color: #1d9bf0; padding: 0 0 8px; cursor: pointer; font-size: 15px; font-weight: 400; text-align: left; }
     .auth-mark { justify-self: center; font-size: min(34vw, 380px); font-weight: 800; letter-spacing: -0.08em; line-height: 0.8; color: #0f1419; user-select: none; }
     .auth-foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: #536471; font-size: 13px; }
-    .mark { width: 32px; height: 32px; background: var(--nav); border-radius: 6px; display: grid; place-items: center; flex: none; }
-    .brand strong { font-size: 22px; font-weight: 700; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     @media (max-width: 880px) {
       .gate { grid-template-columns: 1fr; }
       .auth-copy { margin: 0 auto; padding-right: 0; }
       .auth-mark { display: none; }
     }
     label { display: block; margin: 12px 0 4px; font-size: 12px; color: var(--muted); }
-    input[type="email"], input[type="password"], input[type="text"], input[type="tel"], input[type="search"] {
-      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: white;
+    input[type="email"], input[type="password"], input[type="text"], input[type="tel"] {
+      width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white;
     }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    .primary { background: var(--nav); color: white; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
-    .ghost { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+    .primary { background: var(--nav); color: white; border: 0; height: 36px; padding: 0 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .ghost { background: white; border: 1px solid var(--line); height: 36px; padding: 0 12px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 12px; }
     .error { color: #922b21; min-height: 1.2em; font-size: 13px; }
     .app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
-    .app.on { display: grid; }
-    aside { background: white; border-right: 1px solid var(--line); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
-    .brand { display: flex; gap: 10px; align-items: center; height: 80px; padding: 0 24px; border-bottom: 1px solid var(--line); }
-    .nav-scroll { flex: 1; overflow: auto; padding: 27px 16px 12px; display: flex; flex-direction: column; gap: 26px; }
-    .group-label { margin: 0 0 8px; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
-    .nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; }
+    .app.on { display: grid; height: 100vh; overflow: hidden; }
+    .app > aside { background: white; border-right: 1px solid var(--line); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+    .brand { height: 80px; display: flex; align-items: center; gap: 10px; padding: 0 24px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 22px; }
+    .mark { width: 32px; height: 32px; border-radius: 6px; background: var(--nav); display: grid; place-items: center; flex: none; }
+    .nav-scroll { flex: 1; overflow: auto; padding: 27px 16px 16px; display: flex; flex-direction: column; gap: 26px; }
+    .group { margin: 0 0 8px; color: var(--muted-2); font-size: 10px; font-weight: 600; }
+    .nav-btn, .side-item {
+      display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px;
+      border: 0; border-radius: 6px; background: white; color: var(--muted); font-size: 13px; font-weight: 500;
+      text-align: left; cursor: pointer;
+    }
     .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; font-weight: 600; }
-    .dataset-name { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; }
-    .settle { position: relative; }
-    .settle-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; }
-    .settle-current { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-    .settle-menu { position: absolute; z-index: 5; left: 0; right: 0; top: 44px; background: white; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 8px rgba(23, 33, 47, 0.07); padding: 4px; display: flex; flex-direction: column; gap: 2px; }
-    .settle-menu[hidden] { display: none; }
-    .settle-opt { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 8px; border: 0; border-radius: 4px; background: white; cursor: pointer; font-size: 13px; text-align: left; }
-    .settle-opt.on { background: #eaf5ef; color: var(--green); font-weight: 600; }
-    .note { margin: 0 20px 16px; background: var(--paper); border-radius: 6px; padding: 12px; }
+    .nav-btn .when-on { display: none; }
+    .nav-btn[aria-pressed="true"] .when-off { display: none; }
+    .nav-btn[aria-pressed="true"] .when-on { display: block; }
+    .dataset-label { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; }
+    .settlement-toggle {
+      width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 6px; background: white;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 12px; cursor: pointer;
+    }
+    .settlement-current { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .settlement-menu { margin-top: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 4px; background: white; }
+    .settlement-option {
+      width: 100%; height: 34px; border: 0; border-radius: 4px; background: white; display: flex;
+      align-items: center; justify-content: space-between; padding: 0 8px; font-size: 13px; cursor: pointer;
+    }
+    .settlement-option.selected { background: var(--wash); color: var(--green); font-weight: 600; }
+    .note { margin: 0 20px 12px; background: var(--paper); border-radius: 6px; padding: 12px; }
     .note-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; }
     .status-dot { width: 6px; height: 6px; border-radius: 100px; background: var(--green); }
     .note p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
     .analyst { height: 80px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 20px; position: relative; }
     .avatar { width: 32px; height: 32px; border-radius: 100px; background: #eef2f5; color: var(--muted); display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none; }
+    .analyst-name { font-size: 12px; font-weight: 600; }
+    .analyst-role { margin-top: 4px; color: var(--muted); font-size: 11px; }
     .analyst-copy { flex: 1; min-width: 0; }
-    .analyst-copy strong { display: block; font-size: 12px; font-weight: 600; }
-    .analyst-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
-    .icon-btn { width: 28px; height: 28px; border: 0; background: transparent; padding: 0; cursor: pointer; display: grid; place-items: center; }
-    .account-menu { position: absolute; right: 12px; bottom: 64px; background: white; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 8px rgba(23, 33, 47, 0.07); padding: 4px; min-width: 120px; }
-    .account-menu button { width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px; cursor: pointer; font-size: 13px; }
-    .workspace { display: flex; flex-direction: column; min-width: 0; min-height: 100vh; background: var(--paper); }
-    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; height: 80px; padding: 0 24px; background: white; border-bottom: 1px solid var(--line); }
+    .icon-hit { border: 0; background: transparent; padding: 0; cursor: pointer; }
+    .account-menu { position: absolute; right: 12px; bottom: 64px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+    .workspace { min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    #map-view { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; }
+    #map-view[hidden] { display: none; }
+    .top { height: 80px; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 0 24px; background: white; border-bottom: 1px solid var(--line); }
     .top h1 { margin: 0; font-size: 19px; font-weight: 600; }
     .sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
-    .tools { display: flex; gap: 10px; align-items: center; position: relative; }
-    .search-wrap { display: flex; align-items: center; gap: 8px; width: 220px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; }
-    .search-wrap input { border: 0; padding: 0; width: 100%; outline: none; font-size: 12px; }
-    .search-wrap input::placeholder { color: var(--faint); }
-    .tool { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; }
-    .tool.square { width: 36px; padding: 0; }
-    .tool[aria-pressed="true"] { background: var(--nav); color: white; border-color: var(--nav); }
-    .notice { position: absolute; right: 0; top: 44px; width: 320px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 20; }
-    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 64px; padding: 12px 24px; }
-    .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: var(--muted); }
-    .legend-label { font-weight: 500; }
-    .swatch { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
-    .dot { width: 7px; height: 7px; border-radius: 100px; display: inline-block; flex: none; }
+    .tools { display: flex; gap: 10px; align-items: center; }
+    .search { width: 220px; height: 36px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: white; }
+    .search input { border: 0; outline: 0; width: 100%; font-size: 12px; padding: 0; height: 32px; background: transparent; }
+    .search input::placeholder { color: var(--muted-2); }
+    .icon-btn { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: white; display: grid; place-items: center; cursor: pointer; }
+    .export { height: 36px; border: 1px solid var(--line); border-radius: 6px; background: white; display: flex; align-items: center; gap: 8px; padding: 0 12px; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .toolbar { height: 64px; background: white; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 12px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; font-size: 11px; }
+    .legend-label { color: var(--muted); font-weight: 600; }
+    .swatch { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
     .map-tools { display: flex; gap: 8px; }
-    .map-tools .tool { height: 32px; font-size: 11px; }
-    .stage { position: relative; flex: 1; min-height: 560px; margin: 0 20px 20px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #d7e0d4; }
-    #map { height: 100%; min-height: 560px; background: #d7e0d4; }
-    .hud { position: absolute; z-index: 500; left: 18px; top: 18px; display: flex; flex-direction: column; gap: 16px; }
-    .tile-source { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; background: rgba(255, 255, 255, 0.94); border-radius: 6px; color: var(--muted); font-size: 11px; }
-    .zoom-stack { width: 34px; display: flex; flex-direction: column; gap: 7px; }
-    .zoom-stack button { width: 34px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 16px; line-height: 1; }
-    .measure-readout { background: white; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; }
-    .layer-menu { position: absolute; z-index: 500; top: 64px; right: 250px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; box-shadow: 0 2px 8px rgba(23, 33, 47, 0.07); }
-    .layer-menu button { display: block; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
-    .layer-menu button[aria-pressed="true"] { background: #eaf5ef; color: var(--green); font-weight: 600; }
-    .map-legend { position: absolute; z-index: 500; left: 18px; bottom: 18px; width: 292px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); }
-    .legend-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
-    .legend-head button { border: 0; background: transparent; padding: 0; cursor: pointer; }
-    .legend-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 9px; margin-top: 14px; }
-    .swatch-sq { width: 10px; height: 10px; border-radius: 2px; margin-top: 2px; }
-    .legend-row strong { display: block; font-size: 11px; font-weight: 600; }
-    .legend-row em { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-style: normal; }
-    .legend-row b { font-size: 11px; font-weight: 500; color: var(--muted); }
-    .select-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; color: var(--muted); font-size: 10px; }
-    .select-box { width: 10px; height: 10px; border: 1.5px solid var(--ink); border-radius: 2px; }
-    .scale-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 10px; }
-    .scale-bar { width: 60px; height: 3px; background: var(--ink); }
-    .map-qualify { position: absolute; z-index: 500; right: 12px; bottom: 22px; color: var(--muted); font-size: 10px; background: rgba(255, 255, 255, 0.9); border-radius: 3px; padding: 3px 6px; }
-    .card { position: absolute; z-index: 600; top: 18px; right: 18px; width: min(376px, calc(100% - 36px)); max-height: calc(100% - 36px); overflow: auto; background: white; border-radius: 8px; box-shadow: 0 12px 32px rgba(23, 33, 47, 0.14); }
-    .card-head, .parcel-block { padding: 12px 16px; }
-    .card-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; border-bottom: 1px solid var(--line); }
+    .tool { height: 32px; min-width: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; font-size: 11px; font-weight: 500; cursor: pointer; }
+    .stage { position: relative; flex: 1; min-height: 0; }
+    #map { position: absolute; inset: 0; z-index: 1; background: #ecefe8; }
+    .zoom-stack { position: absolute; z-index: 2; left: 18px; top: 18px; display: flex; flex-direction: column; gap: 7px; }
+    .map-qualify { position: absolute; z-index: 2; right: 18px; bottom: 28px; color: var(--muted); font-size: 9px; background: rgba(255,255,255,.91); border-radius: 3px; padding: 4px 7px; }
+    .leaflet-bottom.leaflet-left { margin-left: 320px; }
+    .map-legend {
+      position: absolute; z-index: 2; left: 18px; bottom: 18px; width: 292px; height: auto; background: white;
+      border: 1px solid var(--line); border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(23,33,47,.07);
+    }
+    .map-legend:empty { display: none; }
+    .map-legend header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; }
+    .legend-row { display: flex; gap: 9px; margin-top: 14px; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; margin-top: 2px; }
+    .legend-copy { flex: 1; min-width: 0; }
+    .legend-line { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; }
+    .legend-line span { color: var(--muted); font-size: 10px; font-weight: 400; }
+    .legend-meaning { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .selection-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding-top: 5px; color: var(--muted); font-size: 9px; }
+    .selection-mark { width: 10px; height: 10px; border: 2px solid var(--nav); background: white; flex: none; }
+    .card {
+      position: absolute; top: 22px; right: 22px; width: min(376px, calc(100% - 32px)); max-height: calc(100% - 44px);
+      overflow: auto; background: white; border: 1px solid var(--line); border-radius: 8px; z-index: 3;
+      box-shadow: 0 8px 24px rgba(23,33,47,.08);
+    }
+    .card-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
     .card h2 { margin: 0; font-size: 14px; font-weight: 600; }
-    .policy-line { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .card-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .policy-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .field-label { color: var(--muted); font-size: 11px; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 100px; padding: 5px 9px; font-size: 11px; font-weight: 600; background: #eaf5ef; color: var(--green); }
-    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 100px; padding: 5px 9px; font-size: 11px; font-weight: 600; background: var(--wash); color: var(--green); }
+    .policy-dot { width: 6px; height: 6px; border-radius: 100px; display: inline-block; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .metric { border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
-    .metric span { display: block; color: var(--muted); font-size: 10px; }
-    .metric strong { display: block; margin: 6px 0; font-size: 22px; font-weight: 600; line-height: 1; }
-    .track { height: 3px; background: #eef2f5; border-radius: 100px; overflow: hidden; }
+    .metric strong { display: block; margin-top: 6px; font-size: 22px; font-weight: 600; line-height: 1; }
+    .track { margin-top: 8px; height: 3px; background: var(--paper); border-radius: 2px; overflow: hidden; }
     .track i { display: block; height: 3px; background: var(--nav); width: 0; }
-    .confidence { display: flex; justify-content: space-between; margin-top: 12px; font-size: 11px; }
-    .confidence b { font-weight: 600; }
-    .class-box, .heat-wrap, .mini-shap { margin-top: 12px; }
+    .confidence { display: flex; justify-content: space-between; font-size: 11px; }
+    .confidence strong { font-size: 12px; }
     .class-box { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
     .class-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; }
-    .class-head span { color: var(--muted); font-size: 9px; font-weight: 500; letter-spacing: 0.04em; }
-    .class-row { display: flex; gap: 8px; margin-top: 8px; }
-    .class-chip { flex: 1; display: flex; justify-content: space-between; gap: 6px; background: white; border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; font-size: 11px; }
-    .class-chip span { color: var(--muted); }
-    .class-note, .heat-note { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
-    .heat { position: relative; height: 148px; border-radius: 4px; overflow: hidden; background: #ecefe8; }
-    .heat.tall { height: 220px; }
-    .heat .sat { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .heat .field, .heat .secondary, .heat .boundary { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-    .parcel-badge { position: absolute; left: 8px; top: 8px; background: rgba(23, 33, 47, 0.85); color: white; border-radius: 3px; padding: 4px 6px; font-size: 9px; font-weight: 600; }
-    .heat-scale { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.91); border-radius: 3px; padding: 4px 7px; font-size: 8px; }
-    .heat-scale i { width: 64px; height: 5px; background: linear-gradient(90deg, #67b7a8, #f7d443, #e84a2c); }
-    .section-title { margin: 0 0 8px; font-size: 12px; font-weight: 600; }
-    .mini-row { display: grid; grid-template-columns: minmax(0, 1fr) 92px 36px; gap: 8px; align-items: center; margin: 6px 0; font-size: 11px; }
-    .mini-track { height: 8px; background: var(--paper); border-radius: 2px; }
-    .mini-track i { display: block; height: 8px; border-radius: 2px; background: var(--pos); }
-    .mini-track i.neg { background: var(--neg); }
-    .shap-key { display: flex; gap: 14px; margin-top: 8px; color: var(--muted); font-size: 10px; }
-    .shap-key i { width: 7px; height: 7px; border-radius: 1px; display: inline-block; margin-right: 5px; }
-    .shap-key .pos { background: var(--pos); }
-    .shap-key .neg { background: var(--neg); }
-    .xai-open { width: 100%; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .xai { display: none; flex: 1; flex-direction: column; min-height: 0; }
+    .tag { color: var(--muted); font-size: 9px; font-weight: 500; }
+    .class-row { display: flex; gap: 6px; margin-top: 8px; }
+    .class-cell { flex: 1; background: white; border: 1px solid var(--line); border-radius: 3px; padding: 5px 6px; display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+    .class-cell strong { color: var(--ink); font-size: 11px; }
+    .qualify { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .section-title { margin: 0; font-size: 12px; font-weight: 600; }
+    .cam-well { position: relative; height: 148px; background: var(--cam); border-radius: 4px; overflow: hidden; }
+    .cam-well.tall { height: 220px; }
+    .cam-well .sat { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cam-well .field { position: absolute; left: calc(50% + 12px); top: calc(50% + 1px); transform: translate(-50%, -50%); }
+    .cam-well .field-b { position: absolute; left: calc(50% - 66px); top: calc(50% + 30px); transform: translate(-50%, -50%); }
+    .cam-well .boundary { position: absolute; left: calc(50% + 3px); top: 50%; transform: translate(-50%, -50%); }
+    .tile-id { position: absolute; left: 8px; top: 8px; background: rgba(23,33,47,.85); color: white; border-radius: 3px; padding: 4px 6px; font-size: 9px; font-weight: 600; }
+    .heat-key { position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,.91); border-radius: 3px; display: flex; align-items: center; gap: 5px; padding: 4px 7px; font-size: 8px; }
+    .heat-key i { width: 64px; height: 5px; background: linear-gradient(90deg, #67b7a8, #f7d443 50%, #e84a2c); }
+    .xai { display: none; flex: 1; flex-direction: column; min-height: 0; height: 100%; }
     .xai.on { display: flex; }
-    #map-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-    #map-view[hidden] { display: none; }
-    .xai-body { flex: 1; overflow: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .xai-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow: auto; }
     .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    .panel { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-height: 104px; }
-    .panel .label { color: var(--muted); font-size: 11px; }
-    .panel .big { margin: 8px 0; font-size: 28px; font-weight: 600; line-height: 1; }
-    .panel .hint { color: var(--faint); font-size: 9px; }
-    .split { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(280px, 0.9fr); gap: 20px; align-items: start; }
-    .panel h2 { margin: 0; font-size: 15px; font-weight: 600; }
-    .panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-    .dir-labels { display: flex; justify-content: space-between; margin: 16px 0 8px 217px; color: var(--muted); font-size: 10px; }
-    .bar-row { display: grid; grid-template-columns: 205px minmax(0, 1fr) 48px; gap: 12px; align-items: center; min-height: 42px; font-size: 12px; }
+    .panel { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-height: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+    .panel .k { color: var(--muted); font-size: 11px; }
+    .panel .n { font-size: 28px; font-weight: 600; line-height: 1; }
+    .panel .hint { color: var(--muted-2); font-size: 9px; }
+    .split { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, .8fr); gap: 20px; align-items: start; }
+    .shap { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+    .shap-head, .block-head { display: flex; justify-content: space-between; gap: 12px; }
+    .shap h2, .side-card h2, .path-card h2 { margin: 0; font-size: 15px; font-weight: 600; }
+    .side-card h2, .path-card h2 { font-size: 14px; }
+    .dir { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; padding: 12px 54px 0 217px; }
+    .bar-row { display: grid; grid-template-columns: 205px minmax(0, 1fr) 42px; gap: 12px; align-items: center; min-height: 42px; }
+    .bar-label { font-size: 12px; line-height: 1.2; }
     .plot { position: relative; height: 28px; background: var(--paper); border-radius: 2px; }
-    .plot .zero { position: absolute; left: 50%; top: -7px; width: 1px; height: 42px; background: var(--line); }
-    .plot i { position: absolute; top: 4px; height: 20px; border-radius: 2px; background: var(--pos); }
-    .plot i.neg { background: var(--neg); }
-    .bar-row b { text-align: right; font-size: 12px; }
-    .divider { height: 1px; background: var(--line); margin: 16px 0; }
-    .feature-values .row { display: flex; justify-content: space-between; gap: 12px; min-height: 39px; align-items: center; border-bottom: 1px solid #eef2f5; font-size: 12px; }
-    .feature-values .row span { color: var(--muted); font-size: 11px; }
-    .path-panel { padding: 20px; }
+    .zero { position: absolute; left: 50%; top: -7px; width: 1px; height: 42px; background: var(--line); }
+    .bar { position: absolute; top: 4px; height: 20px; border-radius: 2px; }
+    .bar.pos { background: var(--pos); }
+    .bar.neg { background: var(--neg); }
+    .bar-value { font-size: 12px; font-weight: 600; text-align: right; }
+    .key-row { display: flex; gap: 22px; padding-top: 13px; color: var(--muted); font-size: 10px; }
+    .key-row span { display: flex; align-items: center; gap: 5px; }
+    .key { width: 7px; height: 7px; border-radius: 1px; }
+    .key.pos { background: var(--pos); }
+    .key.neg { background: var(--neg); }
+    .divider { height: 1px; background: var(--line); margin: 20px 0; }
+    .card .bar-row { grid-template-columns: minmax(90px, 1fr) minmax(80px, 142px) 36px; gap: 6px; min-height: 23px; }
+    .card .bar-label, .card .bar-value { font-size: 11px; }
+    .card .plot { height: 15px; }
+    .card .bar { height: 9px; top: 3px; }
+    .card .zero { height: 23px; top: -4px; }
+    .side-card { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+    .side-card + .side-card { margin-top: 20px; }
+    .feature-row { display: flex; justify-content: space-between; gap: 12px; min-height: 39px; align-items: center; border-bottom: 1px solid #eef2f5; font-size: 11px; color: var(--muted); }
+    .feature-row strong { color: var(--ink); font-size: 12px; }
+    .path-card { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+    .path-row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-top: 15px; }
     .path { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
-    .step { width: 96px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+    .step { width: 96px; display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center; }
     .step .with-arrow { display: flex; align-items: center; gap: 8px; }
-    .step-value { min-width: 76px; height: 34px; border: 1px solid var(--line); border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: white; padding: 0 8px; }
-    .step-value.final { background: var(--nav); color: white; border-color: var(--nav); }
-    .step em { color: var(--muted); font-size: 10px; font-style: normal; text-align: center; }
-    .path-note { margin-left: auto; width: min(370px, 100%); }
-    .path-note strong { display: block; font-size: 11px; }
-    .path-note p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
-    footer { min-height: 48px; display: flex; justify-content: space-between; gap: 16px; align-items: center; flex-wrap: wrap; padding: 8px 24px; background: white; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .chip { width: 76px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: white; display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+    .chip.final { background: var(--nav); color: white; border-color: var(--nav); }
+    .step small { color: var(--muted); font-size: 10px; }
+    .path-note { width: min(370px, 100%); }
+    .path-note strong { display: block; font-size: 11px; margin-bottom: 5px; }
+    .path-note p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .full { width: 100%; height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    footer { flex-shrink: 0; min-height: 48px; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 8px 24px; background: white; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    footer p { margin: 0; max-width: 58%; line-height: 1.4; }
     .totals { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
-    .totals span { display: inline-flex; align-items: center; gap: 5px; }
-    .leaflet-tooltip.parcel-tip { background: var(--nav); color: white; border: 0; border-radius: 3px; font-size: 11px; font-weight: 600; padding: 4px 6px; box-shadow: none; }
-    .leaflet-tooltip.parcel-tip::before { display: none; }
+    .totals .total { display: flex; align-items: center; gap: 5px; }
+    .totals i { width: 5px; height: 5px; border-radius: 100px; display: inline-block; }
+    .empty { color: var(--muted); font-size: 12px; line-height: 1.5; }
     @media (max-width: 1100px) {
+      .stat-row, .split, .path-row { grid-template-columns: 1fr; display: grid; }
+      .path-row { display: flex; flex-direction: column; }
+      .dir { padding-left: 0; padding-right: 0; }
+      .bar-row { grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) 42px; }
+    }
+    @media (max-width: 800px) {
       .app.on { grid-template-columns: 1fr; }
       aside { height: auto; position: static; }
-      .nav-scroll { overflow: visible; }
-      .stat-row, .split { grid-template-columns: 1fr; }
-      .dir-labels { margin-left: 0; }
-      .bar-row { grid-template-columns: 1fr; }
-      .path-note { margin-left: 0; }
-      .search-wrap { width: 160px; }
+      .top, .toolbar { height: auto; padding: 16px; flex-wrap: wrap; }
+      .stat-row { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -291,64 +313,67 @@
 
   <div class="app" id="app">
     <aside>
-      <div class="brand"><span class="mark"><img src="/assets/map-brand.svg" alt=""></span><strong>Folium</strong></div>
+      <div class="brand">
+        <span class="mark"><img src="/assets/brand-map.svg" width="21" height="21" alt=""></span>
+        Folium
+      </div>
       <div class="nav-scroll">
         <div>
-          <p class="group-label">VIEWS</p>
+          <p class="group">VIEWS</p>
           <button class="nav-btn" id="nav-map" type="button" aria-pressed="true">
-            <img class="when-on" src="/assets/map-active.svg" alt="">
-            <img class="when-off" src="/assets/map-muted.svg" alt="" hidden>
+            <img class="when-on" src="/assets/nav-map-selected.svg" width="17" height="17" alt="">
+            <img class="when-off" src="/assets/nav-map.svg" width="17" height="17" alt="">
             Choropleth Map
           </button>
           <button class="nav-btn" id="nav-xai" type="button" aria-pressed="false">
-            <img class="when-on" src="/assets/chart-active.svg" alt="" hidden>
-            <img class="when-off" src="/assets/chart-muted.svg" alt="">
+            <img class="when-on" src="/assets/nav-chart-selected.svg" width="17" height="17" alt="">
+            <img class="when-off" src="/assets/nav-chart.svg" width="17" height="17" alt="">
             XAI Summary
           </button>
         </div>
         <div>
-          <p class="group-label">DATASET</p>
-          <p class="dataset-name" id="dataset-label">Settlement</p>
-          <div class="settle">
-            <button class="settle-btn" id="settlement-toggle" type="button" aria-expanded="false" aria-controls="settlement-menu">
-              <span class="settle-current"><img src="/assets/pin.svg" alt=""><span id="settlement-current">All settlements</span></span>
-              <img id="chevron-down" src="/assets/chevron-down.svg" alt="">
-              <img id="chevron-up" src="/assets/chevron-up.svg" alt="" hidden>
-            </button>
-            <div class="settle-menu" id="settlement-menu" hidden></div>
-          </div>
-          <button class="nav-btn" id="nav-history" type="button">
-            <img src="/assets/history.svg" alt="">
+          <p class="group">DATASET</p>
+          <p class="dataset-label" id="settlement-notes">Settlement</p>
+          <button class="settlement-toggle" id="settlement-toggle" type="button" aria-expanded="false">
+            <span class="settlement-current">
+              <img src="/assets/map-pin.svg" width="14" height="14" alt="">
+              <span id="settlement-current">All settlements</span>
+            </span>
+            <img id="settlement-chevron" src="/assets/chevron-down.svg" width="14" height="14" alt="">
+          </button>
+          <div class="settlement-menu" id="settlement-menu" hidden></div>
+          <button class="side-item" type="button">
+            <img src="/assets/history.svg" width="17" height="17" alt="">
             Run History
           </button>
         </div>
         <div>
-          <p class="group-label">MODEL</p>
-          <button class="nav-btn" id="nav-config" type="button">
-            <img src="/assets/network.svg" alt="">
+          <p class="group">MODEL</p>
+          <button class="side-item" type="button">
+            <img src="/assets/network.svg" width="17" height="17" alt="">
             GraphSAGE Config
           </button>
-          <button class="nav-btn" id="nav-settings" type="button">
-            <img src="/assets/settings.svg" alt="">
+          <button class="side-item" type="button">
+            <img src="/assets/settings.svg" width="17" height="17" alt="">
             Settings
           </button>
         </div>
       </div>
       <div class="note">
         <div class="note-status"><span class="status-dot"></span> Inference snapshot</div>
-        <p id="note-body"></p>
+        <p>Embedded parcel explanations<br>GraphSAGE-v3</p>
       </div>
       <div class="analyst" id="analyst">
         <div class="avatar" id="analyst-initials">—</div>
         <div class="analyst-copy">
-          <strong id="analyst-name">Signed in</strong>
-          <span>Policy Analyst</span>
+          <div class="analyst-name" id="analyst-name">Signed in</div>
+          <div class="analyst-role">Policy Analyst</div>
         </div>
-        <button class="icon-btn" id="analyst-menu" type="button" aria-label="Account menu" aria-expanded="false">
-          <img src="/assets/ellipsis.svg" alt="">
+        <button class="icon-hit" id="analyst-menu" type="button" aria-label="Account">
+          <img src="/assets/ellipsis.svg" width="15" height="15" alt="">
         </button>
         <div class="account-menu" id="account-menu" hidden>
-          <button id="sign-out" type="button">Sign out</button>
+          <button class="ghost" id="sign-out" type="button">Sign out</button>
         </div>
       </div>
     </aside>
@@ -360,182 +385,192 @@
             <div class="sub" id="map-sub">Parcel-level policy classification</div>
           </div>
           <div class="tools">
-            <label class="search-wrap">
-              <img src="/assets/search.svg" alt="">
-              <input class="search" id="search" type="search" placeholder="Search parcel ID…" aria-label="Search parcel ID">
+            <label class="search">
+              <img src="/assets/search.svg" width="15" height="15" alt="">
+              <input id="search" type="search" placeholder="Search parcel ID…">
             </label>
-            <button class="tool square" id="bell" type="button" aria-label="Notices" aria-expanded="false">
-              <img src="/assets/bell.svg" alt="">
+            <button class="icon-btn" type="button" aria-label="Notifications">
+              <img src="/assets/bell.svg" width="16" height="16" alt="">
             </button>
-            <button class="tool" id="export-map" type="button">
-              <img src="/assets/download.svg" alt="">
+            <button class="export" id="export-map" type="button">
+              <img src="/assets/download.svg" width="15" height="15" alt="">
               Export
             </button>
-            <div class="notice" id="notice" hidden><p id="banner" style="margin:0"></p></div>
           </div>
         </header>
         <div class="toolbar">
           <div class="legend" id="legend"></div>
           <div class="map-tools">
-            <button class="tool" id="layers-btn" type="button" aria-expanded="false">Layers</button>
-            <button class="tool" id="measure-btn" type="button" aria-pressed="false">Measure</button>
-            <button class="tool" id="fullscreen-btn" type="button">Full screen</button>
+            <button class="tool" type="button"><img src="/assets/layers.svg" width="14" height="14" alt="">Layers</button>
+            <button class="tool" type="button"><img src="/assets/ruler.svg" width="14" height="14" alt="">Measure</button>
+            <button class="tool" id="maximize" type="button" aria-label="Maximise map"><img src="/assets/maximize.svg" width="14" height="14" alt=""></button>
           </div>
         </div>
-        <div class="stage" id="stage">
+        <div class="stage">
           <div id="map"></div>
-          <div class="hud">
-            <div class="tile-source"><img src="/assets/map-muted.svg" alt=""><span id="tile-source">Tile source: satellite imagery</span></div>
-            <div class="zoom-stack">
-              <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
-              <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
-              <button id="zoom-fit" type="button" aria-label="Fit parcels">⌖</button>
-            </div>
-            <div class="measure-readout" id="measure-readout" hidden></div>
+          <div class="zoom-stack">
+            <button class="tool" id="zoom-in" type="button" aria-label="Zoom in"><img src="/assets/plus.svg" width="14" height="14" alt=""></button>
+            <button class="tool" id="zoom-out" type="button" aria-label="Zoom out"><img src="/assets/minus.svg" width="14" height="14" alt=""></button>
+            <button class="tool" id="locate" type="button" aria-label="Fit parcels"><img src="/assets/locate.svg" width="14" height="14" alt=""></button>
           </div>
-          <div class="layer-menu" id="layer-menu" hidden>
-            <button type="button" data-layer="satellite" aria-pressed="true">Satellite</button>
-            <button type="button" data-layer="streets" aria-pressed="false">Streets</button>
-          </div>
-          <aside class="map-legend" id="map-legend">
-            <div class="legend-head">
-              Policy &amp; governance categories
-              <button id="legend-toggle" type="button" aria-expanded="true" aria-label="Collapse legend">
-                <img id="legend-chevron-up" src="/assets/chevron-up.svg" alt="">
-                <img id="legend-chevron-down" src="/assets/chevron-down.svg" alt="" hidden>
-              </button>
-            </div>
-            <div id="legend-body">
-              <div id="legend-rows"></div>
-              <div class="select-key"><span class="select-box"></span> Outlined parcel is the current selection</div>
-              <div class="scale-row"><span>N</span><span class="scale-bar"></span><span id="scale-label"></span></div>
-            </div>
-          </aside>
-          <div class="map-qualify">Centroids · policy colour</div>
+          <div class="map-legend" id="map-legend"></div>
+          <div class="map-qualify">Leaflet · OpenStreetMap parcel coordinates</div>
           <article class="card" id="parcel-card" hidden>
             <div class="card-head">
               <div>
                 <h2 id="card-id">Parcel</h2>
                 <div class="sub" id="card-settlement"></div>
               </div>
-              <button class="icon-btn" id="card-close" type="button" aria-label="Close">×</button>
+              <button class="icon-hit" id="card-close" type="button" aria-label="Close">
+                <img src="/assets/close.svg" width="15" height="15" alt="">
+              </button>
             </div>
-            <div class="parcel-block">
+            <div class="card-body">
               <div class="policy-line">
-                <span class="field-label">Assigned policy category</span>
-                <span class="pill" id="card-pill"><span class="dot" id="card-dot"></span><span id="card-action"></span></span>
+                <span class="field-label">Assigned Policy Category</span>
+                <div class="pill" id="card-action">
+                  <img class="policy-asset" src="/assets/policy-indicator.svg" width="6" height="6" alt="">
+                  <span class="policy-dot" hidden></span>
+                  <span id="card-action-label"></span>
+                </div>
               </div>
               <div class="metrics">
-                <div class="metric"><span>Flood probability</span><strong id="card-flood">—</strong><div class="track"><i id="card-flood-bar"></i></div></div>
-                <div class="metric"><span>Deprivation class probability</span><strong id="card-dep">—</strong><div class="track"><i id="card-dep-bar"></i></div></div>
+                <div class="metric">Flood probability<strong id="card-flood"></strong><div class="track"><i id="card-flood-track"></i></div></div>
+                <div class="metric">Deprivation severity<strong id="card-dep"></strong><div class="track"><i id="card-dep-track"></i></div></div>
               </div>
-              <div class="confidence"><span class="field-label">Model confidence</span><b id="card-conf">—</b></div>
+              <div class="confidence"><span>Model confidence</span><strong id="card-conf"></strong></div>
               <div class="class-box">
-                <div class="class-head"><span id="card-class-title">Severity class</span><span id="card-class-tag"></span></div>
+                <div class="class-head"><span id="card-severity">Severity class</span><span class="tag">ILLUSTRATIVE</span></div>
                 <div class="class-row" id="card-classes"></div>
-                <p class="class-note" id="card-class-note"></p>
+                <p class="qualify">Class and probability vector are illustrative, not model evidence. Only the assigned class probability is reported for this parcel.</p>
               </div>
-              <div class="heat-wrap">
-                <p class="section-title">Grad-CAM attention overlay</p>
-                <div class="heat">
-                  <img class="sat" src="/assets/satellite.jpg" alt="">
-                  <img class="field" src="/assets/attention-field.svg" alt="">
-                  <img class="secondary" src="/assets/attention-secondary.svg" alt="">
-                  <img class="boundary" src="/assets/parcel-boundary.png" alt="" width="198" height="145">
-                  <span class="parcel-badge" id="card-heat-id"></span>
-                  <span class="heat-scale"><span>Low</span><i></i><span>High</span></span>
+              <div>
+                <p class="section-title">Grad-CAM Attention Overlay</p>
+                <div class="cam-well" id="card-cam">
+                  <img class="sat" src="/assets/satellite.png" alt="">
+                  <img class="field" src="/assets/attention-field.svg" width="234" height="193.6" alt="">
+                  <img class="field-b" src="/assets/secondary-attention.svg" width="126" height="100" alt="">
+                  <img class="boundary" src="/assets/parcel-boundary.png" width="198" height="145" alt="">
+                  <span class="tile-id" id="card-cam-id"></span>
+                  <span class="heat-key">Low <i></i> High</span>
                 </div>
-                <p class="heat-note" id="card-cam">Illustrative satellite and spatial attention, not inference evidence. Grad-CAM is computed on the flood tile, not stored per building.</p>
+                <p class="qualify">Illustrative satellite &amp; spatial attention, not inference evidence.</p>
               </div>
-              <div class="mini-shap">
-                <p class="section-title">Top SHAP feature contributors</p>
+              <div>
+                <p class="section-title">Top 5 SHAP Feature Contributors</p>
                 <div id="card-shap"></div>
+                <div class="key-row">
+                  <span><i class="key pos"></i> Positive contribution</span>
+                  <span><i class="key neg"></i> Negative contribution</span>
+                </div>
               </div>
-              <button class="primary xai-open" id="open-xai" type="button">View full XAI summary <img src="/assets/arrow-right.svg" alt=""></button>
+              <button class="primary full" id="open-xai" type="button">
+                View Full XAI Summary
+                <img src="/assets/arrow-right.svg" width="15" height="15" alt="">
+              </button>
             </div>
           </article>
         </div>
+        <footer>
+          <p id="banner"></p>
+          <div class="totals" id="map-foot"></div>
+        </footer>
       </div>
       <div class="xai" id="xai-view">
         <header class="top">
           <div>
-            <h1 id="xai-title">XAI summary</h1>
+            <h1 id="xai-title">XAI Summary</h1>
             <div class="sub">GraphSAGE classification explainability</div>
           </div>
           <div class="tools">
-            <button class="tool" id="back-map" type="button"><img src="/assets/arrow-left.svg" alt=""> Back to Map</button>
-            <button class="tool" id="export-xai" type="button"><img src="/assets/download.svg" alt=""> Export</button>
+            <button class="export" id="back-map" type="button">
+              <img src="/assets/arrow-left.svg" width="14" height="14" alt="">
+              Back to Map
+            </button>
+            <button class="export" id="export-xai" type="button">
+              <img src="/assets/download.svg" width="15" height="15" alt="">
+              Export
+            </button>
           </div>
         </header>
         <div class="xai-body">
           <div class="stat-row">
             <div class="panel">
-              <div class="label">Assigned policy category</div>
-              <div style="margin-top:9px;"><span class="pill" id="xai-pill"><span class="dot" id="xai-dot"></span><span id="xai-action"></span></span></div>
-              <div class="hint" id="xai-where" style="margin-top:9px;"></div>
+              <span class="k">Assigned Policy Category</span>
+              <div class="pill" id="xai-action">
+                <img class="policy-asset" src="/assets/policy-indicator.svg" width="6" height="6" alt="">
+                <span class="policy-dot" hidden></span>
+                <span id="xai-action-label"></span>
+              </div>
+              <span class="hint" id="xai-action-note"></span>
             </div>
             <div class="panel">
-              <div class="label">Flood probability score</div>
-              <div class="big" id="xai-flood">—</div>
-              <div class="hint">Flood hazard probability · 0–1</div>
+              <span class="k">Flood Probability Score</span>
+              <span class="n" id="xai-flood"></span>
+              <span class="hint">Flood hazard probability · 0–1</span>
             </div>
             <div class="panel">
-              <div class="label">Deprivation class probability</div>
-              <div class="big" id="xai-dep">—</div>
-              <div class="hint">Maximum class probability, separate from the class name</div>
+              <span class="k">Deprivation Severity Score</span>
+              <span class="n" id="xai-dep"></span>
+              <span class="hint">Class probability of the assigned deprivation class</span>
             </div>
             <div class="panel">
-              <div class="label">Model confidence</div>
-              <div class="big" id="xai-conf">—</div>
-              <div class="hint">Confidence in the assigned policy category</div>
+              <span class="k">Model Confidence</span>
+              <span class="n" id="xai-conf"></span>
+              <span class="hint">Confidence in the assigned policy category</span>
             </div>
           </div>
           <div class="split">
-            <div class="panel">
-              <div class="panel-head">
+            <div class="shap">
+              <div class="shap-head">
                 <div>
-                  <h2 id="shap-title">SHAP feature contributors</h2>
+                  <h2>Top 5 SHAP Feature Contributors</h2>
                   <div class="sub">Horizontal bar chart · contribution toward the predicted class</div>
                 </div>
-                <div class="hint">GraphSAGE node classification</div>
+                <span class="hint">GraphSAGE node classification</span>
               </div>
-              <div class="dir-labels"><span>− Reduces prediction</span><span>Increases prediction +</span></div>
+              <div class="dir"><span>− Reduces prediction</span><span>Increases prediction +</span></div>
               <div id="shap-bars"></div>
-              <div class="shap-key"><span><i class="pos"></i>Positive contribution</span><span><i class="neg"></i>Negative contribution</span></div>
+              <div class="key-row">
+                <span><i class="key pos"></i> Positive contribution</span>
+                <span><i class="key neg"></i> Negative contribution</span>
+              </div>
               <div class="divider"></div>
-              <p class="section-title">Deprivation severity · class probability vector</p>
-              <div class="class-box">
-                <div class="class-head"><span id="xai-class-title">Severity class</span><span id="xai-class-tag"></span></div>
-                <div class="class-row" id="xai-classes"></div>
-                <p class="class-note" id="xai-class-note"></p>
+              <div>
+                <p class="section-title">Deprivation severity · class probability vector</p>
+                <div class="class-box">
+                  <div class="class-head"><span id="xai-severity">Severity class</span><span class="tag">ILLUSTRATIVE</span></div>
+                  <div class="class-row" id="xai-classes"></div>
+                  <p class="qualify">Class and probability vector are illustrative, not model evidence. Only the assigned class probability is reported for this parcel.</p>
+                </div>
               </div>
             </div>
             <div>
-              <div class="panel">
-                <h2 style="font-size:14px;">Grad-CAM attention overlay</h2>
-                <div class="sub" id="xai-heat-sub">Satellite image tile</div>
-                <div class="heat tall" style="margin-top:14px;">
-                  <img class="sat" src="/assets/satellite.jpg" alt="">
-                  <img class="field" src="/assets/attention-field.svg" alt="">
-                  <img class="secondary" src="/assets/attention-secondary.svg" alt="">
-                  <img class="boundary" src="/assets/parcel-boundary.png" alt="" width="198" height="145">
-                  <span class="parcel-badge" id="xai-heat-id"></span>
-                  <span class="heat-scale"><span>Low</span><i></i><span>High</span></span>
+              <div class="side-card">
+                <h2>Grad-CAM Attention Overlay</h2>
+                <div class="sub" id="xai-cam-sub">Satellite image tile</div>
+                <div class="cam-well tall">
+                  <img class="sat" src="/assets/satellite.png" alt="">
+                  <img class="field" src="/assets/attention-field.svg" width="234" height="193.6" alt="">
+                  <img class="field-b" src="/assets/secondary-attention.svg" width="126" height="100" alt="">
+                  <img class="boundary" src="/assets/parcel-boundary.png" width="198" height="145" alt="">
+                  <span class="tile-id" id="xai-cam-id"></span>
+                  <span class="heat-key">Low <i></i> High</span>
                 </div>
-                <p class="heat-note">Illustrative satellite and spatial attention, not inference evidence. Run AttentionUNetModel.explain on the parcel's tile for the real Grad-CAM.</p>
+                <p class="qualify">Illustrative satellite &amp; spatial attention, not inference evidence.</p>
               </div>
-              <div class="panel feature-values" style="margin-top:20px;">
-                <div class="panel-head">
-                  <h2 style="font-size:14px;">Feature values</h2>
-                  <div class="hint" id="xai-feature-id"></div>
+              <div class="side-card">
+                <div class="block-head">
+                  <h2>Feature Values</h2>
+                  <span class="hint" id="feature-parcel"></span>
                 </div>
                 <div id="feature-values"></div>
               </div>
             </div>
           </div>
-          <div class="panel path-panel">
-            <h2 style="font-size:14px;">Prediction path</h2>
-            <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:15px;align-items:flex-start;">
+          <div class="path-card">
+            <h2>Prediction Path</h2>
+            <div class="path-row">
               <div class="path" id="path"></div>
               <div class="path-note">
                 <strong>Reference prediction path</strong>
@@ -544,11 +579,11 @@
             </div>
           </div>
         </div>
+        <footer>
+          <p id="xai-banner"></p>
+          <div class="totals" id="xai-foot"></div>
+        </footer>
       </div>
-      <footer>
-        <div>GraphSAGE, two-layer mean aggregation · Attention U-Net flood head</div>
-        <div class="totals" id="map-foot"></div>
-      </footer>
     </div>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -564,49 +599,32 @@
     const liftNote = {{LIFT_NOTE_JSON}};
     const settlements = {{SETTLEMENTS_JSON}};
     const colors = {{COLORS_JSON}};
-    const ACTION_LABELS = {
-      retain_formalise: "Retain & Formalise",
-      retain_upgrade: "Retain & Upgrade",
-      in_situ_upgrade_priority: "Priority in-situ upgrade",
-      flood_resilient_upgrade: "Flood-resilient upgrade",
-      compensated_resettlement: "Compensated Resettlement",
-      insufficient_evidence: "Insufficient evidence",
-    };
-    const ACTION_MEANING = {
-      retain_formalise: "Secure tenure and formal recognition",
-      retain_upgrade: "In-situ services and infrastructure",
-      in_situ_upgrade_priority: "Priority works where deprivation is highest",
-      flood_resilient_upgrade: "In-place works where flood hazard is high",
-      compensated_resettlement: "Supported relocation with compensation",
-      insufficient_evidence: "Not enough evidence for a policy cell",
-    };
-    const ACTION_WASH = {
-      retain_formalise: "#eaf5ef",
-      retain_upgrade: "#fbf6ea",
-      in_situ_upgrade_priority: "#eef2f6",
-      flood_resilient_upgrade: "#eef3f5",
-      compensated_resettlement: "#fbeeed",
-      insufficient_evidence: "#f4f6f8",
-    };
     const errorEl = document.getElementById("gate-error");
+    const ACTION_COPY = {
+      retain_formalise: ["Retain & Formalise", "Secure tenure and formal recognition"],
+      retain_upgrade: ["Retain & Upgrade", "In-situ services and infrastructure"],
+      in_situ_upgrade_priority: ["In-situ Upgrade Priority", "Priority in-place upgrade where deprivation is high and flood hazard is low"],
+      flood_resilient_upgrade: ["Flood-resilient Upgrade", "In-place upgrade where flood hazard is high"],
+      compensated_resettlement: ["Compensated Resettlement", "Supported relocation with compensation"],
+      insufficient_evidence: ["Insufficient Evidence", "The policy matrix withheld an action"],
+    };
+    const SWATCH_SRC = {
+      retain_formalise: "/assets/swatch-formalise.svg",
+      retain_upgrade: "/assets/swatch-upgrade.svg",
+      compensated_resettlement: "/assets/swatch-resettlement.svg",
+    };
+    const CLASS_NAMES = [["low", "Low"], ["medium", "Moderate"], ["high", "High"]];
     let resolver = null;
     let confirmationResult = null;
     let verificationId = null;
     let challengeKind = "phone";
     let recaptcha = null;
     let parcels = [];
-    let shown = [];
     let selected = null;
+    let settlementFilter = "";
     let map;
     let layer;
-    let streets;
-    let satellite;
-    let baseLayer;
-    let baseKind = "satellite";
-    let measuring = false;
-    let measurePts = [];
-    let measureLayer = null;
-    let activeSettlement = settlements[0] || "";
+    let lastBounds = null;
 
     if (!firebaseConfig || !firebaseConfig.apiKey) {
       errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
@@ -629,289 +647,327 @@
       return user.getIdToken(true).then((token) => ({ Authorization: "Bearer " + token }));
     }
 
-    function titleCase(value) {
-      const text = String(value || "");
-      return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+    function actionLabel(name) {
+      return (ACTION_COPY[name] && ACTION_COPY[name][0]) || name.replaceAll("_", " ");
     }
 
-    function actionName(key) {
-      return ACTION_LABELS[key] || String(key || "").replaceAll("_", " ");
+    function titleCase(name) {
+      if (!name) return "";
+      const shown = name.charAt(0).toUpperCase() + name.slice(1);
+      return shown === "Medium" ? "Moderate" : shown;
     }
 
-    function paintPill(pillId, dotId, nameId, action) {
-      const pill = document.getElementById(pillId);
-      pill.style.background = ACTION_WASH[action] || "#f6f8fa";
-      pill.style.color = colors[action] || "#17212f";
-      document.getElementById(dotId).style.background = colors[action] || "#a7b4c1";
-      document.getElementById(nameId).textContent = actionName(action);
+    function settlementLabel(name) {
+      return name ? titleCase(name) : "All settlements";
     }
 
-    function formatScore(value) {
-      return value == null || Number.isNaN(value) ? "—" : Number(value).toFixed(2);
+    function dataset() {
+      return settlementFilter ? parcels.filter((parcel) => parcel.settlement === settlementFilter) : parcels;
     }
 
-    function formatPercent(value) {
-      return value == null || Number.isNaN(value) ? "—" : (Math.round(value * 1000) / 10) + "%";
+    function paintPill(id, action) {
+      const pill = document.getElementById(id);
+      const color = colors[action] || "#17212f";
+      const formal = action === "retain_formalise";
+      pill.style.color = color;
+      pill.style.background = formal ? "#eaf5ef" : "#f6f8fa";
+      pill.querySelector(".policy-asset").hidden = !formal;
+      const dot = pill.querySelector(".policy-dot");
+      dot.hidden = formal;
+      dot.style.background = color;
+      document.getElementById(id + "-label").textContent = actionLabel(action);
     }
 
-    function signed(value) {
-      const text = Number(value).toFixed(2);
-      return value > 0 ? "+" + text : text;
+    function percent(value) {
+      return value == null ? "—" : Math.round(value * 1000) / 10 + "%";
     }
 
-    function showNotice(text) {
-      document.getElementById("banner").textContent = text;
-      document.getElementById("notice").hidden = false;
-      document.getElementById("bell").setAttribute("aria-expanded", "true");
+    function score(value) {
+      return value == null ? "—" : value.toFixed(2);
     }
 
     function drawLegend() {
       const legend = document.getElementById("legend");
-      const rows = document.getElementById("legend-rows");
-      const foot = document.getElementById("map-foot");
       legend.replaceChildren();
-      rows.replaceChildren();
-      foot.replaceChildren();
-      const counts = {};
-      for (const parcel of parcels) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
       const label = document.createElement("span");
       label.className = "legend-label";
-      label.textContent = "Policy legend:";
+      label.textContent = "Policy Legend:";
       legend.append(label);
-      const total = document.createElement("span");
-      total.textContent = parcels.length + " parcels";
-      foot.append(total);
       for (const [name, color] of Object.entries(colors)) {
-        const count = counts[name] || 0;
-        if (name === "insufficient_evidence" && count === 0) continue;
-        const swatch = document.createElement("span");
-        swatch.className = "swatch";
-        const dot = document.createElement("span");
-        dot.className = "dot";
-        dot.style.background = color;
-        swatch.append(dot, document.createTextNode(actionName(name)));
-        legend.append(swatch);
-        const row = document.createElement("div");
-        row.className = "legend-row";
-        const square = document.createElement("span");
-        square.className = "swatch-sq";
-        square.style.background = color;
-        const copy = document.createElement("div");
-        const strong = document.createElement("strong");
-        strong.textContent = actionName(name);
-        const meaning = document.createElement("em");
-        meaning.textContent = ACTION_MEANING[name] || "";
-        copy.append(strong, meaning);
-        const totalCell = document.createElement("b");
-        totalCell.textContent = String(count);
-        row.append(square, copy, totalCell);
-        rows.append(row);
-        const footItem = document.createElement("span");
-        const marker = document.createElement("span");
-        marker.className = "dot";
-        marker.style.background = color;
-        footItem.append(marker, document.createTextNode(count + " " + actionName(name)));
-        foot.append(footItem);
+        const row = document.createElement("span");
+        row.className = "swatch";
+        if (SWATCH_SRC[name]) {
+          const icon = document.createElement("img");
+          icon.src = SWATCH_SRC[name];
+          icon.width = 7;
+          icon.height = 7;
+          icon.alt = "";
+          row.append(icon);
+        } else {
+          const dot = document.createElement("span");
+          dot.className = "dot";
+          dot.style.background = color;
+          row.append(dot);
+        }
+        row.append(document.createTextNode(actionLabel(name)));
+        legend.append(row);
       }
     }
 
-    function setNav(which) {
-      const mapOn = which === "map";
-      document.getElementById("nav-map").setAttribute("aria-pressed", mapOn ? "true" : "false");
-      document.getElementById("nav-xai").setAttribute("aria-pressed", mapOn ? "false" : "true");
-      document.querySelector("#nav-map .when-on").hidden = !mapOn;
-      document.querySelector("#nav-map .when-off").hidden = mapOn;
-      document.querySelector("#nav-xai .when-on").hidden = mapOn;
-      document.querySelector("#nav-xai .when-off").hidden = !mapOn;
+    function drawMapLegend(list) {
+      const counts = {};
+      for (const parcel of list) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
+      const box = document.getElementById("map-legend");
+      box.replaceChildren();
+      const header = document.createElement("header");
+      header.textContent = "Policy & governance categories";
+      const chevron = document.createElement("img");
+      chevron.src = "/assets/chevron-up.svg";
+      chevron.width = 14;
+      chevron.height = 14;
+      chevron.alt = "";
+      header.append(chevron);
+      box.append(header);
+      const preferred = ["retain_formalise", "retain_upgrade", "compensated_resettlement"];
+      const extras = Object.keys(colors).filter((name) => !preferred.includes(name) && counts[name]);
+      const shown = preferred.filter((name) => colors[name]).concat(extras);
+      for (const name of shown) {
+        const row = document.createElement("div");
+        row.className = "legend-row";
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.background = colors[name] || "#929ca9";
+        const copy = document.createElement("div");
+        copy.className = "legend-copy";
+        const line = document.createElement("div");
+        line.className = "legend-line";
+        const title = document.createElement("strong");
+        title.textContent = actionLabel(name);
+        const count = document.createElement("span");
+        count.textContent = String(counts[name] || 0);
+        line.append(title, count);
+        const meaning = document.createElement("div");
+        meaning.className = "legend-meaning";
+        meaning.textContent = (ACTION_COPY[name] && ACTION_COPY[name][1]) || "";
+        copy.append(line, meaning);
+        row.append(swatch, copy);
+        box.append(row);
+      }
+      const key = document.createElement("div");
+      key.className = "selection-key";
+      const mark = document.createElement("span");
+      mark.className = "selection-mark";
+      key.append(mark, document.createTextNode("Outlined parcel is the current selection"));
+      box.append(key);
+      header.addEventListener("click", () => {
+        const closed = box.dataset.closed === "true";
+        box.dataset.closed = closed ? "false" : "true";
+        for (const child of box.children) {
+          if (child !== header) child.hidden = !closed;
+        }
+        chevron.src = closed ? "/assets/chevron-up.svg" : "/assets/chevron-down.svg";
+      });
+    }
+
+    function fillTotals(node, list) {
+      const counts = {};
+      for (const parcel of list) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
+      node.replaceChildren();
+      const total = document.createElement("span");
+      total.textContent = list.length.toLocaleString() + " parcels";
+      node.append(total);
+      for (const [name, n] of Object.entries(counts)) {
+        const item = document.createElement("span");
+        item.className = "total";
+        const dot = document.createElement("i");
+        dot.style.background = colors[name] || "#929ca9";
+        item.append(dot, document.createTextNode(n.toLocaleString() + " " + actionLabel(name)));
+        node.append(item);
+      }
+    }
+
+    function renderClasses(container, heading, detail) {
+      const shownClass = titleCase(detail.deprivation_class);
+      document.getElementById(heading).textContent = "Severity class: " + (shownClass || "—");
+      container.replaceChildren();
+      const assigned = (detail.deprivation_class || "").toLowerCase();
+      for (const [key, label] of CLASS_NAMES) {
+        const cell = document.createElement("div");
+        cell.className = "class-cell";
+        const name = document.createElement("span");
+        name.textContent = label;
+        const prob = document.createElement("strong");
+        prob.textContent = key === assigned && detail.class_probability != null ? detail.class_probability.toFixed(2) : "—";
+        cell.append(name, prob);
+        container.append(cell);
+      }
+    }
+
+    function renderBars(container, features) {
+      container.replaceChildren();
+      if (!features.length) {
+        const note = document.createElement("p");
+        note.className = "empty";
+        note.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
+        container.append(note);
+        return;
+      }
+      const ranked = features.filter((feature) => feature.attribution != null)
+        .sort((a, b) => Math.abs(b.attribution) - Math.abs(a.attribution))
+        .slice(0, 5);
+      const rows = ranked.length ? ranked : features.slice(0, 5);
+      const maxAbs = Math.max(0.01, ...rows.map((feature) => Math.abs(feature.attribution || 0)));
+      if (!ranked.length) {
+        const note = document.createElement("p");
+        note.className = "empty";
+        note.textContent = "Local Shapley values are not stored on this parcel record.";
+        container.append(note);
+      }
+      for (const feature of rows) {
+        const line = document.createElement("div");
+        line.className = "bar-row";
+        const label = document.createElement("span");
+        label.className = "bar-label";
+        label.textContent = feature.label;
+        const plot = document.createElement("div");
+        plot.className = "plot";
+        const zero = document.createElement("span");
+        zero.className = "zero";
+        plot.append(zero);
+        const value = document.createElement("span");
+        value.className = "bar-value";
+        if (feature.attribution == null) {
+          value.textContent = "—";
+        } else {
+          const bar = document.createElement("span");
+          bar.className = "bar " + (feature.attribution < 0 ? "neg" : "pos");
+          bar.style.width = (Math.abs(feature.attribution) / maxAbs * 50) + "%";
+          if (feature.attribution < 0) bar.style.right = "50%";
+          else bar.style.left = "50%";
+          plot.append(bar);
+          value.textContent = (feature.attribution < 0 ? "−" : "+") + Math.abs(feature.attribution).toFixed(2);
+        }
+        line.append(label, plot, value);
+        container.append(line);
+      }
     }
 
     function showMap() {
       document.getElementById("map-view").hidden = false;
       document.getElementById("xai-view").classList.remove("on");
-      setNav("map");
+      document.getElementById("nav-map").setAttribute("aria-pressed", "true");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
       if (map) setTimeout(() => map.invalidateSize(), 0);
     }
 
     function showXai() {
-      if (!selected) {
-        showNotice("Select a parcel on the map to open its explanation.");
-        return;
-      }
+      if (!selected) return;
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.add("on");
-      setNav("xai");
-    }
-
-    function renderClasses(detail, titleId, tagId, rowId, noteId) {
-      const probs = detail.class_probabilities || [];
-      const title = detail.deprivation_class ? "Severity class: " + titleCase(detail.deprivation_class) : "Severity class";
-      document.getElementById(titleId).textContent = title;
-      document.getElementById(tagId).textContent = probs.length ? "GRAPHSAGE" : "";
-      const row = document.getElementById(rowId);
-      row.replaceChildren();
-      for (const item of probs) {
-        const chip = document.createElement("div");
-        chip.className = "class-chip";
-        const name = document.createElement("span");
-        name.textContent = titleCase(item.name);
-        const value = document.createElement("b");
-        value.textContent = Number(item.value).toFixed(2);
-        chip.append(name, value);
-        row.append(chip);
-      }
-      document.getElementById(noteId).textContent = probs.length
-        ? "Class probabilities are the GraphSAGE softmax for this building."
-        : "The class probability vector is not on this parcel record.";
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "true");
     }
 
     function renderCard(parcel) {
       selected = parcel;
       document.getElementById("parcel-card").hidden = false;
       document.getElementById("card-id").textContent = "Parcel #" + parcel.id;
-      document.getElementById("card-settlement").textContent = parcel.settlement ? titleCase(parcel.settlement) : "";
-      document.getElementById("card-heat-id").textContent = parcel.id;
-      paintPill("card-pill", "card-dot", "card-action", parcel.action);
-      document.getElementById("card-flood").textContent = formatScore(parcel.flood_proba);
-      document.getElementById("card-flood-bar").style.width = parcel.flood_proba == null ? "0" : Math.round(parcel.flood_proba * 100) + "%";
-      const depScore = parcel.class_probability != null ? parcel.class_probability : null;
-      document.getElementById("card-dep").textContent = depScore == null ? (parcel.deprivation_class ? titleCase(parcel.deprivation_class) : "—") : formatScore(depScore);
-      document.getElementById("card-dep-bar").style.width = depScore == null ? "0" : Math.round(depScore * 100) + "%";
-      document.getElementById("card-conf").textContent = formatPercent(parcel.confidence);
-      renderClasses(parcel, "card-class-title", "card-class-tag", "card-classes", "card-class-note");
-    }
-
-    function renderExplanations(detail) {
-      const features = detail.features || [];
-      const bars = document.getElementById("shap-bars");
-      const mini = document.getElementById("card-shap");
-      const values = document.getElementById("feature-values");
-      const path = document.getElementById("path");
-      bars.replaceChildren();
-      mini.replaceChildren();
-      values.replaceChildren();
-      path.replaceChildren();
-      document.getElementById("shap-title").textContent = features.length >= 5 ? "Top 5 SHAP feature contributors" : "SHAP feature contributors";
-      if (!features.length) {
-        bars.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
-        mini.textContent = bars.textContent;
-      }
-      for (const feature of features) {
-        const row = document.createElement("div");
-        row.className = "row";
-        const name = document.createElement("span");
-        name.textContent = feature.label;
-        const value = document.createElement("b");
-        value.textContent = Number(feature.value).toFixed(3);
-        row.append(name, value);
-        values.append(row);
-      }
-      const ranked = features.filter((feature) => feature.attribution != null)
-        .slice()
-        .sort((a, b) => Math.abs(b.attribution) - Math.abs(a.attribution));
-      const maxAbs = Math.max(0.01, ...ranked.map((feature) => Math.abs(feature.attribution)));
-      let pathStarted = false;
-      if (features.length && !ranked.length) {
-        const note = document.createElement("p");
-        note.className = "class-note";
-        note.textContent = "Local Shapley values are not on this parcel record.";
-        bars.append(note);
-        mini.append(note.cloneNode(true));
-      }
-      for (const feature of ranked) {
-        const line = document.createElement("div");
-        line.className = "bar-row";
-        const label = document.createElement("span");
-        label.textContent = feature.label;
-        const plot = document.createElement("div");
-        plot.className = "plot";
-        const zero = document.createElement("span");
-        zero.className = "zero";
-        const fill = document.createElement("i");
-        const width = Math.abs(feature.attribution) / maxAbs * 50;
-        fill.style.width = width + "%";
-        if (feature.attribution < 0) {
-          fill.className = "neg";
-          fill.style.right = "50%";
-        } else {
-          fill.style.left = "50%";
-        }
-        plot.append(zero, fill);
-        const number = document.createElement("b");
-        number.textContent = signed(feature.attribution);
-        line.append(label, plot, number);
-        bars.append(line);
-
-        const compact = document.createElement("div");
-        compact.className = "mini-row";
-        const compactLabel = document.createElement("span");
-        compactLabel.textContent = feature.label;
-        const track = document.createElement("div");
-        track.className = "mini-track";
-        const compactFill = document.createElement("i");
-        compactFill.style.width = Math.round(Math.abs(feature.attribution) / maxAbs * 100) + "%";
-        if (feature.attribution < 0) compactFill.className = "neg";
-        track.append(compactFill);
-        const compactValue = document.createElement("b");
-        compactValue.textContent = signed(feature.attribution);
-        compact.append(compactLabel, track, compactValue);
-        mini.append(compact);
-
-        const step = document.createElement("div");
-        step.className = "step";
-        const valueBox = document.createElement("div");
-        valueBox.className = "step-value";
-        valueBox.textContent = signed(feature.attribution);
-        const caption = document.createElement("em");
-        caption.textContent = feature.label;
-        const top = document.createElement("div");
-        top.className = "with-arrow";
-        if (pathStarted) {
-          const arrow = document.createElement("img");
-          arrow.src = "/assets/arrow-right.svg";
-          arrow.alt = "";
-          top.append(arrow);
-        }
-        pathStarted = true;
-        top.append(valueBox);
-        step.append(top, caption);
-        path.append(step);
-      }
-      if (detail.confidence != null) {
-        const step = document.createElement("div");
-        step.className = "step";
-        const valueBox = document.createElement("div");
-        valueBox.className = "step-value final";
-        valueBox.textContent = Number(detail.confidence).toFixed(3);
-        const caption = document.createElement("em");
-        caption.textContent = "Final score";
-        const top = document.createElement("div");
-        top.className = "with-arrow";
-        if (pathStarted) {
-          const arrow = document.createElement("img");
-          arrow.src = "/assets/arrow-right.svg";
-          arrow.alt = "";
-          top.append(arrow);
-        }
-        top.append(valueBox);
-        step.append(top, caption);
-        path.append(step);
-      }
+      document.getElementById("card-settlement").textContent = settlementLabel(parcel.settlement);
+      document.getElementById("card-cam-id").textContent = parcel.id;
+      paintPill("card-action", parcel.action);
+      document.getElementById("card-flood").textContent = score(parcel.flood_proba);
+      document.getElementById("card-flood-track").style.width = parcel.flood_proba == null ? "0" : Math.max(0, Math.min(1, parcel.flood_proba)) * 100 + "%";
+      document.getElementById("card-dep").textContent = score(parcel.class_probability);
+      document.getElementById("card-dep-track").style.width = parcel.class_probability == null ? "0" : Math.max(0, Math.min(1, parcel.class_probability)) * 100 + "%";
+      document.getElementById("card-conf").textContent = percent(parcel.confidence);
+      renderClasses(document.getElementById("card-classes"), "card-severity", parcel);
+      renderBars(document.getElementById("card-shap"), parcel.features || []);
     }
 
     function renderXai(detail) {
       document.getElementById("xai-title").textContent = "XAI Summary — Parcel #" + detail.id;
-      document.getElementById("xai-where").textContent = "Parcel " + detail.id + (detail.settlement ? " · " + titleCase(detail.settlement) : "");
-      document.getElementById("xai-heat-sub").textContent = "Satellite image tile, parcel #" + detail.id;
-      document.getElementById("xai-heat-id").textContent = detail.id;
-      document.getElementById("xai-feature-id").textContent = detail.id;
-      paintPill("xai-pill", "xai-dot", "xai-action", detail.action);
-      document.getElementById("xai-flood").textContent = formatScore(detail.flood_proba);
-      document.getElementById("xai-dep").textContent = detail.class_probability == null
-        ? (detail.deprivation_class ? titleCase(detail.deprivation_class) : "—")
-        : formatScore(detail.class_probability);
-      document.getElementById("xai-conf").textContent = formatPercent(detail.confidence);
-      renderClasses(detail, "xai-class-title", "xai-class-tag", "xai-classes", "xai-class-note");
-      renderExplanations(detail);
+      document.getElementById("xai-cam-sub").textContent = "Satellite image tile, parcel #" + detail.id;
+      document.getElementById("xai-cam-id").textContent = detail.id;
+      document.getElementById("feature-parcel").textContent = detail.id;
+      document.getElementById("xai-action-note").textContent = detail.id + " · " + settlementLabel(detail.settlement);
+      paintPill("xai-action", detail.action);
+      document.getElementById("xai-flood").textContent = score(detail.flood_proba);
+      document.getElementById("xai-dep").textContent = detail.class_probability == null ? (titleCase(detail.deprivation_class) || "—") : detail.class_probability.toFixed(2);
+      document.getElementById("xai-conf").textContent = percent(detail.confidence);
+      const features = detail.features || [];
+      renderBars(document.getElementById("shap-bars"), features);
+      renderClasses(document.getElementById("xai-classes"), "xai-severity", detail);
+      const values = document.getElementById("feature-values");
+      values.replaceChildren();
+      if (!features.length) {
+        const note = document.createElement("p");
+        note.className = "empty";
+        note.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
+        values.append(note);
+      }
+      for (const feature of features) {
+        const row = document.createElement("div");
+        row.className = "feature-row";
+        const name = document.createElement("span");
+        name.textContent = feature.label;
+        const value = document.createElement("strong");
+        value.textContent = feature.value.toFixed(3);
+        row.append(name, value);
+        values.append(row);
+      }
+      const path = document.getElementById("path");
+      path.replaceChildren();
+      let first = true;
+      for (const feature of features) {
+        if (feature.attribution == null) continue;
+        const step = document.createElement("div");
+        step.className = "step";
+        const valueBox = document.createElement("div");
+        valueBox.className = "chip";
+        valueBox.textContent = (feature.attribution < 0 ? "−" : "+") + Math.abs(feature.attribution).toFixed(2);
+        if (!first) {
+          const wrap = document.createElement("div");
+          wrap.className = "with-arrow";
+          const arrow = document.createElement("img");
+          arrow.src = "/assets/arrow-right.svg";
+          arrow.width = 15;
+          arrow.height = 15;
+          arrow.alt = "";
+          wrap.append(arrow, valueBox);
+          step.append(wrap);
+        } else {
+          step.append(valueBox);
+        }
+        const caption = document.createElement("small");
+        caption.textContent = feature.label;
+        step.append(caption);
+        path.append(step);
+        first = false;
+      }
+      if (detail.confidence != null) {
+        const step = document.createElement("div");
+        step.className = "step";
+        const wrap = document.createElement("div");
+        wrap.className = "with-arrow";
+        if (!first) {
+          const arrow = document.createElement("img");
+          arrow.src = "/assets/arrow-right.svg";
+          arrow.width = 15;
+          arrow.height = 15;
+          arrow.alt = "";
+          wrap.append(arrow);
+        }
+        const valueBox = document.createElement("div");
+        valueBox.className = "chip final";
+        valueBox.textContent = detail.confidence.toFixed(3);
+        wrap.append(valueBox);
+        const caption = document.createElement("small");
+        caption.textContent = "Final score";
+        step.append(wrap, caption);
+        path.append(step);
+      } else if (first) {
+        path.textContent = "No local contributions are stored for this parcel.";
+      }
     }
 
     async function openDetail(index) {
@@ -921,161 +977,109 @@
       const detail = await response.json();
       renderCard(detail);
       renderXai(detail);
-      draw(shown, false);
+      draw(searched(), false);
     }
 
-    function updateScale() {
-      if (!map) return;
-      const size = map.getSize();
-      if (!size || !size.y) return;
-      const metres = map.distance(
-        map.containerPointToLatLng([0, size.y / 2]),
-        map.containerPointToLatLng([60, size.y / 2]),
-      );
-      document.getElementById("scale-label").textContent = metres >= 1000
-        ? (metres / 1000).toFixed(1) + " km"
-        : Math.round(metres) + " m";
+    function searched() {
+      const needle = document.getElementById("search").value.trim().toLowerCase();
+      const list = dataset();
+      return needle ? list.filter((parcel) => parcel.id.toLowerCase().includes(needle)) : list;
     }
 
-    function useBase(kind) {
-      if (!map) return;
-      baseKind = kind;
-      if (baseLayer) baseLayer.remove();
-      baseLayer = (kind === "streets" ? streets : satellite).addTo(map);
-      document.getElementById("tile-source").textContent = kind === "streets"
-        ? "Tile source: OpenStreetMap"
-        : "Tile source: satellite imagery";
-      for (const button of document.querySelectorAll("#layer-menu button")) {
-        button.setAttribute("aria-pressed", button.dataset.layer === kind ? "true" : "false");
+    function draw(list, refit = true) {
+      if (!map) {
+        map = L.map("map", { zoomControl: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap",
+        }).addTo(map);
+        L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
       }
-      document.getElementById("layer-menu").hidden = true;
-      document.getElementById("layers-btn").setAttribute("aria-expanded", "false");
-    }
-
-    function onMeasureClick(event) {
-      if (!measuring) return;
-      measurePts.push(event.latlng);
-      if (!measureLayer) measureLayer = L.layerGroup().addTo(map);
-      L.circleMarker(event.latlng, {
-        radius: 4, color: "#17212f", weight: 2, fillColor: "#ffffff", fillOpacity: 1,
-      }).addTo(measureLayer);
-      if (measurePts.length >= 2) {
-        const start = measurePts[measurePts.length - 2];
-        const end = measurePts[measurePts.length - 1];
-        L.polyline([start, end], { color: "#17212f", weight: 2, dashArray: "4 4" }).addTo(measureLayer);
-        const metres = map.distance(start, end);
-        const readout = document.getElementById("measure-readout");
-        readout.hidden = false;
-        readout.textContent = metres >= 1000 ? (metres / 1000).toFixed(2) + " km" : Math.round(metres) + " m";
-        measurePts = [];
-      }
-    }
-
-    function ensureMap() {
-      if (map) return;
-      map = L.map("map", { zoomControl: false });
-      streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap",
-      });
-      satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        attribution: "Tiles &copy; Esri",
-      });
-      useBase(baseKind);
-      map.on("zoomend moveend", updateScale);
-      map.on("click", onMeasureClick);
-    }
-
-    function draw(list, fit) {
-      shown = list;
-      ensureMap();
       if (layer) layer.remove();
       layer = L.layerGroup().addTo(map);
       const bounds = [];
       for (const parcel of list) {
-        const active = selected && selected.index === parcel.index;
-        const color = colors[parcel.action] || "#a7b4c1";
+        const chosen = selected && selected.index === parcel.index;
+        const color = colors[parcel.action] || "#929ca9";
         const marker = L.circleMarker([parcel.lat, parcel.lon], {
-          radius: active ? 7 : 5,
-          color: active ? "#17212f" : color,
+          radius: chosen ? 8 : 5,
+          color: chosen ? "#152331" : color,
           fillColor: color,
-          fillOpacity: 0.92,
-          weight: active ? 3 : 1,
+          fillOpacity: 0.9,
+          weight: chosen ? 2 : 1,
         });
-        marker.bindTooltip(parcel.id, {
-          permanent: active,
-          direction: "bottom",
-          className: "parcel-tip",
-          offset: [0, 6],
-        });
-        marker.on("click", (event) => {
-          if (measuring) {
-            onMeasureClick(event);
-            return;
-          }
-          openDetail(parcel.index);
-        });
+        marker.on("click", () => openDetail(parcel.index));
         marker.addTo(layer);
         bounds.push([parcel.lat, parcel.lon]);
       }
-      if (fit && bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
-      else if (!bounds.length) map.setView([-1.313, 36.79], 13);
-      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + list.length + " parcels";
-      setTimeout(updateScale, 0);
-    }
-
-    function placeName() {
-      return activeSettlement ? titleCase(activeSettlement) : "All settlements";
-    }
-
-    function renderSettlementMenu() {
-      const menu = document.getElementById("settlement-menu");
-      menu.replaceChildren();
-      const options = settlements.slice();
-      if (options.length !== 1) options.unshift("");
-      for (const name of options) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "settle-opt" + (name === activeSettlement ? " on" : "");
-        button.textContent = name ? titleCase(name) : "All settlements";
-        if (name === activeSettlement) {
-          const mark = document.createElement("img");
-          mark.src = "/assets/check.svg";
-          mark.alt = "";
-          button.append(mark);
-        }
-        button.addEventListener("click", () => chooseSettlement(name));
-        menu.append(button);
+      if (bounds.length) {
+        lastBounds = bounds;
+        if (refit) map.fitBounds(bounds, { padding: [24, 24] });
       }
-      document.getElementById("settlement-current").textContent = placeName();
-      document.getElementById("dataset-label").textContent = activeSettlement
-        ? "Settlement: " + titleCase(activeSettlement)
-        : "Settlements: " + (settlements.map(titleCase).join(", ") || "none loaded");
+      const counted = dataset();
+      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + counted.length.toLocaleString() + " parcels";
+      fillTotals(document.getElementById("map-foot"), counted);
+      fillTotals(document.getElementById("xai-foot"), counted);
+      drawMapLegend(counted);
     }
 
-    async function chooseSettlement(name) {
-      activeSettlement = name;
-      document.getElementById("settlement-menu").hidden = true;
-      document.getElementById("settlement-toggle").setAttribute("aria-expanded", "false");
-      document.getElementById("chevron-up").hidden = true;
-      document.getElementById("chevron-down").hidden = false;
-      renderSettlementMenu();
-      selected = null;
-      document.getElementById("parcel-card").hidden = true;
-      await loadParcels(true);
-    }
-
-    async function loadParcels(fit) {
+    async function loadParcels() {
       const headers = await tokenHeader(auth.currentUser);
-      const query = activeSettlement ? "?settlement=" + encodeURIComponent(activeSettlement) : "";
-      const response = await fetch("/api/parcels" + query, { headers });
+      const response = await fetch("/api/parcels", { headers });
       if (!response.ok) {
-        showNotice("The parcel request was refused.");
+        errorEl.textContent = "The parcel request was refused.";
         return;
       }
       parcels = await response.json();
-      const needle = document.getElementById("search").value.trim().toLowerCase();
-      draw(needle ? parcels.filter((parcel) => parcel.id.toLowerCase().includes(needle)) : parcels, fit);
-      drawLegend();
+      draw(searched());
+    }
+
+    function selectSettlement(name) {
+      settlementFilter = name;
+      document.getElementById("settlement-current").textContent = settlementLabel(name);
+      document.getElementById("settlement-notes").textContent = "Settlement: " + settlementLabel(name);
+      for (const button of document.getElementById("settlement-menu").querySelectorAll(".settlement-option")) {
+        const on = button.dataset.settlement === name;
+        button.classList.toggle("selected", on);
+        const existing = button.querySelector("img");
+        if (existing) existing.remove();
+        if (on) {
+          const mark = document.createElement("img");
+          mark.src = "/assets/check.svg";
+          mark.width = 14;
+          mark.height = 14;
+          mark.alt = "";
+          button.append(mark);
+        }
+      }
+      document.getElementById("settlement-menu").hidden = true;
+      document.getElementById("settlement-chevron").src = "/assets/chevron-down.svg";
+      document.getElementById("settlement-toggle").setAttribute("aria-expanded", "false");
+      draw(searched());
+    }
+
+    function buildSettlements() {
+      const menu = document.getElementById("settlement-menu");
+      menu.replaceChildren();
+      for (const name of [""].concat(settlements)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "settlement-option" + (name ? "" : " selected");
+        button.dataset.settlement = name;
+        const label = document.createElement("span");
+        label.textContent = settlementLabel(name);
+        button.append(label);
+        if (!name) {
+          const mark = document.createElement("img");
+          mark.src = "/assets/check.svg";
+          mark.width = 14;
+          mark.height = 14;
+          mark.alt = "";
+          button.append(mark);
+        }
+        button.addEventListener("click", () => selectSettlement(name));
+        menu.append(button);
+      }
+      document.getElementById("settlement-notes").textContent = "Settlement: " + settlementLabel("");
     }
 
     function resetRecaptcha(containerId) {
@@ -1095,23 +1099,24 @@
       showForm("challenge");
       if (phoneHint) {
         challengeKind = "phone";
-        const shownPhone = phoneHint.phoneNumber || "your phone";
-        document.getElementById("challenge-copy").textContent = "Sending a code to " + shownPhone + ".";
+        const shown = phoneHint.phoneNumber || "your phone";
+        document.getElementById("challenge-copy").textContent = "Sending a code to " + shown + ".";
         const verifier = resetRecaptcha("challenge-recaptcha");
         verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(
           { multiFactorHint: phoneHint, session: resolver.session },
           verifier,
         );
-        document.getElementById("challenge-copy").textContent = "Enter the code texted to " + shownPhone + ".";
+        document.getElementById("challenge-copy").textContent = "Enter the code texted to " + shown + ".";
         return;
       }
       challengeKind = "totp";
       document.getElementById("challenge-copy").textContent = "Enter the code from your authenticator app.";
     }
 
-    function initials(source) {
-      const letters = String(source || "").replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase();
-      return letters || "PA";
+    function initials(user) {
+      const source = (user.displayName || user.email || "Signed in").trim();
+      const parts = source.split(/[\s.@]+/).filter(Boolean);
+      return ((parts[0] || "S")[0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
     }
 
     async function enterApp(user) {
@@ -1120,23 +1125,24 @@
       if (signInProvider === "phone") {
         /* SMS one-time code already proved possession of the handset. */
       } else {
-        const factors = multiFactor(user).enrolledFactors || [];
-        const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
-        if (!hasSecondFactor) {
-          showForm("enroll");
-          document.getElementById("gate").hidden = false;
-          return;
-        }
+      const factors = multiFactor(user).enrolledFactors || [];
+      const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
+      if (!hasSecondFactor) {
+        showForm("enroll");
+        document.getElementById("gate").hidden = false;
+        return;
+      }
       }
       document.getElementById("gate").hidden = true;
       document.getElementById("app").classList.add("on");
-      const name = user.email ? user.email.split("@")[0] : (user.phoneNumber || "Signed in");
-      document.getElementById("analyst-name").textContent = name;
-      document.getElementById("analyst-initials").textContent = initials(name);
-      document.getElementById("note-body").textContent = liftNote;
-      renderSettlementMenu();
+      document.getElementById("analyst-name").textContent = user.displayName || user.email || "Signed in";
+      document.getElementById("analyst-initials").textContent = initials(user);
+      const modelLine = "Model: GraphSAGE · " + liftNote;
+      document.getElementById("banner").textContent = modelLine;
+      document.getElementById("xai-banner").textContent = modelLine;
+      buildSettlements();
       drawLegend();
-      await loadParcels(true);
+      await loadParcels();
       setTimeout(() => map && map.invalidateSize(), 50);
     }
 
@@ -1286,83 +1292,38 @@
       if (auth) await signOut(auth);
       document.getElementById("app").classList.remove("on");
       document.getElementById("gate").hidden = false;
-      document.getElementById("account-menu").hidden = true;
       showForm("sign-in");
     });
     document.getElementById("analyst-menu").addEventListener("click", () => {
       const menu = document.getElementById("account-menu");
       menu.hidden = !menu.hidden;
-      document.getElementById("analyst-menu").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
-    });
-    document.getElementById("nav-map").addEventListener("click", showMap);
-    document.getElementById("back-map").addEventListener("click", showMap);
-    document.getElementById("nav-xai").addEventListener("click", showXai);
-    document.getElementById("nav-history").addEventListener("click", () => showNotice(liftNote));
-    document.getElementById("nav-config").addEventListener("click", () => showNotice("GraphSAGE, two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score."));
-    document.getElementById("nav-settings").addEventListener("click", () => showNotice("The policy matrix is fixed. Compensated resettlement still requires high deprivation and high hazard."));
-    document.getElementById("bell").addEventListener("click", () => {
-      const notice = document.getElementById("notice");
-      if (notice.hidden) showNotice(liftNote);
-      else {
-        notice.hidden = true;
-        document.getElementById("bell").setAttribute("aria-expanded", "false");
-      }
     });
     document.getElementById("settlement-toggle").addEventListener("click", () => {
       const menu = document.getElementById("settlement-menu");
       menu.hidden = !menu.hidden;
       const open = !menu.hidden;
-      document.getElementById("settlement-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-      document.getElementById("chevron-up").hidden = !open;
-      document.getElementById("chevron-down").hidden = open;
+      document.getElementById("settlement-chevron").src = open ? "/assets/chevron-up.svg" : "/assets/chevron-down.svg";
+      document.getElementById("settlement-toggle").setAttribute("aria-expanded", String(open));
     });
-    document.getElementById("legend-toggle").addEventListener("click", () => {
-      const body = document.getElementById("legend-body");
-      body.hidden = !body.hidden;
-      const open = !body.hidden;
-      document.getElementById("legend-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-      document.getElementById("legend-chevron-up").hidden = !open;
-      document.getElementById("legend-chevron-down").hidden = open;
-    });
+    document.getElementById("nav-map").addEventListener("click", showMap);
+    document.getElementById("back-map").addEventListener("click", showMap);
+    document.getElementById("nav-xai").addEventListener("click", showXai);
     document.getElementById("card-close").addEventListener("click", () => {
       document.getElementById("parcel-card").hidden = true;
       selected = null;
-      draw(shown, false);
+      draw(searched(), false);
     });
     document.getElementById("open-xai").addEventListener("click", showXai);
-    document.getElementById("search").addEventListener("input", (event) => {
-      const needle = event.target.value.trim().toLowerCase();
-      draw(needle ? parcels.filter((parcel) => parcel.id.toLowerCase().includes(needle)) : parcels, false);
-    });
+    document.getElementById("search").addEventListener("input", () => draw(searched(), false));
     document.getElementById("zoom-in").addEventListener("click", () => map && map.zoomIn());
     document.getElementById("zoom-out").addEventListener("click", () => map && map.zoomOut());
-    document.getElementById("zoom-fit").addEventListener("click", () => {
-      if (!map || !shown.length) return;
-      map.fitBounds(shown.map((parcel) => [parcel.lat, parcel.lon]), { padding: [24, 24] });
+    document.getElementById("locate").addEventListener("click", () => {
+      if (map && lastBounds) map.fitBounds(lastBounds, { padding: [24, 24] });
     });
-    document.getElementById("layers-btn").addEventListener("click", () => {
-      const menu = document.getElementById("layer-menu");
-      menu.hidden = !menu.hidden;
-      document.getElementById("layers-btn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
-    });
-    for (const button of document.querySelectorAll("#layer-menu button")) {
-      button.addEventListener("click", () => useBase(button.dataset.layer));
-    }
-    document.getElementById("measure-btn").addEventListener("click", () => {
-      measuring = !measuring;
-      document.getElementById("measure-btn").setAttribute("aria-pressed", measuring ? "true" : "false");
-      measurePts = [];
-      if (!measuring && measureLayer) {
-        measureLayer.remove();
-        measureLayer = null;
-        document.getElementById("measure-readout").hidden = true;
-      }
-    });
-    document.getElementById("fullscreen-btn").addEventListener("click", () => {
-      const stage = document.getElementById("stage");
-      if (!stage.requestFullscreen) return;
-      if (!document.fullscreenElement) stage.requestFullscreen();
-      else document.exitFullscreen();
+    document.getElementById("maximize").addEventListener("click", () => {
+      const stage = document.querySelector(".stage");
+      if (!document.fullscreenElement) stage.requestFullscreen?.();
+      else document.exitFullscreen?.();
     });
     async function download(path, name) {
       const headers = await tokenHeader(auth.currentUser);

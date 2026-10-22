@@ -25,6 +25,13 @@ from .map_view import ACTION_COLORS, action_counts, build_policy_map, parcel_row
 
 SHELL_PATH = Path(__file__).with_name("shell.html")
 ASSETS_DIR = Path(__file__).with_name("assets")
+_ASSET_TYPES = {
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
 
 LIFT_NOTE = (
     "River-corridor lift on the Sprint 5 Colab run was 0.929, below the "
@@ -67,35 +74,35 @@ def render_shell(web_config: dict, settlement_keys, lift_note: str = LIFT_NOTE) 
     return html
 
 
-def _content_type(path: Path) -> str:
-    return {
-        ".svg": "image/svg+xml",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".webp": "image/webp",
-    }.get(path.suffix.lower(), "application/octet-stream")
+def _serve_asset(handler, url_path: str) -> bool:
+    """
+    Dashboard chrome (icons and the illustrative attention image).
 
-
-def _serve_asset(handler, url_path: str) -> None:
-    """Icons and the labelled attention illustration. No parcel coordinates."""
-    relative = url_path[len("/assets/"):]
-    parts = relative.split("/")
-    if not relative or any(part in {"", ".", ".."} for part in parts):
-        _unauthorised(handler, 404, "Not found.")
-        return
+    Returns false when the path is not an asset URL, so the caller can
+    keep routing. A bad asset name is a 404 and still counts as handled.
+    Parcel coordinates are not in that directory.
+    """
+    prefix = "/assets/"
+    if not url_path.startswith(prefix):
+        return False
+    name = url_path[len(prefix):]
     root = ASSETS_DIR.resolve()
-    target = (root / relative).resolve()
-    if root not in target.parents or not target.is_file():
+    file = (root / name).resolve()
+    if not name or any(part in {"", ".", ".."} for part in name.split("/")) or root not in file.parents or not file.is_file():
         _unauthorised(handler, 404, "Not found.")
-        return
-    body = target.read_bytes()
+        return True
+    content_type = _ASSET_TYPES.get(file.suffix.lower())
+    if content_type is None:
+        _unauthorised(handler, 404, "Not found.")
+        return True
+    payload = file.read_bytes()
     handler.send_response(200)
-    handler.send_header("Content-Type", _content_type(target))
-    handler.send_header("Content-Length", str(len(body)))
-    handler.send_header("Cache-Control", "public, max-age=3600")
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(payload)))
+    handler.send_header("Cache-Control", "public, max-age=86400")
     handler.end_headers()
-    handler.wfile.write(body)
+    handler.wfile.write(payload)
+    return True
 
 
 def _unauthorised(handler, status: int, message: str) -> None:
@@ -142,8 +149,7 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
 
         def do_GET(self):
             parsed = urlparse(self.path)
-            if parsed.path.startswith("/assets/"):
-                _serve_asset(self, parsed.path)
+            if _serve_asset(self, parsed.path):
                 return
             if parsed.path == "/":
                 body = shell.encode("utf-8")

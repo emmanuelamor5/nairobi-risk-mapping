@@ -121,6 +121,8 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Text message code" in shell
         assert str(SECRET_LON) not in shell
         assert "compensated resettlement" not in shell
+        assert "figma.com/api/mcp/asset" not in shell
+        assert "Work Sans" not in shell
 
         def fetch(path, token):
             request = Request(base + path, headers={"Authorization": f"Bearer {token}"})
@@ -129,6 +131,12 @@ def test_map_route_refuses_sessions_without_mfa():
                     return response.status, response.read().decode()
             except HTTPError as exc:
                 return exc.code, exc.read().decode()
+
+        status, asset = fetch("/assets/brand-map.svg", "")
+        assert status == 200
+        assert asset.startswith("<svg")
+        status, missing = fetch("/assets/missing-icon.svg", "")
+        assert status == 404
 
         status, body = fetch("/api/map", "")
         assert status == 401
@@ -206,6 +214,36 @@ def test_launch_serves_the_shell_without_blocking():
         server.server_close()
 
 
+def test_asset_route_stays_inside_the_dashboard_directory():
+    import io
+
+    from src.dashboard.app import _serve_asset
+
+    class Handler:
+        def __init__(self):
+            self.status = None
+            self.wfile = io.BytesIO()
+
+        def send_response(self, status):
+            self.status = status
+
+        def send_header(self, key, value):
+            return
+
+        def end_headers(self):
+            return
+
+    served = Handler()
+    assert _serve_asset(served, "/assets/brand-map.svg") is True
+    assert served.status == 200
+    assert served.wfile.getvalue().startswith(b"<svg")
+
+    blocked = Handler()
+    assert _serve_asset(blocked, "/assets/../shell.html") is True
+    assert blocked.status == 404
+    assert _serve_asset(Handler(), "/api/parcels") is False
+
+
 def test_shell_renders_without_a_firebase_project():
     html = render_shell({}, ["kibera"])
     assert "Firebase web config is not set" in html or "apiKey" in html
@@ -231,8 +269,8 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
     assert "Full-Settlement Choropleth Map" in html
     assert "Choropleth Map" in html
     assert "XAI Summary" in html
-    assert "/assets/map-brand.svg" in html
-    assert "/assets/satellite.jpg" in html
+    assert "/assets/brand-map.svg" in html
+    assert "/assets/satellite.png" in html
     assert "#28835b" in html
 
     def verifier(token):
@@ -244,9 +282,9 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
     thread.start()
     base = f"http://127.0.0.1:{server.server_address[1]}"
     try:
-        icon = urlopen(base + "/assets/map-brand.svg").read().decode()
+        icon = urlopen(base + "/assets/brand-map.svg").read().decode()
         assert "<svg" in icon
-        assert urlopen(base + "/assets/satellite.jpg").status == 200
+        assert urlopen(base + "/assets/satellite.png").status == 200
         try:
             urlopen(base + "/assets/../app.py")
             raise AssertionError("asset paths must stay inside the asset directory")
