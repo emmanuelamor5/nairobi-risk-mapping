@@ -233,6 +233,7 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
     assert "XAI Summary" in html
     assert "/assets/map-brand.svg" in html
     assert "/assets/satellite.jpg" in html
+    assert "/vendor/leaflet.js" in html
     assert "#28835b" in html
 
     def verifier(token):
@@ -247,6 +248,8 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
         icon = urlopen(base + "/assets/map-brand.svg").read().decode()
         assert "<svg" in icon
         assert urlopen(base + "/assets/satellite.jpg").status == 200
+        leaflet = urlopen(base + "/vendor/leaflet.js").read()
+        assert leaflet.startswith(b"/* @preserve") or b"leaflet" in leaflet[:400].lower()
         try:
             urlopen(base + "/assets/../app.py")
             raise AssertionError("asset paths must stay inside the asset directory")
