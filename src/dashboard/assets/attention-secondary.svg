@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="126" height="100" viewBox="0 0 126 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse id="Secondary attention" cx="63" cy="50" rx="63" ry="50" fill="url(#paint0_radial_0_21)"/>
+<defs>
+<radialGradient id="paint0_radial_0_21" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(63 50) scale(63 50)">
+<stop stop-color="#F59730" stop-opacity="0.6"/>
+<stop offset="0.55" stop-color="#F6D240" stop-opacity="0.333333"/>
+<stop offset="1" stop-color="#66BAB0" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>
