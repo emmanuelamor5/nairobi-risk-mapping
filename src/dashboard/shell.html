@@ -130,7 +130,7 @@
     .account-menu { position: absolute; right: 12px; bottom: 64px; background: white; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 8px rgba(23, 33, 47, 0.07); padding: 4px; min-width: 120px; }
     .account-menu button { width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px; cursor: pointer; font-size: 13px; }
     .workspace { display: flex; flex-direction: column; min-width: 0; min-height: 100vh; background: var(--paper); }
-    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; height: 80px; padding: 0 24px; background: white; border-bottom: 1px solid var(--line); }
+    .top { position: relative; z-index: 1300; display: flex; justify-content: space-between; gap: 16px; align-items: center; height: 80px; padding: 0 24px; background: white; border-bottom: 1px solid var(--line); }
     .top h1 { margin: 0; font-size: 19px; font-weight: 600; }
     .sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
     .tools { display: flex; gap: 10px; align-items: center; position: relative; }
@@ -225,14 +225,22 @@
     html[data-theme="dark"] .nav-btn[aria-pressed="true"],
     html[data-theme="dark"] .primary,
     html[data-theme="dark"] .switch.on { background: #e7e9ea; color: #0f1419; }
-    html[data-theme="dark"] .layer-menu { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .notice { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .notice-close { color: #ffffff; }
+    html[data-theme="dark"] .notice-close:hover { background: #243140; }
+    html[data-theme="dark"] .layer-menu,
+    html[data-theme="dark"] .layer-menu button { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .layer-menu button[aria-pressed="true"] { background: #1c3a32; color: #b6ffd4; }
     html[data-theme="dark"] #map,
     html[data-theme="dark"] .leaflet-container,
     html[data-theme="dark"] .leaflet-tile { filter: none; background: #ddd; }
     html[data-theme="dark"] input,
     html[data-theme="dark"] .gate input { background: #0f1419; color: #e7e9ea; border-color: #38444d; }
-    .notice { position: absolute; right: 0; top: 44px; width: 320px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 20; }
-    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 64px; padding: 12px 24px; }
+    .notice { position: absolute; right: 0; top: 44px; width: 320px; display: flex; align-items: flex-start; gap: 8px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 40; }
+    .notice p { margin: 0; flex: 1; }
+    .notice-close { width: 22px; height: 22px; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font-size: 16px; line-height: 1; cursor: pointer; flex: none; }
+    .notice-close:hover { background: #f4f7f8; }
+    .toolbar { position: relative; z-index: 1200; display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 64px; padding: 12px 24px; }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: var(--muted); }
     .legend-label { font-weight: 500; }
     .swatch { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
@@ -248,15 +256,24 @@
     .zoom-stack { width: 34px; display: flex; flex-direction: column; gap: 7px; }
     .zoom-stack button { width: 34px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 16px; line-height: 1; }
     .measure-readout { background: white; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; }
-    .layer-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 168px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.12); }
-    .layer-menu button { display: block; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
+    /* Leaflet panes reach z-index 1000, so this list has to sit higher or the map covers the layer types. */
+    .layer-menu { position: absolute; top: 12px; right: 12px; z-index: 1200; min-width: 196px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 8px; box-shadow: 0 12px 32px rgba(23, 33, 47, 0.2); }
+    .layer-title { margin: 2px 8px 6px; font-size: 11px; font-weight: 600; color: var(--muted); }
+    .layer-menu button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
+    .layer-menu button:hover { background: #f4f7f8; }
+    .layer-check { width: 14px; height: 14px; border: 1.5px solid #9aabba; border-radius: 3px; display: inline-grid; place-items: center; flex: none; }
     .layer-menu button[aria-pressed="true"] { background: #eaf5ef; color: var(--green); font-weight: 600; }
-    .map-legend { position: absolute; z-index: 500; left: 18px; bottom: 18px; width: 292px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); }
+    .layer-menu button[aria-pressed="true"] .layer-check { background: var(--green); border-color: var(--green); }
+    .layer-menu button[aria-pressed="true"] .layer-check::after { content: ""; width: 7px; height: 4px; border-left: 2px solid white; border-bottom: 2px solid white; transform: rotate(-45deg) translateY(-1px); }
+    html[data-theme="dark"] .layer-menu button:hover { background: #243140; color: #ffffff; }
+    html[data-theme="dark"] .layer-menu button[aria-pressed="true"],
+    html[data-theme="dark"] .layer-menu button[aria-pressed="true"]:hover { background: #1c3a32; color: #b6ffd4; }
+    .map-legend { position: absolute; z-index: 1100; top: auto; right: auto; left: 18px; bottom: 18px; width: 292px; height: auto; max-height: calc(100% - 36px); overflow: auto; border: 0; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); }
     .legend-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: grab; }
     .legend-head:active { cursor: grabbing; }
     .win-min { width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 4px; background: #f4f7f8; padding: 0; display: grid; place-items: center; cursor: pointer; flex: none; }
     .win-min:hover { background: #e7eef5; }
-    .map-legend.is-min { width: 240px; }
+    .map-legend.is-min { width: auto; max-width: 280px; height: auto; padding: 8px 10px; left: 18px; bottom: 18px; overflow: hidden; }
     .map-legend.is-min #legend-body { display: none; }
     .parcel-pin {
       position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
@@ -548,7 +565,10 @@
               <img src="/assets/download.svg" alt="">
               Export
             </button>
-            <div class="notice" id="notice" hidden><p id="banner" style="margin:0"></p></div>
+            <div class="notice" id="notice" hidden>
+              <p id="banner"></p>
+              <button class="notice-close" id="notice-close" type="button" aria-label="Close notification">×</button>
+            </div>
           </div>
         </header>
         <div class="toolbar">
@@ -557,13 +577,14 @@
             <button class="tool" id="layers-btn" type="button" aria-expanded="false" aria-controls="layer-menu">Layers</button>
             <button class="tool" id="measure-btn" type="button" aria-pressed="false">Measure</button>
             <button class="tool" id="fullscreen-btn" type="button">Full screen</button>
-            <div class="layer-menu" id="layer-menu" hidden>
-              <button type="button" data-layer="streets" aria-pressed="true">Street map</button>
-              <button type="button" data-layer="satellite" aria-pressed="false">Satellite</button>
-            </div>
           </div>
         </div>
         <div class="stage" id="stage">
+          <div class="layer-menu" id="layer-menu" hidden>
+            <p class="layer-title">Layers</p>
+            <button type="button" data-layer="streets" aria-pressed="true"><span class="layer-check" aria-hidden="true"></span>Street map</button>
+            <button type="button" data-layer="satellite" aria-pressed="false"><span class="layer-check" aria-hidden="true"></span>Satellite</button>
+          </div>
           <div class="map-loading" id="map-loading" hidden>
             <span class="spin" aria-hidden="true"></span>
             Loading the map
@@ -1074,6 +1095,11 @@
       document.getElementById("bell").setAttribute("aria-expanded", "true");
     }
 
+    function hideNotice() {
+      document.getElementById("notice").hidden = true;
+      document.getElementById("bell").setAttribute("aria-expanded", "false");
+    }
+
     function drawLegend() {
       const legend = document.getElementById("legend");
       const rows = document.getElementById("legend-rows");
@@ -1465,8 +1491,17 @@
       for (const button of document.querySelectorAll("#layer-menu button")) {
         button.setAttribute("aria-pressed", button.dataset.layer === baseKind ? "true" : "false");
       }
-      document.getElementById("layer-menu").hidden = true;
-      document.getElementById("layers-btn").setAttribute("aria-expanded", "false");
+    }
+
+    function placeLayerMenu() {
+      const menu = document.getElementById("layer-menu");
+      const button = document.getElementById("layers-btn");
+      const stage = document.getElementById("stage");
+      const buttonBox = button.getBoundingClientRect();
+      const stageBox = stage.getBoundingClientRect();
+      menu.style.top = Math.max(12, buttonBox.bottom - stageBox.top + 8) + "px";
+      menu.style.right = Math.max(12, stageBox.right - buttonBox.right) + "px";
+      menu.style.left = "auto";
     }
 
     function onMeasureClick(event) {
@@ -2081,11 +2116,9 @@
     document.getElementById("bell").addEventListener("click", () => {
       const notice = document.getElementById("notice");
       if (notice.hidden) showNotice(liftNote);
-      else {
-        notice.hidden = true;
-        document.getElementById("bell").setAttribute("aria-expanded", "false");
-      }
+      else hideNotice();
     });
+    document.getElementById("notice-close").addEventListener("click", hideNotice);
     document.getElementById("settlement-toggle").addEventListener("click", () => {
       const menu = document.getElementById("settlement-menu");
       menu.hidden = !menu.hidden;
@@ -2094,15 +2127,38 @@
       document.getElementById("chevron-up").hidden = !open;
       document.getElementById("chevron-down").hidden = open;
     });
+    let legendPlace = null;
+    function dockLegend() {
+      const legend = document.getElementById("map-legend");
+      legend.style.left = "18px";
+      legend.style.bottom = "18px";
+      legend.style.top = "auto";
+      legend.style.right = "auto";
+    }
     document.getElementById("legend-toggle").addEventListener("click", (event) => {
       event.stopPropagation();
       const legend = document.getElementById("map-legend");
       const body = document.getElementById("legend-body");
       const minimized = !legend.classList.contains("is-min");
+      if (minimized) {
+        legendPlace = {
+          left: legend.style.left,
+          top: legend.style.top,
+          right: legend.style.right,
+          bottom: legend.style.bottom,
+        };
+        dockLegend();
+      } else if (legendPlace) {
+        legend.style.left = legendPlace.left;
+        legend.style.top = legendPlace.top;
+        legend.style.right = legendPlace.right;
+        legend.style.bottom = legendPlace.bottom;
+      }
       legend.classList.toggle("is-min", minimized);
       body.hidden = minimized;
       document.getElementById("legend-toggle").setAttribute("aria-expanded", minimized ? "false" : "true");
       document.getElementById("legend-toggle").setAttribute("aria-label", minimized ? "Restore" : "Minimize");
+      document.getElementById("legend-toggle").setAttribute("title", minimized ? "Restore" : "Minimize");
       document.getElementById("legend-toggle").innerHTML = minimized
         ? '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.2" y="2.2" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>'
         : '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
@@ -2160,6 +2216,7 @@
       ensureMap();
       const menu = document.getElementById("layer-menu");
       menu.hidden = !menu.hidden;
+      if (!menu.hidden) placeLayerMenu();
       document.getElementById("layers-btn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
     });
     for (const button of document.querySelectorAll("#layer-menu button")) {
