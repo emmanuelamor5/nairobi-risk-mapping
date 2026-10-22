@@ -31,10 +31,30 @@
     body { margin: 0; font-family: Inter, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
     button, input { font: inherit; color: inherit; }
     img { display: block; }
-    .gate { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr); align-items: center; background: #fff; color: #0f1419; position: relative; padding: 32px 4vw 72px; }
-    .auth-copy { width: min(440px, 100%); margin-left: auto; padding-right: 24px; }
-    .gate h1 { margin: 0 0 48px; font-size: clamp(52px, 5vw, 76px); line-height: 1.05; font-weight: 800; letter-spacing: -1.6px; color: #0f1419; }
-    .auth-stack { width: 300px; display: flex; flex-direction: column; gap: 12px; }
+    .gate {
+      min-height: 100vh; height: 100vh; overflow: auto;
+      display: grid; grid-template-columns: minmax(340px, 1.1fr) minmax(280px, 0.9fr);
+      align-items: center; position: relative; padding: 32px 5vw 72px; color: #102033;
+      background:
+        radial-gradient(820px 480px at 12% 18%, rgba(72, 168, 150, 0.45), transparent 62%),
+        radial-gradient(640px 420px at 88% 78%, rgba(23, 50, 78, 0.28), transparent 60%),
+        linear-gradient(155deg, #e7f1f4 0%, #f7f4ef 48%, #d5e3ea 100%);
+    }
+    .gate::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.28), transparent 30%, rgba(255,255,255,0.12));
+    }
+    .auth-copy {
+      position: relative; width: min(460px, 100%); margin-left: auto; padding: 36px 32px 28px;
+      border-radius: 28px; background: rgba(255,255,255,0.46);
+      border: 1px solid rgba(255,255,255,0.72);
+      box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
+      backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    }
+    .brand-kicker { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.16em; color: #1d6b5a; }
+    .gate h1 { margin: 0 0 8px; font-size: clamp(42px, 4.4vw, 64px); line-height: 0.98; font-weight: 800; letter-spacing: -1.4px; color: #102033; }
+    .gate-lead { margin: 0 0 28px; color: #3d4d5c; font-size: 15px; line-height: 1.45; }
+    .auth-stack { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
     .auth-pill { position: relative; width: 100%; height: 40px; border-radius: 999px; border: 1px solid #cfd9de; background: #fff; color: #0f1419; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; transition: background 0.15s ease, border-color 0.15s ease; }
     .auth-pill:hover:not(:disabled) { background: #f0f3f5; }
     .auth-dark:hover:not(:disabled), .auth-continue:not(:disabled):hover { background: #272c30; }
@@ -53,8 +73,16 @@
     .gate .error:empty { display: none; }
     .auth-note, .gate form p { margin: 0; color: #536471; font-size: 13px; line-height: 1.4; }
     .auth-back { border: 0; background: transparent; color: #1d9bf0; padding: 0 0 8px; cursor: pointer; font-size: 15px; font-weight: 400; text-align: left; }
-    .auth-mark { justify-self: center; font-size: min(34vw, 380px); font-weight: 800; letter-spacing: -0.08em; line-height: 0.8; color: #0f1419; user-select: none; }
-    .auth-foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: #536471; font-size: 13px; }
+    .auth-mark {
+      position: relative; justify-self: center; width: min(280px, 70%); aspect-ratio: 1;
+      display: grid; place-items: center; border-radius: 36px;
+      background: rgba(255,255,255,0.38); border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
+      backdrop-filter: blur(18px); color: #102033; text-align: center; user-select: none;
+    }
+    .auth-mark strong { display: block; font-size: clamp(28px, 3vw, 40px); letter-spacing: -0.04em; line-height: 1; }
+    .auth-mark span { display: block; margin-top: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.12em; color: #1d6b5a; }
+    .auth-foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: #3d4d5c; font-size: 13px; }
     .mark { width: 32px; height: 32px; background: var(--nav); border-radius: 6px; display: grid; place-items: center; flex: none; }
     .brand strong { font-size: 22px; font-weight: 700; }
     @media (max-width: 880px) {
@@ -77,9 +105,10 @@
     .brand { display: flex; gap: 10px; align-items: center; height: 80px; padding: 0 24px; border-bottom: 1px solid var(--line); }
     .nav-scroll { flex: 1; overflow: auto; padding: 27px 16px 12px; display: flex; flex-direction: column; gap: 26px; }
     .group-label { margin: 0 0 8px; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
-    .nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; }
+    .nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease; }
     .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; font-weight: 600; }
-    .nav-btn:hover:not([aria-pressed="true"]) { background: #eef2f5; }
+    .nav-btn:hover:not([aria-pressed="true"]),
+    .settle-opt:hover { background: #dce8f3; color: #102033; transform: translateX(3px); }
     .dataset-name { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; }
     .settle { position: relative; }
     .settle-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; }
@@ -143,7 +172,16 @@
     html[data-theme="dark"] body,
     html[data-theme="dark"] .workspace,
     html[data-theme="dark"] .page { background: #0f1419; color: #e7e9ea; }
-    html[data-theme="dark"] .gate { background: #0f1419; color: #e7e9ea; }
+    html[data-theme="dark"] .gate {
+      background:
+        radial-gradient(820px 480px at 12% 18%, rgba(40, 110, 100, 0.35), transparent 62%),
+        linear-gradient(155deg, #0c141c 0%, #15202b 100%);
+    }
+    html[data-theme="dark"] .auth-copy,
+    html[data-theme="dark"] .auth-mark {
+      background: rgba(21, 32, 43, 0.62); color: #e7e9ea;
+      border-color: rgba(255,255,255,0.16);
+    }
     html[data-theme="dark"] .gate h1,
     html[data-theme="dark"] .auth-mark,
     html[data-theme="dark"] .auth-or { color: #e7e9ea; }
@@ -156,9 +194,18 @@
     html[data-theme="dark"] .search-wrap,
     html[data-theme="dark"] .auth-pill,
     html[data-theme="dark"] .settle-btn,
-    html[data-theme="dark"] .map-legend,
     html[data-theme="dark"] .note { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .map-legend {
+      background: #ffffff; color: #102033;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    }
+    html[data-theme="dark"] .map-legend strong,
+    html[data-theme="dark"] .map-legend .legend-head,
+    html[data-theme="dark"] .map-legend b { color: #102033; }
+    html[data-theme="dark"] .legend-row em,
+    html[data-theme="dark"] .select-key { color: #1c2b3a; }
     html[data-theme="dark"] .nav-btn:hover:not([aria-pressed="true"]),
+    html[data-theme="dark"] .settle-opt:hover { background: #243140; color: #ffffff; transform: translateX(3px); }
     html[data-theme="dark"] .tool:hover:not(:disabled),
     html[data-theme="dark"] .auth-pill:hover:not(:disabled):not(.auth-dark) { background: #1e2732; }
     html[data-theme="dark"] .auth-dark,
@@ -192,7 +239,17 @@
     .layer-menu button { display: block; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
     .layer-menu button[aria-pressed="true"] { background: #eaf5ef; color: var(--green); font-weight: 600; }
     .map-legend { position: absolute; z-index: 500; left: 18px; bottom: 18px; width: 292px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); }
-    .legend-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
+    .legend-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: grab; }
+    .legend-head:active { cursor: grabbing; }
+    .win-min { width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 4px; background: #f4f7f8; padding: 0; display: grid; place-items: center; cursor: pointer; flex: none; }
+    .win-min:hover { background: #e7eef5; }
+    .map-legend.is-min { width: 240px; }
+    .map-legend.is-min #legend-body { display: none; }
+    .parcel-pin {
+      position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+      border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 3px #ff5a4e, 0 0 18px rgba(255,90,78,0.85);
+      pointer-events: none; z-index: 2;
+    }
     .legend-head button { border: 0; background: transparent; padding: 0; cursor: pointer; }
     .legend-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 9px; margin-top: 14px; }
     .swatch-sq { width: 10px; height: 10px; border-radius: 2px; margin-top: 2px; }
@@ -299,7 +356,9 @@
 <body>
   <section class="gate" id="gate">
     <div class="auth-copy">
-      <h1>Parcel<br>policy.</h1>
+      <p class="brand-kicker">Nairobi Risk Mapping</p>
+      <h1>Nairobi<br>Risk Mapping</h1>
+      <p class="gate-lead">Folium parcel policy for Kibera, Mathare, and Mukuru.</p>
       <p class="error" id="gate-error" role="alert"></p>
       <div class="auth-stack" id="auth-home">
         <button class="auth-pill auth-dark" id="show-phone" type="button">
@@ -358,8 +417,8 @@
         <button class="auth-pill auth-dark" type="submit">Verify and enroll</button>
       </form>
     </div>
-    <div class="auth-mark" aria-hidden="true">F</div>
-    <div class="auth-foot">Folium · Nairobi parcel policy</div>
+    <div class="auth-mark" aria-hidden="true"><div><strong>Nairobi Risk Mapping</strong><span>FOLIUM</span></div></div>
+    <div class="auth-foot">Nairobi Risk Mapping · Folium</div>
   </section>
 
   <div class="app" id="app">
@@ -400,6 +459,10 @@
           <button class="nav-btn" id="nav-config" type="button">
             <img src="/assets/network.svg" alt="">
             GraphSAGE Config
+          </button>
+          <button class="nav-btn" id="nav-unet" type="button">
+            <img src="/assets/settings.svg" alt="">
+            Attention U-Net
           </button>
           <button class="nav-btn" id="nav-settings" type="button">
             <img src="/assets/settings.svg" alt="">
@@ -478,7 +541,9 @@
           <aside class="map-legend" id="map-legend">
             <div class="legend-head">
               <span>Policy &amp; governance categories</span>
-              <button class="ghost" id="legend-toggle" type="button" aria-expanded="true">Minimize</button>
+              <button class="win-min" id="legend-toggle" type="button" aria-expanded="true" aria-label="Minimize" title="Minimize">
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </button>
             </div>
             <div id="legend-body">
               <div id="legend-rows"></div>
@@ -516,14 +581,11 @@
               <div class="heat-wrap">
                 <p class="section-title">Grad-CAM attention overlay</p>
                 <div class="heat">
-                  <img class="sat" src="/assets/satellite.jpg" alt="">
-                  <img class="field" src="/assets/attention-field.svg" alt="">
-                  <img class="secondary" src="/assets/attention-secondary.svg" alt="">
-                  <img class="boundary" src="/assets/parcel-boundary.png" alt="" width="198" height="145">
+                  <img class="sat" src="/assets/satellite.jpg" alt="Satellite view of the selected parcel">
+                  <span class="parcel-pin" aria-hidden="true"></span>
                   <span class="parcel-badge" id="card-heat-id"></span>
-                  <span class="heat-scale"><span>Low</span><i></i><span>High</span></span>
                 </div>
-                <p class="heat-note" id="card-cam">Illustrative satellite and spatial attention, not inference evidence. Grad-CAM is computed on the flood tile, not stored per building.</p>
+                <p class="heat-note" id="card-cam">Satellite image centred on this parcel. The marker sits on the building centroid. A stored Grad-CAM chip is not kept per building.</p>
               </div>
               <div class="mini-shap">
                 <p class="section-title">Top SHAP feature contributors</p>
@@ -593,14 +655,11 @@
                 <h2 style="font-size:14px;">Grad-CAM attention overlay</h2>
                 <div class="sub" id="xai-heat-sub">Satellite image tile</div>
                 <div class="heat tall" style="margin-top:14px;">
-                  <img class="sat" src="/assets/satellite.jpg" alt="">
-                  <img class="field" src="/assets/attention-field.svg" alt="">
-                  <img class="secondary" src="/assets/attention-secondary.svg" alt="">
-                  <img class="boundary" src="/assets/parcel-boundary.png" alt="" width="198" height="145">
+                  <img class="sat" src="/assets/satellite.jpg" alt="Satellite view of the selected parcel">
+                  <span class="parcel-pin" aria-hidden="true"></span>
                   <span class="parcel-badge" id="xai-heat-id"></span>
-                  <span class="heat-scale"><span>Low</span><i></i><span>High</span></span>
                 </div>
-                <p class="heat-note">Illustrative satellite and spatial attention, not inference evidence. Run AttentionUNetModel.explain on the parcel's tile for the real Grad-CAM.</p>
+                <p class="heat-note">Satellite image centred on this parcel. The marker sits on the building centroid. A stored Grad-CAM chip is not kept per building.</p>
               </div>
               <div class="panel feature-values" style="margin-top:20px;">
                 <div class="panel-head">
@@ -621,6 +680,50 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+      <div class="page" id="graphsage-view" hidden>
+        <header class="top">
+          <div>
+            <h1>GraphSAGE config</h1>
+            <div class="sub">Structural deprivation head</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Architecture</strong>
+            <p>Two SAGEConv layers, mean aggregation, hidden width 64, dropout 0.5, then a linear layer to three deprivation classes.</p>
+          </section>
+          <section class="panel">
+            <strong>Training</strong>
+            <p>Adam, learning rate 0.005, weight decay 0.0005. Stratified 60/20/20 split. Sprint 3 target is validation macro-F1 of at least 0.60. The three-settlement target is 0.70.</p>
+          </section>
+          <section class="panel">
+            <strong>Node inputs</strong>
+            <p>Footprint area, distance to water, distance to sanitation, distance to road, and roof-material score. These are the features the network was trained on.</p>
+          </section>
+        </div>
+      </div>
+      <div class="page" id="unet-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Attention U-Net</h1>
+            <div class="sub">Flood hazard head</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Architecture</strong>
+            <p>U-Net encoder and decoder with an attention gate on each skip connection. Default width starts at 32 channels. The default stack has 9 inputs: six Sentinel-2 bands plus elevation, slope, and topographic wetness.</p>
+          </section>
+          <section class="panel">
+            <strong>Training</strong>
+            <p>BCE plus Dice loss, Adam, optional dropout and weight decay, cosine learning-rate schedule, and early stopping. Transfer target is IoU of at least 0.60. The final flood F1 target is 0.75.</p>
+          </section>
+          <section class="panel">
+            <strong>Explanation</strong>
+            <p>Grad-CAM is taken from the last decoder convolution on a flood tile. The dashboard shows the satellite view of the selected building because that tile is not stored on the parcel.</p>
+          </section>
         </div>
       </div>
       <div class="page" id="history-view" hidden>
@@ -740,12 +843,12 @@
       insufficient_evidence: "#f4f6f8",
     };
     const DARK_ACTION_COLORS = {
-      retain_formalise: "#3ddea0",
-      retain_upgrade: "#ffd15a",
-      in_situ_upgrade_priority: "#8ec5ff",
-      flood_resilient_upgrade: "#9ee7f5",
-      compensated_resettlement: "#ff8f88",
-      insufficient_evidence: "#e4ebf2",
+      retain_formalise: "#00f59a",
+      retain_upgrade: "#ffe14a",
+      in_situ_upgrade_priority: "#5ec8ff",
+      flood_resilient_upgrade: "#5dfff2",
+      compensated_resettlement: "#ff5d57",
+      insufficient_evidence: "#ffffff",
     };
     let outlineSelection = true;
     const errorEl = document.getElementById("gate-error");
@@ -958,11 +1061,27 @@
     }
 
     function hideSidePages() {
-      document.getElementById("settings-view").hidden = true;
-      document.getElementById("profile-view").hidden = true;
-      document.getElementById("history-view").hidden = true;
+      for (const id of ["settings-view", "profile-view", "history-view", "graphsage-view", "unet-view"]) {
+        document.getElementById(id).hidden = true;
+      }
       document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
       document.getElementById("nav-history").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-config").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
+    }
+
+    function showModel(viewId, buttonId) {
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      hideSidePages();
+      document.getElementById(viewId).hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById(buttonId).setAttribute("aria-pressed", "true");
+      document.querySelector("#nav-map .when-on").hidden = true;
+      document.querySelector("#nav-map .when-off").hidden = false;
+      document.querySelector("#nav-xai .when-on").hidden = true;
+      document.querySelector("#nav-xai .when-off").hidden = false;
     }
 
     function showMap() {
@@ -990,6 +1109,8 @@
       document.getElementById("xai-view").classList.remove("on");
       document.getElementById("profile-view").hidden = true;
       document.getElementById("history-view").hidden = true;
+      document.getElementById("graphsage-view").hidden = true;
+      document.getElementById("unet-view").hidden = true;
       document.getElementById("settings-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
@@ -1006,10 +1127,14 @@
       document.getElementById("xai-view").classList.remove("on");
       document.getElementById("settings-view").hidden = true;
       document.getElementById("profile-view").hidden = true;
+      document.getElementById("graphsage-view").hidden = true;
+      document.getElementById("unet-view").hidden = true;
       document.getElementById("history-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
       document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-config").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
       document.getElementById("nav-history").setAttribute("aria-pressed", "true");
       document.querySelector("#nav-map .when-on").hidden = true;
       document.querySelector("#nav-map .when-off").hidden = false;
@@ -1025,6 +1150,8 @@
       document.getElementById("xai-view").classList.remove("on");
       document.getElementById("settings-view").hidden = true;
       document.getElementById("history-view").hidden = true;
+      document.getElementById("graphsage-view").hidden = true;
+      document.getElementById("unet-view").hidden = true;
       document.getElementById("nav-history").setAttribute("aria-pressed", "false");
       document.getElementById("profile-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
@@ -1075,6 +1202,21 @@
       document.getElementById("card-dep-bar").style.width = depScore == null ? "0" : Math.round(depScore * 100) + "%";
       document.getElementById("card-conf").textContent = formatPercent(parcel.confidence);
       renderClasses(parcel, "card-class-title", "card-class-tag", "card-classes", "card-class-note");
+      showParcelSatellite(parcel);
+    }
+
+    function showParcelSatellite(parcel) {
+      if (!Number.isFinite(parcel.lat) || !Number.isFinite(parcel.lon)) return;
+      const dLat = 0.0011;
+      const dLon = 0.0015;
+      const bbox = [parcel.lon - dLon, parcel.lat - dLat, parcel.lon + dLon, parcel.lat + dLat]
+        .map((value) => value.toFixed(6)).join(",");
+      const url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox="
+        + encodeURIComponent(bbox) + "&bboxSR=4326&imageSR=4326&size=688,440&format=jpg&f=image";
+      for (const image of document.querySelectorAll(".heat .sat")) {
+        image.src = url;
+        image.alt = "Satellite view centred on parcel " + parcel.id;
+      }
     }
 
     function renderExplanations(detail) {
@@ -1632,6 +1774,8 @@
     document.getElementById("back-map").addEventListener("click", showMap);
     document.getElementById("nav-xai").addEventListener("click", showXai);
     document.getElementById("nav-history").addEventListener("click", showHistory);
+    document.getElementById("nav-config").addEventListener("click", () => showModel("graphsage-view", "nav-config"));
+    document.getElementById("nav-unet").addEventListener("click", () => showModel("unet-view", "nav-unet"));
     document.getElementById("nav-config").addEventListener("click", () => showNotice("GraphSAGE, two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score."));
     document.getElementById("nav-settings").addEventListener("click", showSettings);
     document.getElementById("open-profile").addEventListener("click", showProfile);
@@ -1717,13 +1861,44 @@
       document.getElementById("chevron-up").hidden = !open;
       document.getElementById("chevron-down").hidden = open;
     });
-    document.getElementById("legend-toggle").addEventListener("click", () => {
+    document.getElementById("legend-toggle").addEventListener("click", (event) => {
+      event.stopPropagation();
+      const legend = document.getElementById("map-legend");
       const body = document.getElementById("legend-body");
-      body.hidden = !body.hidden;
-      const open = !body.hidden;
-      document.getElementById("legend-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-      document.getElementById("legend-toggle").textContent = open ? "Minimize" : "Expand";
+      const minimized = !legend.classList.contains("is-min");
+      legend.classList.toggle("is-min", minimized);
+      body.hidden = minimized;
+      document.getElementById("legend-toggle").setAttribute("aria-expanded", minimized ? "false" : "true");
+      document.getElementById("legend-toggle").setAttribute("aria-label", minimized ? "Restore" : "Minimize");
+      document.getElementById("legend-toggle").innerHTML = minimized
+        ? '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.2" y="2.2" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
     });
+    (function dragLegend() {
+      const legend = document.getElementById("map-legend");
+      const handle = legend.querySelector(".legend-head");
+      let drag = null;
+      handle.addEventListener("pointerdown", (event) => {
+        if (event.target.closest("#legend-toggle") || event.target.closest("input") || event.target.closest("label")) return;
+        const stage = document.getElementById("stage").getBoundingClientRect();
+        const box = legend.getBoundingClientRect();
+        drag = { dx: event.clientX - box.left, dy: event.clientY - box.top, stage };
+        handle.setPointerCapture(event.pointerId);
+      });
+      handle.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        const stage = document.getElementById("stage").getBoundingClientRect();
+        const maxLeft = stage.width - legend.offsetWidth;
+        const maxTop = stage.height - legend.offsetHeight;
+        const left = Math.min(Math.max(0, event.clientX - stage.left - drag.dx), Math.max(0, maxLeft));
+        const top = Math.min(Math.max(0, event.clientY - stage.top - drag.dy), Math.max(0, maxTop));
+        legend.style.left = left + "px";
+        legend.style.top = top + "px";
+        legend.style.right = "auto";
+        legend.style.bottom = "auto";
+      });
+      handle.addEventListener("pointerup", () => { drag = null; });
+    })();
     document.getElementById("outline-selection").addEventListener("change", (event) => {
       outlineSelection = event.target.checked;
       if (outlineSelection && !selected) {
