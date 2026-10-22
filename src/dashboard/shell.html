@@ -6,83 +6,218 @@
   <title>Folium — parcel policy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
-      --ink: #1c2833;
-      --muted: #5d6d7e;
-      --line: #e5e8eb;
-      --paper: #f7f8f9;
-      --card: #ffffff;
-      --nav: #111827;
-      --nav-soft: #1f2937;
+      --ink: #17212f;
+      --muted: #657182;
+      --muted-2: #929ca9;
+      --line: #dde3e9;
+      --paper: #f6f8fa;
+      --nav: #152331;
+      --green: #28835b;
+      --wash: #eaf5ef;
+      --pos: #354a60;
+      --neg: #a7b4c1;
+      --cam: #ecefe8;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Work Sans", "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
-    button, input { font: inherit; }
-    .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f6f7; }
-    .gate-card { width: min(440px, 100%); background: white; border: 1px solid var(--line); padding: 28px 24px; }
-    .gate-card h1 { margin: 0 0 8px; font-size: 1.3rem; }
-    label { display: block; margin: 12px 0 4px; font-size: 0.85rem; }
-    input[type="email"], input[type="password"], input[type="text"] {
-      width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+    [hidden] { display: none !important; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: Inter, sans-serif; color: var(--ink); background: var(--paper); overflow: hidden; }
+    button, input { font: inherit; color: inherit; }
+    img { display: block; }
+    .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--paper); }
+    .gate-card { width: min(440px, 100%); background: white; border: 1px solid var(--line); border-radius: 8px; padding: 28px 24px; }
+    .gate-card h1 { margin: 0 0 8px; font-size: 22px; font-weight: 700; }
+    .gate-card p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    label { display: block; margin: 12px 0 4px; font-size: 12px; color: var(--muted); }
+    input[type="email"], input[type="password"], input[type="text"], input[type="tel"] {
+      width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white;
     }
-    .primary { background: var(--nav); color: white; border: 0; padding: 10px 14px; cursor: pointer; }
-    .ghost { background: white; border: 1px solid var(--line); padding: 8px 12px; cursor: pointer; }
-    .error { color: #922b21; min-height: 1.2em; }
+    .primary { background: var(--nav); color: white; border: 0; height: 36px; padding: 0 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .ghost { background: white; border: 1px solid var(--line); height: 36px; padding: 0 12px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 12px; }
+    .error { color: #922b21; min-height: 1.2em; font-size: 13px; }
     .app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
-    .app.on { display: grid; }
-    aside { background: white; border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 100vh; }
-    .brand { display: flex; gap: 8px; align-items: center; padding: 16px; font-weight: 700; }
-    .mark { width: 28px; height: 28px; background: var(--nav); color: white; display: grid; place-items: center; font-size: 0.75rem; }
-    .group { padding: 8px 12px; color: var(--muted); font-size: 0.72rem; letter-spacing: 0.04em; }
-    .nav-btn, .side-note { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 12px; cursor: pointer; }
-    .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; }
-    .side-note { color: var(--muted); cursor: default; }
-    .analyst { margin-top: auto; padding: 14px; border-top: 1px solid var(--line); font-size: 0.88rem; }
-    .workspace { display: flex; flex-direction: column; min-width: 0; }
-    .top { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 18px; background: white; border-bottom: 1px solid var(--line); }
-    .top h1 { margin: 0; font-size: 1.05rem; }
-    .sub { color: var(--muted); font-size: 0.85rem; }
-    .tools { display: flex; gap: 8px; align-items: center; }
-    .search { padding: 8px 10px; border: 1px solid var(--line); width: 200px; }
-    .banner { padding: 8px 18px; background: #fdebd0; font-size: 0.85rem; }
-    .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 18px; background: white; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+    .app.on { display: grid; height: 100vh; overflow: hidden; }
+    .app > aside { background: white; border-right: 1px solid var(--line); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+    .brand { height: 80px; display: flex; align-items: center; gap: 10px; padding: 0 24px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 22px; }
+    .mark { width: 32px; height: 32px; border-radius: 6px; background: var(--nav); display: grid; place-items: center; flex: none; }
+    .nav-scroll { flex: 1; overflow: auto; padding: 27px 16px 16px; display: flex; flex-direction: column; gap: 26px; }
+    .group { margin: 0 0 8px; color: var(--muted-2); font-size: 10px; font-weight: 600; }
+    .nav-btn, .side-item {
+      display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px;
+      border: 0; border-radius: 6px; background: white; color: var(--muted); font-size: 13px; font-weight: 500;
+      text-align: left; cursor: pointer;
+    }
+    .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; font-weight: 600; }
+    .nav-btn .when-on { display: none; }
+    .nav-btn[aria-pressed="true"] .when-off { display: none; }
+    .nav-btn[aria-pressed="true"] .when-on { display: block; }
+    .dataset-label { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; }
+    .settlement-toggle {
+      width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 6px; background: white;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 12px; cursor: pointer;
+    }
+    .settlement-current { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .settlement-menu { margin-top: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 4px; background: white; }
+    .settlement-option {
+      width: 100%; height: 34px; border: 0; border-radius: 4px; background: white; display: flex;
+      align-items: center; justify-content: space-between; padding: 0 8px; font-size: 13px; cursor: pointer;
+    }
+    .settlement-option.selected { background: var(--wash); color: var(--green); font-weight: 600; }
+    .note { margin: 0 20px 12px; background: var(--paper); border-radius: 6px; padding: 12px; }
+    .note-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; }
+    .status-dot { width: 6px; height: 6px; border-radius: 100px; background: var(--green); }
+    .note p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .analyst { height: 80px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 20px; position: relative; }
+    .avatar { width: 32px; height: 32px; border-radius: 100px; background: #eef2f5; color: var(--muted); display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none; }
+    .analyst-name { font-size: 12px; font-weight: 600; }
+    .analyst-role { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .analyst-copy { flex: 1; min-width: 0; }
+    .icon-hit { border: 0; background: transparent; padding: 0; cursor: pointer; }
+    .account-menu { position: absolute; right: 12px; bottom: 64px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+    .workspace { min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    #map-view { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; }
+    #map-view[hidden] { display: none; }
+    .top { height: 80px; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 0 24px; background: white; border-bottom: 1px solid var(--line); }
+    .top h1 { margin: 0; font-size: 19px; font-weight: 600; }
+    .sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
+    .tools { display: flex; gap: 10px; align-items: center; }
+    .search { width: 220px; height: 36px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: white; }
+    .search input { border: 0; outline: 0; width: 100%; font-size: 12px; padding: 0; height: 32px; background: transparent; }
+    .search input::placeholder { color: var(--muted-2); }
+    .icon-btn { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: white; display: grid; place-items: center; cursor: pointer; }
+    .export { height: 36px; border: 1px solid var(--line); border-radius: 6px; background: white; display: flex; align-items: center; gap: 8px; padding: 0 12px; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .toolbar { height: 64px; background: white; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 12px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; font-size: 11px; }
+    .legend-label { color: var(--muted); font-weight: 600; }
     .swatch { display: flex; align-items: center; gap: 6px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .stage { position: relative; flex: 1; min-height: 70vh; }
-    #map { height: 100%; min-height: 70vh; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .map-tools { display: flex; gap: 8px; }
+    .tool { height: 32px; min-width: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; font-size: 11px; font-weight: 500; cursor: pointer; }
+    .stage { position: relative; flex: 1; min-height: 0; }
+    #map { position: absolute; inset: 0; z-index: 1; background: #ecefe8; }
+    .zoom-stack { position: absolute; z-index: 2; left: 18px; top: 18px; display: flex; flex-direction: column; gap: 7px; }
+    .map-qualify { position: absolute; z-index: 2; right: 18px; bottom: 28px; color: var(--muted); font-size: 9px; background: rgba(255,255,255,.91); border-radius: 3px; padding: 4px 7px; }
+    .leaflet-bottom.leaflet-left { margin-left: 320px; }
+    .map-legend {
+      position: absolute; z-index: 2; left: 18px; bottom: 18px; width: 292px; height: auto; background: white;
+      border: 1px solid var(--line); border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(23,33,47,.07);
+    }
+    .map-legend:empty { display: none; }
+    .map-legend header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; }
+    .legend-row { display: flex; gap: 9px; margin-top: 14px; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; margin-top: 2px; }
+    .legend-copy { flex: 1; min-width: 0; }
+    .legend-line { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; }
+    .legend-line span { color: var(--muted); font-size: 10px; font-weight: 400; }
+    .legend-meaning { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .selection-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding-top: 5px; color: var(--muted); font-size: 9px; }
+    .selection-mark { width: 10px; height: 10px; border: 2px solid var(--nav); background: white; flex: none; }
     .card {
-      position: absolute; top: 16px; right: 16px; width: min(360px, calc(100% - 32px));
-      background: white; border: 1px solid var(--line); padding: 16px; z-index: 500;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      position: absolute; top: 22px; right: 22px; width: min(376px, calc(100% - 32px)); max-height: calc(100% - 44px);
+      overflow: auto; background: white; border: 1px solid var(--line); border-radius: 8px; z-index: 3;
+      box-shadow: 0 8px 24px rgba(23,33,47,.08);
     }
-    .card h2 { margin: 0 0 4px; font-size: 1rem; }
-    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
-    .metric { border: 1px solid var(--line); padding: 8px; }
-    .metric strong { display: block; font-size: 1.2rem; }
-    .cam {
-      border: 1px dashed #b0b7c3; min-height: 120px; display: grid; place-items: center;
-      text-align: center; color: var(--muted); padding: 12px; font-size: 0.85rem;
+    .card-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+    .card h2 { margin: 0; font-size: 14px; font-weight: 600; }
+    .card-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .policy-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .field-label { color: var(--muted); font-size: 11px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 100px; padding: 5px 9px; font-size: 11px; font-weight: 600; background: var(--wash); color: var(--green); }
+    .policy-dot { width: 6px; height: 6px; border-radius: 100px; display: inline-block; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .metric { border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+    .metric strong { display: block; margin-top: 6px; font-size: 22px; font-weight: 600; line-height: 1; }
+    .track { margin-top: 8px; height: 3px; background: var(--paper); border-radius: 2px; overflow: hidden; }
+    .track i { display: block; height: 3px; background: var(--nav); width: 0; }
+    .confidence { display: flex; justify-content: space-between; font-size: 11px; }
+    .confidence strong { font-size: 12px; }
+    .class-box { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+    .class-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; }
+    .tag { color: var(--muted); font-size: 9px; font-weight: 500; }
+    .class-row { display: flex; gap: 6px; margin-top: 8px; }
+    .class-cell { flex: 1; background: white; border: 1px solid var(--line); border-radius: 3px; padding: 5px 6px; display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+    .class-cell strong { color: var(--ink); font-size: 11px; }
+    .qualify { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .section-title { margin: 0; font-size: 12px; font-weight: 600; }
+    .cam-well { position: relative; height: 148px; background: var(--cam); border-radius: 4px; overflow: hidden; }
+    .cam-well.tall { height: 220px; }
+    .cam-well .sat { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cam-well .field { position: absolute; left: calc(50% + 12px); top: calc(50% + 1px); transform: translate(-50%, -50%); }
+    .cam-well .field-b { position: absolute; left: calc(50% - 66px); top: calc(50% + 30px); transform: translate(-50%, -50%); }
+    .cam-well .boundary { position: absolute; left: calc(50% + 3px); top: 50%; transform: translate(-50%, -50%); }
+    .tile-id { position: absolute; left: 8px; top: 8px; background: rgba(23,33,47,.85); color: white; border-radius: 3px; padding: 4px 6px; font-size: 9px; font-weight: 600; }
+    .heat-key { position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,.91); border-radius: 3px; display: flex; align-items: center; gap: 5px; padding: 4px 7px; font-size: 8px; }
+    .heat-key i { width: 64px; height: 5px; background: linear-gradient(90deg, #67b7a8, #f7d443 50%, #e84a2c); }
+    .xai { display: none; flex: 1; flex-direction: column; min-height: 0; height: 100%; }
+    .xai.on { display: flex; }
+    .xai-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow: auto; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .panel { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-height: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+    .panel .k { color: var(--muted); font-size: 11px; }
+    .panel .n { font-size: 28px; font-weight: 600; line-height: 1; }
+    .panel .hint { color: var(--muted-2); font-size: 9px; }
+    .split { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, .8fr); gap: 20px; align-items: start; }
+    .shap { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+    .shap-head, .block-head { display: flex; justify-content: space-between; gap: 12px; }
+    .shap h2, .side-card h2, .path-card h2 { margin: 0; font-size: 15px; font-weight: 600; }
+    .side-card h2, .path-card h2 { font-size: 14px; }
+    .dir { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; padding: 12px 54px 0 217px; }
+    .bar-row { display: grid; grid-template-columns: 205px minmax(0, 1fr) 42px; gap: 12px; align-items: center; min-height: 42px; }
+    .bar-label { font-size: 12px; line-height: 1.2; }
+    .plot { position: relative; height: 28px; background: var(--paper); border-radius: 2px; }
+    .zero { position: absolute; left: 50%; top: -7px; width: 1px; height: 42px; background: var(--line); }
+    .bar { position: absolute; top: 4px; height: 20px; border-radius: 2px; }
+    .bar.pos { background: var(--pos); }
+    .bar.neg { background: var(--neg); }
+    .bar-value { font-size: 12px; font-weight: 600; text-align: right; }
+    .key-row { display: flex; gap: 22px; padding-top: 13px; color: var(--muted); font-size: 10px; }
+    .key-row span { display: flex; align-items: center; gap: 5px; }
+    .key { width: 7px; height: 7px; border-radius: 1px; }
+    .key.pos { background: var(--pos); }
+    .key.neg { background: var(--neg); }
+    .divider { height: 1px; background: var(--line); margin: 20px 0; }
+    .card .bar-row { grid-template-columns: minmax(90px, 1fr) minmax(80px, 142px) 36px; gap: 6px; min-height: 23px; }
+    .card .bar-label, .card .bar-value { font-size: 11px; }
+    .card .plot { height: 15px; }
+    .card .bar { height: 9px; top: 3px; }
+    .card .zero { height: 23px; top: -4px; }
+    .side-card { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+    .side-card + .side-card { margin-top: 20px; }
+    .feature-row { display: flex; justify-content: space-between; gap: 12px; min-height: 39px; align-items: center; border-bottom: 1px solid #eef2f5; font-size: 11px; color: var(--muted); }
+    .feature-row strong { color: var(--ink); font-size: 12px; }
+    .path-card { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+    .path-row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-top: 15px; }
+    .path { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
+    .step { width: 96px; display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center; }
+    .step .with-arrow { display: flex; align-items: center; gap: 8px; }
+    .chip { width: 76px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: white; display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+    .chip.final { background: var(--nav); color: white; border-color: var(--nav); }
+    .step small { color: var(--muted); font-size: 10px; }
+    .path-note { width: min(370px, 100%); }
+    .path-note strong { display: block; font-size: 11px; margin-bottom: 5px; }
+    .path-note p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .full { width: 100%; height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    footer { flex-shrink: 0; min-height: 48px; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 8px 24px; background: white; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    footer p { margin: 0; max-width: 58%; line-height: 1.4; }
+    .totals { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .totals .total { display: flex; align-items: center; gap: 5px; }
+    .totals i { width: 5px; height: 5px; border-radius: 100px; display: inline-block; }
+    .empty { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    @media (max-width: 1100px) {
+      .stat-row, .split, .path-row { grid-template-columns: 1fr; display: grid; }
+      .path-row { display: flex; flex-direction: column; }
+      .dir { padding-left: 0; padding-right: 0; }
+      .bar-row { grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) 42px; }
     }
-    .xai { display: none; padding: 18px; gap: 12px; }
-    .xai.on { display: grid; }
-    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .panel { background: white; border: 1px solid var(--line); padding: 14px; }
-    .split { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 12px; }
-    .bar-row { display: grid; grid-template-columns: 180px 1fr 52px; gap: 8px; align-items: center; margin: 6px 0; font-size: 0.86rem; }
-    .track { background: #eef0f2; height: 14px; }
-    .fill { height: 14px; background: #111827; }
-    .fill.neg { background: #d5d8dc; }
-    .path { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .chip { border: 1px solid var(--line); padding: 8px 10px; background: white; }
-    .chip.final { background: #111827; color: white; }
-    footer { padding: 8px 18px; color: var(--muted); font-size: 0.8rem; background: white; border-top: 1px solid var(--line); }
-    @media (max-width: 900px) {
+    @media (max-width: 800px) {
       .app.on { grid-template-columns: 1fr; }
-      .stat-row, .split { grid-template-columns: 1fr; }
-      aside { min-height: auto; }
+      aside { height: auto; position: static; }
+      .top, .toolbar { height: auto; padding: 16px; flex-wrap: wrap; }
+      .stat-row { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -133,87 +268,276 @@
 
   <div class="app" id="app">
     <aside>
-      <div class="brand"><span class="mark">F</span> Folium</div>
-      <div class="group">VIEWS</div>
-      <button class="nav-btn" id="nav-map" type="button" aria-pressed="true">Choropleth Map</button>
-      <button class="nav-btn" id="nav-xai" type="button" aria-pressed="false">XAI Summary</button>
-      <div class="group">DATA SET</div>
-      <div id="settlement-notes"></div>
-      <div class="side-note">Run history: Sprint 5 Colab fusion. River-corridor lift 0.929.</div>
-      <div class="group">MODEL</div>
-      <div class="side-note">GraphSAGE, two-layer mean aggregation</div>
-      <div class="side-note">Attention U-Net flood head</div>
-      <div class="analyst" id="analyst">Signed in</div>
+      <div class="brand">
+        <span class="mark"><img src="/assets/brand-map.svg" width="21" height="21" alt=""></span>
+        Folium
+      </div>
+      <div class="nav-scroll">
+        <div>
+          <p class="group">VIEWS</p>
+          <button class="nav-btn" id="nav-map" type="button" aria-pressed="true">
+            <img class="when-on" src="/assets/nav-map-selected.svg" width="17" height="17" alt="">
+            <img class="when-off" src="/assets/nav-map.svg" width="17" height="17" alt="">
+            Choropleth Map
+          </button>
+          <button class="nav-btn" id="nav-xai" type="button" aria-pressed="false">
+            <img class="when-on" src="/assets/nav-chart-selected.svg" width="17" height="17" alt="">
+            <img class="when-off" src="/assets/nav-chart.svg" width="17" height="17" alt="">
+            XAI Summary
+          </button>
+        </div>
+        <div>
+          <p class="group">DATASET</p>
+          <p class="dataset-label" id="settlement-notes">Settlement</p>
+          <button class="settlement-toggle" id="settlement-toggle" type="button" aria-expanded="false">
+            <span class="settlement-current">
+              <img src="/assets/map-pin.svg" width="14" height="14" alt="">
+              <span id="settlement-current">All settlements</span>
+            </span>
+            <img id="settlement-chevron" src="/assets/chevron-down.svg" width="14" height="14" alt="">
+          </button>
+          <div class="settlement-menu" id="settlement-menu" hidden></div>
+          <button class="side-item" type="button">
+            <img src="/assets/history.svg" width="17" height="17" alt="">
+            Run History
+          </button>
+        </div>
+        <div>
+          <p class="group">MODEL</p>
+          <button class="side-item" type="button">
+            <img src="/assets/network.svg" width="17" height="17" alt="">
+            GraphSAGE Config
+          </button>
+          <button class="side-item" type="button">
+            <img src="/assets/settings.svg" width="17" height="17" alt="">
+            Settings
+          </button>
+        </div>
+      </div>
+      <div class="note">
+        <div class="note-status"><span class="status-dot"></span> Inference snapshot</div>
+        <p>Embedded parcel explanations<br>GraphSAGE-v3</p>
+      </div>
+      <div class="analyst" id="analyst">
+        <div class="avatar" id="analyst-initials">—</div>
+        <div class="analyst-copy">
+          <div class="analyst-name" id="analyst-name">Signed in</div>
+          <div class="analyst-role">Policy Analyst</div>
+        </div>
+        <button class="icon-hit" id="analyst-menu" type="button" aria-label="Account">
+          <img src="/assets/ellipsis.svg" width="15" height="15" alt="">
+        </button>
+        <div class="account-menu" id="account-menu" hidden>
+          <button class="ghost" id="sign-out" type="button">Sign out</button>
+        </div>
+      </div>
     </aside>
     <div class="workspace">
       <div id="map-view">
         <header class="top">
           <div>
-            <h1>Full-settlement choropleth map</h1>
+            <h1>Full-Settlement Choropleth Map</h1>
             <div class="sub" id="map-sub">Parcel-level policy classification</div>
           </div>
           <div class="tools">
-            <input class="search" id="search" type="search" placeholder="Search parcel ID">
-            <button class="ghost" id="export-map" type="button">Export</button>
-            <button class="ghost" id="sign-out" type="button">Sign out</button>
+            <label class="search">
+              <img src="/assets/search.svg" width="15" height="15" alt="">
+              <input id="search" type="search" placeholder="Search parcel ID…">
+            </label>
+            <button class="icon-btn" type="button" aria-label="Notifications">
+              <img src="/assets/bell.svg" width="16" height="16" alt="">
+            </button>
+            <button class="export" id="export-map" type="button">
+              <img src="/assets/download.svg" width="15" height="15" alt="">
+              Export
+            </button>
           </div>
         </header>
-        <div class="banner" id="banner"></div>
-        <div class="legend" id="legend"></div>
+        <div class="toolbar">
+          <div class="legend" id="legend"></div>
+          <div class="map-tools">
+            <button class="tool" type="button"><img src="/assets/layers.svg" width="14" height="14" alt="">Layers</button>
+            <button class="tool" type="button"><img src="/assets/ruler.svg" width="14" height="14" alt="">Measure</button>
+            <button class="tool" id="maximize" type="button" aria-label="Maximise map"><img src="/assets/maximize.svg" width="14" height="14" alt=""></button>
+          </div>
+        </div>
         <div class="stage">
           <div id="map"></div>
+          <div class="zoom-stack">
+            <button class="tool" id="zoom-in" type="button" aria-label="Zoom in"><img src="/assets/plus.svg" width="14" height="14" alt=""></button>
+            <button class="tool" id="zoom-out" type="button" aria-label="Zoom out"><img src="/assets/minus.svg" width="14" height="14" alt=""></button>
+            <button class="tool" id="locate" type="button" aria-label="Fit parcels"><img src="/assets/locate.svg" width="14" height="14" alt=""></button>
+          </div>
+          <div class="map-legend" id="map-legend"></div>
+          <div class="map-qualify">Leaflet · OpenStreetMap parcel coordinates</div>
           <article class="card" id="parcel-card" hidden>
-            <div style="display:flex;justify-content:space-between;gap:8px;">
-              <h2 id="card-id">Parcel</h2>
-              <button class="ghost" id="card-close" type="button">Close</button>
+            <div class="card-head">
+              <div>
+                <h2 id="card-id">Parcel</h2>
+                <div class="sub" id="card-settlement"></div>
+              </div>
+              <button class="icon-hit" id="card-close" type="button" aria-label="Close">
+                <img src="/assets/close.svg" width="15" height="15" alt="">
+              </button>
             </div>
-            <div class="sub" id="card-settlement"></div>
-            <p>Assigned policy <strong id="card-action"></strong></p>
-            <div class="metrics">
-              <div class="metric">Flood probability<strong id="card-flood"></strong></div>
-              <div class="metric">Deprivation class<strong id="card-dep"></strong></div>
+            <div class="card-body">
+              <div class="policy-line">
+                <span class="field-label">Assigned Policy Category</span>
+                <div class="pill" id="card-action">
+                  <img class="policy-asset" src="/assets/policy-indicator.svg" width="6" height="6" alt="">
+                  <span class="policy-dot" hidden></span>
+                  <span id="card-action-label"></span>
+                </div>
+              </div>
+              <div class="metrics">
+                <div class="metric">Flood probability<strong id="card-flood"></strong><div class="track"><i id="card-flood-track"></i></div></div>
+                <div class="metric">Deprivation severity<strong id="card-dep"></strong><div class="track"><i id="card-dep-track"></i></div></div>
+              </div>
+              <div class="confidence"><span>Model confidence</span><strong id="card-conf"></strong></div>
+              <div class="class-box">
+                <div class="class-head"><span id="card-severity">Severity class</span><span class="tag">ILLUSTRATIVE</span></div>
+                <div class="class-row" id="card-classes"></div>
+                <p class="qualify">Class and probability vector are illustrative, not model evidence. Only the assigned class probability is reported for this parcel.</p>
+              </div>
+              <div>
+                <p class="section-title">Grad-CAM Attention Overlay</p>
+                <div class="cam-well" id="card-cam">
+                  <img class="sat" src="/assets/satellite.png" alt="">
+                  <img class="field" src="/assets/attention-field.svg" width="234" height="193.6" alt="">
+                  <img class="field-b" src="/assets/secondary-attention.svg" width="126" height="100" alt="">
+                  <img class="boundary" src="/assets/parcel-boundary.png" width="198" height="145" alt="">
+                  <span class="tile-id" id="card-cam-id"></span>
+                  <span class="heat-key">Low <i></i> High</span>
+                </div>
+                <p class="qualify">Illustrative satellite &amp; spatial attention, not inference evidence.</p>
+              </div>
+              <div>
+                <p class="section-title">Top 5 SHAP Feature Contributors</p>
+                <div id="card-shap"></div>
+                <div class="key-row">
+                  <span><i class="key pos"></i> Positive contribution</span>
+                  <span><i class="key neg"></i> Negative contribution</span>
+                </div>
+              </div>
+              <button class="primary full" id="open-xai" type="button">
+                View Full XAI Summary
+                <img src="/assets/arrow-right.svg" width="15" height="15" alt="">
+              </button>
             </div>
-            <div class="cam" id="card-cam">Grad-CAM is produced per raster tile by the Attention U-Net. This card does not invent a satellite chip for the parcel.</div>
-            <button class="primary" id="open-xai" type="button" style="width:100%;margin-top:12px;">View full XAI summary</button>
           </article>
         </div>
-        <footer id="map-foot"></footer>
+        <footer>
+          <p id="banner"></p>
+          <div class="totals" id="map-foot"></div>
+        </footer>
       </div>
       <div class="xai" id="xai-view">
         <header class="top">
           <div>
-            <h1 id="xai-title">XAI summary</h1>
+            <h1 id="xai-title">XAI Summary</h1>
             <div class="sub">GraphSAGE classification explainability</div>
           </div>
           <div class="tools">
-            <button class="ghost" id="back-map" type="button">Back to map</button>
-            <button class="ghost" id="export-xai" type="button">Export</button>
+            <button class="export" id="back-map" type="button">
+              <img src="/assets/arrow-left.svg" width="14" height="14" alt="">
+              Back to Map
+            </button>
+            <button class="export" id="export-xai" type="button">
+              <img src="/assets/download.svg" width="15" height="15" alt="">
+              Export
+            </button>
           </div>
         </header>
-        <div class="stat-row">
-          <div class="panel">Assigned policy<strong id="xai-action"></strong></div>
-          <div class="panel">Flood probability<strong id="xai-flood"></strong></div>
-          <div class="panel">Deprivation class probability<strong id="xai-dep"></strong></div>
-          <div class="panel">Model confidence<strong id="xai-conf"></strong></div>
-        </div>
-        <div class="split">
-          <div class="panel">
-            <strong>Top SHAP feature contributors</strong>
-            <div class="sub">Exact local Shapley values of this building's five model inputs. Neighbours stay fixed.</div>
-            <div id="shap-bars"></div>
+        <div class="xai-body">
+          <div class="stat-row">
+            <div class="panel">
+              <span class="k">Assigned Policy Category</span>
+              <div class="pill" id="xai-action">
+                <img class="policy-asset" src="/assets/policy-indicator.svg" width="6" height="6" alt="">
+                <span class="policy-dot" hidden></span>
+                <span id="xai-action-label"></span>
+              </div>
+              <span class="hint" id="xai-action-note"></span>
+            </div>
+            <div class="panel">
+              <span class="k">Flood Probability Score</span>
+              <span class="n" id="xai-flood"></span>
+              <span class="hint">Flood hazard probability · 0–1</span>
+            </div>
+            <div class="panel">
+              <span class="k">Deprivation Severity Score</span>
+              <span class="n" id="xai-dep"></span>
+              <span class="hint">Class probability of the assigned deprivation class</span>
+            </div>
+            <div class="panel">
+              <span class="k">Model Confidence</span>
+              <span class="n" id="xai-conf"></span>
+              <span class="hint">Confidence in the assigned policy category</span>
+            </div>
           </div>
-          <div>
-            <div class="panel cam">Grad-CAM heatmap is computed on the flood tile, not stored per building. Run AttentionUNetModel.explain on the parcel's tile to fill this panel.</div>
-            <div class="panel" style="margin-top:12px;">
-              <strong>Feature values</strong>
-              <div id="feature-values"></div>
+          <div class="split">
+            <div class="shap">
+              <div class="shap-head">
+                <div>
+                  <h2>Top 5 SHAP Feature Contributors</h2>
+                  <div class="sub">Horizontal bar chart · contribution toward the predicted class</div>
+                </div>
+                <span class="hint">GraphSAGE node classification</span>
+              </div>
+              <div class="dir"><span>− Reduces prediction</span><span>Increases prediction +</span></div>
+              <div id="shap-bars"></div>
+              <div class="key-row">
+                <span><i class="key pos"></i> Positive contribution</span>
+                <span><i class="key neg"></i> Negative contribution</span>
+              </div>
+              <div class="divider"></div>
+              <div>
+                <p class="section-title">Deprivation severity · class probability vector</p>
+                <div class="class-box">
+                  <div class="class-head"><span id="xai-severity">Severity class</span><span class="tag">ILLUSTRATIVE</span></div>
+                  <div class="class-row" id="xai-classes"></div>
+                  <p class="qualify">Class and probability vector are illustrative, not model evidence. Only the assigned class probability is reported for this parcel.</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="side-card">
+                <h2>Grad-CAM Attention Overlay</h2>
+                <div class="sub" id="xai-cam-sub">Satellite image tile</div>
+                <div class="cam-well tall">
+                  <img class="sat" src="/assets/satellite.png" alt="">
+                  <img class="field" src="/assets/attention-field.svg" width="234" height="193.6" alt="">
+                  <img class="field-b" src="/assets/secondary-attention.svg" width="126" height="100" alt="">
+                  <img class="boundary" src="/assets/parcel-boundary.png" width="198" height="145" alt="">
+                  <span class="tile-id" id="xai-cam-id"></span>
+                  <span class="heat-key">Low <i></i> High</span>
+                </div>
+                <p class="qualify">Illustrative satellite &amp; spatial attention, not inference evidence.</p>
+              </div>
+              <div class="side-card">
+                <div class="block-head">
+                  <h2>Feature Values</h2>
+                  <span class="hint" id="feature-parcel"></span>
+                </div>
+                <div id="feature-values"></div>
+              </div>
+            </div>
+          </div>
+          <div class="path-card">
+            <h2>Prediction Path</h2>
+            <div class="path-row">
+              <div class="path" id="path"></div>
+              <div class="path-note">
+                <strong>Reference prediction path</strong>
+                <p>Selected reference steps are shown. They are not an additive reconciliation of the SHAP contributions.</p>
+              </div>
             </div>
           </div>
         </div>
-        <div class="panel">
-          <strong>Prediction path</strong>
-          <div class="path" id="path"></div>
-        </div>
+        <footer>
+          <p id="xai-banner"></p>
+          <div class="totals" id="xai-foot"></div>
+        </footer>
       </div>
     </div>
   </div>
@@ -231,6 +555,20 @@
     const settlements = {{SETTLEMENTS_JSON}};
     const colors = {{COLORS_JSON}};
     const errorEl = document.getElementById("gate-error");
+    const ACTION_COPY = {
+      retain_formalise: ["Retain & Formalise", "Secure tenure and formal recognition"],
+      retain_upgrade: ["Retain & Upgrade", "In-situ services and infrastructure"],
+      in_situ_upgrade_priority: ["In-situ Upgrade Priority", "Priority in-place upgrade where deprivation is high and flood hazard is low"],
+      flood_resilient_upgrade: ["Flood-resilient Upgrade", "In-place upgrade where flood hazard is high"],
+      compensated_resettlement: ["Compensated Resettlement", "Supported relocation with compensation"],
+      insufficient_evidence: ["Insufficient Evidence", "The policy matrix withheld an action"],
+    };
+    const SWATCH_SRC = {
+      retain_formalise: "/assets/swatch-formalise.svg",
+      retain_upgrade: "/assets/swatch-upgrade.svg",
+      compensated_resettlement: "/assets/swatch-resettlement.svg",
+    };
+    const CLASS_NAMES = [["low", "Low"], ["medium", "Moderate"], ["high", "High"]];
     let resolver = null;
     let confirmationResult = null;
     let verificationId = null;
@@ -238,8 +576,10 @@
     let recaptcha = null;
     let parcels = [];
     let selected = null;
+    let settlementFilter = "";
     let map;
     let layer;
+    let lastBounds = null;
 
     if (!firebaseConfig || !firebaseConfig.apiKey) {
       errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
@@ -256,17 +596,208 @@
       return user.getIdToken(true).then((token) => ({ Authorization: "Bearer " + token }));
     }
 
+    function actionLabel(name) {
+      return (ACTION_COPY[name] && ACTION_COPY[name][0]) || name.replaceAll("_", " ");
+    }
+
+    function titleCase(name) {
+      if (!name) return "";
+      const shown = name.charAt(0).toUpperCase() + name.slice(1);
+      return shown === "Medium" ? "Moderate" : shown;
+    }
+
+    function settlementLabel(name) {
+      return name ? titleCase(name) : "All settlements";
+    }
+
+    function dataset() {
+      return settlementFilter ? parcels.filter((parcel) => parcel.settlement === settlementFilter) : parcels;
+    }
+
+    function paintPill(id, action) {
+      const pill = document.getElementById(id);
+      const color = colors[action] || "#17212f";
+      const formal = action === "retain_formalise";
+      pill.style.color = color;
+      pill.style.background = formal ? "#eaf5ef" : "#f6f8fa";
+      pill.querySelector(".policy-asset").hidden = !formal;
+      const dot = pill.querySelector(".policy-dot");
+      dot.hidden = formal;
+      dot.style.background = color;
+      document.getElementById(id + "-label").textContent = actionLabel(action);
+    }
+
+    function percent(value) {
+      return value == null ? "—" : Math.round(value * 1000) / 10 + "%";
+    }
+
+    function score(value) {
+      return value == null ? "—" : value.toFixed(2);
+    }
+
     function drawLegend() {
       const legend = document.getElementById("legend");
       legend.replaceChildren();
+      const label = document.createElement("span");
+      label.className = "legend-label";
+      label.textContent = "Policy Legend:";
+      legend.append(label);
       for (const [name, color] of Object.entries(colors)) {
         const row = document.createElement("span");
         row.className = "swatch";
-        const dot = document.createElement("span");
-        dot.className = "dot";
-        dot.style.background = color;
-        row.append(dot, document.createTextNode(" " + name.replaceAll("_", " ")));
+        if (SWATCH_SRC[name]) {
+          const icon = document.createElement("img");
+          icon.src = SWATCH_SRC[name];
+          icon.width = 7;
+          icon.height = 7;
+          icon.alt = "";
+          row.append(icon);
+        } else {
+          const dot = document.createElement("span");
+          dot.className = "dot";
+          dot.style.background = color;
+          row.append(dot);
+        }
+        row.append(document.createTextNode(actionLabel(name)));
         legend.append(row);
+      }
+    }
+
+    function drawMapLegend(list) {
+      const counts = {};
+      for (const parcel of list) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
+      const box = document.getElementById("map-legend");
+      box.replaceChildren();
+      const header = document.createElement("header");
+      header.textContent = "Policy & governance categories";
+      const chevron = document.createElement("img");
+      chevron.src = "/assets/chevron-up.svg";
+      chevron.width = 14;
+      chevron.height = 14;
+      chevron.alt = "";
+      header.append(chevron);
+      box.append(header);
+      const preferred = ["retain_formalise", "retain_upgrade", "compensated_resettlement"];
+      const extras = Object.keys(colors).filter((name) => !preferred.includes(name) && counts[name]);
+      const shown = preferred.filter((name) => colors[name]).concat(extras);
+      for (const name of shown) {
+        const row = document.createElement("div");
+        row.className = "legend-row";
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.background = colors[name] || "#929ca9";
+        const copy = document.createElement("div");
+        copy.className = "legend-copy";
+        const line = document.createElement("div");
+        line.className = "legend-line";
+        const title = document.createElement("strong");
+        title.textContent = actionLabel(name);
+        const count = document.createElement("span");
+        count.textContent = String(counts[name] || 0);
+        line.append(title, count);
+        const meaning = document.createElement("div");
+        meaning.className = "legend-meaning";
+        meaning.textContent = (ACTION_COPY[name] && ACTION_COPY[name][1]) || "";
+        copy.append(line, meaning);
+        row.append(swatch, copy);
+        box.append(row);
+      }
+      const key = document.createElement("div");
+      key.className = "selection-key";
+      const mark = document.createElement("span");
+      mark.className = "selection-mark";
+      key.append(mark, document.createTextNode("Outlined parcel is the current selection"));
+      box.append(key);
+      header.addEventListener("click", () => {
+        const closed = box.dataset.closed === "true";
+        box.dataset.closed = closed ? "false" : "true";
+        for (const child of box.children) {
+          if (child !== header) child.hidden = !closed;
+        }
+        chevron.src = closed ? "/assets/chevron-up.svg" : "/assets/chevron-down.svg";
+      });
+    }
+
+    function fillTotals(node, list) {
+      const counts = {};
+      for (const parcel of list) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
+      node.replaceChildren();
+      const total = document.createElement("span");
+      total.textContent = list.length.toLocaleString() + " parcels";
+      node.append(total);
+      for (const [name, n] of Object.entries(counts)) {
+        const item = document.createElement("span");
+        item.className = "total";
+        const dot = document.createElement("i");
+        dot.style.background = colors[name] || "#929ca9";
+        item.append(dot, document.createTextNode(n.toLocaleString() + " " + actionLabel(name)));
+        node.append(item);
+      }
+    }
+
+    function renderClasses(container, heading, detail) {
+      const shownClass = titleCase(detail.deprivation_class);
+      document.getElementById(heading).textContent = "Severity class: " + (shownClass || "—");
+      container.replaceChildren();
+      const assigned = (detail.deprivation_class || "").toLowerCase();
+      for (const [key, label] of CLASS_NAMES) {
+        const cell = document.createElement("div");
+        cell.className = "class-cell";
+        const name = document.createElement("span");
+        name.textContent = label;
+        const prob = document.createElement("strong");
+        prob.textContent = key === assigned && detail.class_probability != null ? detail.class_probability.toFixed(2) : "—";
+        cell.append(name, prob);
+        container.append(cell);
+      }
+    }
+
+    function renderBars(container, features) {
+      container.replaceChildren();
+      if (!features.length) {
+        const note = document.createElement("p");
+        note.className = "empty";
+        note.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
+        container.append(note);
+        return;
+      }
+      const ranked = features.filter((feature) => feature.attribution != null)
+        .sort((a, b) => Math.abs(b.attribution) - Math.abs(a.attribution))
+        .slice(0, 5);
+      const rows = ranked.length ? ranked : features.slice(0, 5);
+      const maxAbs = Math.max(0.01, ...rows.map((feature) => Math.abs(feature.attribution || 0)));
+      if (!ranked.length) {
+        const note = document.createElement("p");
+        note.className = "empty";
+        note.textContent = "Local Shapley values are not stored on this parcel record.";
+        container.append(note);
+      }
+      for (const feature of rows) {
+        const line = document.createElement("div");
+        line.className = "bar-row";
+        const label = document.createElement("span");
+        label.className = "bar-label";
+        label.textContent = feature.label;
+        const plot = document.createElement("div");
+        plot.className = "plot";
+        const zero = document.createElement("span");
+        zero.className = "zero";
+        plot.append(zero);
+        const value = document.createElement("span");
+        value.className = "bar-value";
+        if (feature.attribution == null) {
+          value.textContent = "—";
+        } else {
+          const bar = document.createElement("span");
+          bar.className = "bar " + (feature.attribution < 0 ? "neg" : "pos");
+          bar.style.width = (Math.abs(feature.attribution) / maxAbs * 50) + "%";
+          if (feature.attribution < 0) bar.style.right = "50%";
+          else bar.style.left = "50%";
+          plot.append(bar);
+          value.textContent = (feature.attribution < 0 ? "−" : "+") + Math.abs(feature.attribution).toFixed(2);
+        }
+        line.append(label, plot, value);
+        container.append(line);
       }
     }
 
@@ -289,55 +820,102 @@
     function renderCard(parcel) {
       selected = parcel;
       document.getElementById("parcel-card").hidden = false;
-      document.getElementById("card-id").textContent = "Parcel " + parcel.id;
-      document.getElementById("card-settlement").textContent = parcel.settlement || "";
-      document.getElementById("card-action").textContent = parcel.action.replaceAll("_", " ");
-      document.getElementById("card-flood").textContent = parcel.flood_proba == null ? "—" : parcel.flood_proba.toFixed(2);
-      document.getElementById("card-dep").textContent = parcel.deprivation_class || "—";
+      document.getElementById("card-id").textContent = "Parcel #" + parcel.id;
+      document.getElementById("card-settlement").textContent = settlementLabel(parcel.settlement);
+      document.getElementById("card-cam-id").textContent = parcel.id;
+      paintPill("card-action", parcel.action);
+      document.getElementById("card-flood").textContent = score(parcel.flood_proba);
+      document.getElementById("card-flood-track").style.width = parcel.flood_proba == null ? "0" : Math.max(0, Math.min(1, parcel.flood_proba)) * 100 + "%";
+      document.getElementById("card-dep").textContent = score(parcel.class_probability);
+      document.getElementById("card-dep-track").style.width = parcel.class_probability == null ? "0" : Math.max(0, Math.min(1, parcel.class_probability)) * 100 + "%";
+      document.getElementById("card-conf").textContent = percent(parcel.confidence);
+      renderClasses(document.getElementById("card-classes"), "card-severity", parcel);
+      renderBars(document.getElementById("card-shap"), parcel.features || []);
     }
 
     function renderXai(detail) {
-      document.getElementById("xai-title").textContent = "XAI summary — parcel " + detail.id;
-      document.getElementById("xai-action").textContent = detail.action.replaceAll("_", " ");
-      document.getElementById("xai-flood").textContent = detail.flood_proba == null ? "—" : detail.flood_proba.toFixed(2);
-      document.getElementById("xai-dep").textContent = detail.class_probability == null ? (detail.deprivation_class || "—") : detail.class_probability.toFixed(2);
-      document.getElementById("xai-conf").textContent = detail.confidence == null ? "—" : Math.round(detail.confidence * 1000) / 10 + "%";
-      const bars = document.getElementById("shap-bars");
-      const values = document.getElementById("feature-values");
-      const path = document.getElementById("path");
-      bars.replaceChildren();
-      values.replaceChildren();
-      path.replaceChildren();
+      document.getElementById("xai-title").textContent = "XAI Summary — Parcel #" + detail.id;
+      document.getElementById("xai-cam-sub").textContent = "Satellite image tile, parcel #" + detail.id;
+      document.getElementById("xai-cam-id").textContent = detail.id;
+      document.getElementById("feature-parcel").textContent = detail.id;
+      document.getElementById("xai-action-note").textContent = detail.id + " · " + settlementLabel(detail.settlement);
+      paintPill("xai-action", detail.action);
+      document.getElementById("xai-flood").textContent = score(detail.flood_proba);
+      document.getElementById("xai-dep").textContent = detail.class_probability == null ? (titleCase(detail.deprivation_class) || "—") : detail.class_probability.toFixed(2);
+      document.getElementById("xai-conf").textContent = percent(detail.confidence);
       const features = detail.features || [];
+      renderBars(document.getElementById("shap-bars"), features);
+      renderClasses(document.getElementById("xai-classes"), "xai-severity", detail);
+      const values = document.getElementById("feature-values");
+      values.replaceChildren();
       if (!features.length) {
-        bars.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
+        const note = document.createElement("p");
+        note.className = "empty";
+        note.textContent = "Feature values are on the settlement graph. Join data.pos and data.x before starting the server.";
+        values.append(note);
       }
-      const maxAbs = Math.max(0.01, ...features.map((f) => Math.abs(f.attribution || 0)));
       for (const feature of features) {
         const row = document.createElement("div");
-        row.textContent = feature.label + ": " + feature.value.toFixed(3);
+        row.className = "feature-row";
+        const name = document.createElement("span");
+        name.textContent = feature.label;
+        const value = document.createElement("strong");
+        value.textContent = feature.value.toFixed(3);
+        row.append(name, value);
         values.append(row);
+      }
+      const path = document.getElementById("path");
+      path.replaceChildren();
+      let first = true;
+      for (const feature of features) {
         if (feature.attribution == null) continue;
-        const line = document.createElement("div");
-        line.className = "bar-row";
-        const track = document.createElement("div");
-        track.className = "track";
-        const fill = document.createElement("div");
-        fill.className = "fill" + (feature.attribution < 0 ? " neg" : "");
-        fill.style.width = Math.round(Math.abs(feature.attribution) / maxAbs * 100) + "%";
-        track.append(fill);
-        line.append(document.createTextNode(feature.label), track, document.createTextNode(feature.attribution.toFixed(2)));
-        bars.append(line);
-        const chip = document.createElement("span");
-        chip.className = "chip";
-        chip.textContent = (feature.attribution >= 0 ? "+" : "") + feature.attribution.toFixed(2);
-        path.append(chip, document.createTextNode("→"));
+        const step = document.createElement("div");
+        step.className = "step";
+        const valueBox = document.createElement("div");
+        valueBox.className = "chip";
+        valueBox.textContent = (feature.attribution < 0 ? "−" : "+") + Math.abs(feature.attribution).toFixed(2);
+        if (!first) {
+          const wrap = document.createElement("div");
+          wrap.className = "with-arrow";
+          const arrow = document.createElement("img");
+          arrow.src = "/assets/arrow-right.svg";
+          arrow.width = 15;
+          arrow.height = 15;
+          arrow.alt = "";
+          wrap.append(arrow, valueBox);
+          step.append(wrap);
+        } else {
+          step.append(valueBox);
+        }
+        const caption = document.createElement("small");
+        caption.textContent = feature.label;
+        step.append(caption);
+        path.append(step);
+        first = false;
       }
       if (detail.confidence != null) {
-        const finalChip = document.createElement("span");
-        finalChip.className = "chip final";
-        finalChip.textContent = detail.confidence.toFixed(3);
-        path.append(finalChip);
+        const step = document.createElement("div");
+        step.className = "step";
+        const wrap = document.createElement("div");
+        wrap.className = "with-arrow";
+        if (!first) {
+          const arrow = document.createElement("img");
+          arrow.src = "/assets/arrow-right.svg";
+          arrow.width = 15;
+          arrow.height = 15;
+          arrow.alt = "";
+          wrap.append(arrow);
+        }
+        const valueBox = document.createElement("div");
+        valueBox.className = "chip final";
+        valueBox.textContent = detail.confidence.toFixed(3);
+        wrap.append(valueBox);
+        const caption = document.createElement("small");
+        caption.textContent = "Final score";
+        step.append(wrap, caption);
+        path.append(step);
+      } else if (first) {
+        path.textContent = "No local contributions are stored for this parcel.";
       }
     }
 
@@ -348,35 +926,52 @@
       const detail = await response.json();
       renderCard(detail);
       renderXai(detail);
+      draw(searched(), false);
     }
 
-    function draw(list) {
+    function searched() {
+      const needle = document.getElementById("search").value.trim().toLowerCase();
+      const list = dataset();
+      return needle ? list.filter((parcel) => parcel.id.toLowerCase().includes(needle)) : list;
+    }
+
+    function draw(list, refit = true) {
       if (!map) {
-        map = L.map("map");
+        map = L.map("map", { zoomControl: false });
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "&copy; OpenStreetMap",
         }).addTo(map);
+        L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
       }
       if (layer) layer.remove();
       layer = L.layerGroup().addTo(map);
       const bounds = [];
       for (const parcel of list) {
+        const chosen = selected && selected.index === parcel.index;
+        const color = colors[parcel.action] || "#929ca9";
         const marker = L.circleMarker([parcel.lat, parcel.lon], {
-          radius: 5,
-          color: colors[parcel.action] || "#7f8c8d",
-          fillColor: colors[parcel.action] || "#7f8c8d",
+          radius: chosen ? 8 : 5,
+          color: chosen ? "#152331" : color,
+          fillColor: color,
           fillOpacity: 0.9,
-          weight: 1,
+          weight: chosen ? 2 : 1,
         });
         marker.on("click", () => openDetail(parcel.index));
         marker.addTo(layer);
         bounds.push([parcel.lat, parcel.lon]);
       }
-      if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
-      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + list.length + " parcels";
+      if (bounds.length) {
+        lastBounds = bounds;
+        if (refit) map.fitBounds(bounds, { padding: [24, 24] });
+      }
+      const counted = dataset();
+      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + counted.length.toLocaleString() + " parcels";
+      fillTotals(document.getElementById("map-foot"), counted);
+      fillTotals(document.getElementById("xai-foot"), counted);
+      drawMapLegend(counted);
     }
 
-    async function loadParcels(query) {
+    async function loadParcels() {
       const headers = await tokenHeader(auth.currentUser);
       const response = await fetch("/api/parcels", { headers });
       if (!response.ok) {
@@ -384,13 +979,56 @@
         return;
       }
       parcels = await response.json();
-      const needle = (query || "").trim().toLowerCase();
-      const shown = needle ? parcels.filter((p) => p.id.toLowerCase().includes(needle)) : parcels;
-      draw(shown);
-      const counts = {};
-      for (const parcel of parcels) counts[parcel.action] = (counts[parcel.action] || 0) + 1;
-      const bits = Object.entries(counts).map(([name, n]) => n + " " + name.replaceAll("_", " "));
-      document.getElementById("map-foot").textContent = parcels.length + " parcels · " + bits.join(" · ");
+      draw(searched());
+    }
+
+    function selectSettlement(name) {
+      settlementFilter = name;
+      document.getElementById("settlement-current").textContent = settlementLabel(name);
+      document.getElementById("settlement-notes").textContent = "Settlement: " + settlementLabel(name);
+      for (const button of document.getElementById("settlement-menu").querySelectorAll(".settlement-option")) {
+        const on = button.dataset.settlement === name;
+        button.classList.toggle("selected", on);
+        const existing = button.querySelector("img");
+        if (existing) existing.remove();
+        if (on) {
+          const mark = document.createElement("img");
+          mark.src = "/assets/check.svg";
+          mark.width = 14;
+          mark.height = 14;
+          mark.alt = "";
+          button.append(mark);
+        }
+      }
+      document.getElementById("settlement-menu").hidden = true;
+      document.getElementById("settlement-chevron").src = "/assets/chevron-down.svg";
+      document.getElementById("settlement-toggle").setAttribute("aria-expanded", "false");
+      draw(searched());
+    }
+
+    function buildSettlements() {
+      const menu = document.getElementById("settlement-menu");
+      menu.replaceChildren();
+      for (const name of [""].concat(settlements)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "settlement-option" + (name ? "" : " selected");
+        button.dataset.settlement = name;
+        const label = document.createElement("span");
+        label.textContent = settlementLabel(name);
+        button.append(label);
+        if (!name) {
+          const mark = document.createElement("img");
+          mark.src = "/assets/check.svg";
+          mark.width = 14;
+          mark.height = 14;
+          mark.alt = "";
+          button.append(mark);
+        }
+        button.addEventListener("click", () => selectSettlement(name));
+        menu.append(button);
+      }
+      document.getElementById("settlement-notes").textContent = "Settlement: " + settlementLabel("");
     }
 
     function resetRecaptcha(containerId) {
@@ -424,6 +1062,12 @@
       document.getElementById("challenge-copy").textContent = "Enter the code from your authenticator app.";
     }
 
+    function initials(user) {
+      const source = (user.displayName || user.email || "Signed in").trim();
+      const parts = source.split(/[\s.@]+/).filter(Boolean);
+      return ((parts[0] || "S")[0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+    }
+
     async function enterApp(user) {
       const tokenResult = await user.getIdTokenResult();
       const signInProvider = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_provider;
@@ -440,18 +1084,14 @@
       }
       document.getElementById("gate").hidden = true;
       document.getElementById("app").classList.add("on");
-      document.getElementById("analyst").textContent = (user.email || "Signed in") + " · policy analyst";
-      document.getElementById("banner").textContent = liftNote;
-      const notes = document.getElementById("settlement-notes");
-      notes.replaceChildren();
-      for (const name of settlements) {
-        const line = document.createElement("div");
-        line.className = "side-note";
-        line.textContent = "Settlement: " + name;
-        notes.append(line);
-      }
+      document.getElementById("analyst-name").textContent = user.displayName || user.email || "Signed in";
+      document.getElementById("analyst-initials").textContent = initials(user);
+      const modelLine = "Model: GraphSAGE · " + liftNote;
+      document.getElementById("banner").textContent = modelLine;
+      document.getElementById("xai-banner").textContent = modelLine;
+      buildSettlements();
       drawLegend();
-      await loadParcels("");
+      await loadParcels();
       setTimeout(() => map && map.invalidateSize(), 50);
     }
 
@@ -583,16 +1223,36 @@
       document.getElementById("gate").hidden = false;
       showForm("sign-in");
     });
+    document.getElementById("analyst-menu").addEventListener("click", () => {
+      const menu = document.getElementById("account-menu");
+      menu.hidden = !menu.hidden;
+    });
+    document.getElementById("settlement-toggle").addEventListener("click", () => {
+      const menu = document.getElementById("settlement-menu");
+      menu.hidden = !menu.hidden;
+      const open = !menu.hidden;
+      document.getElementById("settlement-chevron").src = open ? "/assets/chevron-up.svg" : "/assets/chevron-down.svg";
+      document.getElementById("settlement-toggle").setAttribute("aria-expanded", String(open));
+    });
     document.getElementById("nav-map").addEventListener("click", showMap);
     document.getElementById("back-map").addEventListener("click", showMap);
     document.getElementById("nav-xai").addEventListener("click", showXai);
     document.getElementById("card-close").addEventListener("click", () => {
       document.getElementById("parcel-card").hidden = true;
+      selected = null;
+      draw(searched(), false);
     });
     document.getElementById("open-xai").addEventListener("click", showXai);
-    document.getElementById("search").addEventListener("input", (event) => {
-      const needle = event.target.value.trim().toLowerCase();
-      draw(needle ? parcels.filter((p) => p.id.toLowerCase().includes(needle)) : parcels);
+    document.getElementById("search").addEventListener("input", () => draw(searched(), false));
+    document.getElementById("zoom-in").addEventListener("click", () => map && map.zoomIn());
+    document.getElementById("zoom-out").addEventListener("click", () => map && map.zoomOut());
+    document.getElementById("locate").addEventListener("click", () => {
+      if (map && lastBounds) map.fitBounds(lastBounds, { padding: [24, 24] });
+    });
+    document.getElementById("maximize").addEventListener("click", () => {
+      const stage = document.querySelector(".stage");
+      if (!document.fullscreenElement) stage.requestFullscreen?.();
+      else document.exitFullscreen?.();
     });
     async function download(path, name) {
       const headers = await tokenHeader(auth.currentUser);

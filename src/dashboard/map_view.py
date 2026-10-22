@@ -1,14 +1,14 @@
 """
 Folium map of parcel policy actions.
 
-The signed-in shell follows the Folium dashboard frames: a choropleth
+The signed-in shell follows the Folium dashboard mockup: a choropleth
 map with a parcel card, then an XAI summary. Those frames live in
-https://www.figma.com/design/VKrzELW8ubZyqCzlSOUOco (Sign in 4:65,
-Choropleth map 4:66, XAI summary 4:67) and use the team Body style,
-Work Sans. This module builds the Folium map and the parcel records
-those screens read. Both are returned only after the auth gate.
-Feature labels are the five GraphSAGE inputs, not the placeholder
-names drawn on the wireframe.
+https://www.figma.com/design/QxnnisSV2NkP5iDsW0YHHl/Folium-Dashboard
+(choropleth map 7:13907, XAI summary 7:16335) and use Inter. This
+module builds the Folium map and the parcel records those screens
+read. Both are returned only after the auth gate. Feature labels are
+the five GraphSAGE inputs, not the placeholder names drawn on the
+mockup.
 
 Coordinates may be geographic (EPSG:4326) or projected. Projected
 positions are transformed with pyproj before Folium sees them.
@@ -21,8 +21,10 @@ import numpy as np
 from .. import config
 from ..models.fusion import POLICY_ACTIONS, action_labels
 
-# Colour is the action. Resettlement is the darkest so it stays distinct
-# from in-place flood work on a satellite-free street basemap.
+# The mockup paints three actions: retain & formalise, retain & upgrade,
+# and compensated resettlement. The other three stay in the legend so a
+# live six-way map does not collapse them into those swatches. Their
+# hues stay far enough from the mockup trio to tell the markers apart.
 # Labels for the five model inputs. The wireframe's example names
 # (floodplain distance, structural density, and so on) are not features
 # this GraphSAGE was trained on.
@@ -38,12 +40,12 @@ PARCEL_PREFIX = {"kibera": "KB", "mathare": "MA", "mukuru": "MU"}
 
 
 ACTION_COLORS = {
-    "retain_formalise": "#1b4f72",
-    "retain_upgrade": "#148f77",
+    "retain_formalise": "#28835b",
+    "retain_upgrade": "#d6a344",
     "in_situ_upgrade_priority": "#b9770e",
-    "flood_resilient_upgrade": "#c0392b",
-    "compensated_resettlement": "#4a235a",
-    "insufficient_evidence": "#7f8c8d",
+    "flood_resilient_upgrade": "#8e3a34",
+    "compensated_resettlement": "#cf655e",
+    "insufficient_evidence": "#929ca9",
 }
 
 

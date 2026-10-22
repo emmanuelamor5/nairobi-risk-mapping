@@ -24,6 +24,8 @@ from .auth_gate import bearer_token, mfa_satisfied, verify_firebase_id_token
 from .map_view import ACTION_COLORS, action_counts, build_policy_map, parcel_rows
 
 SHELL_PATH = Path(__file__).with_name("shell.html")
+ASSETS_DIR = Path(__file__).with_name("assets")
+_ASSET_TYPES = {".svg": "image/svg+xml", ".png": "image/png"}
 
 LIFT_NOTE = (
     "River-corridor lift on the Sprint 5 Colab run was 0.929, below the "
@@ -64,6 +66,35 @@ def render_shell(web_config: dict, settlement_keys, lift_note: str = LIFT_NOTE) 
     for needle, value in replacements.items():
         html = html.replace(needle, value)
     return html
+
+
+def _serve_asset(handler, url_path: str) -> bool:
+    """
+    Dashboard chrome (icons and the illustrative attention image).
+
+    The name has to be a single file inside ``assets``. Parcel coordinates
+    are not in that directory.
+    """
+    prefix = "/assets/"
+    if not url_path.startswith(prefix):
+        return False
+    name = url_path[len(prefix):]
+    file = (ASSETS_DIR / name).resolve()
+    if name != Path(name).name or ASSETS_DIR.resolve() not in file.parents or not file.is_file():
+        _unauthorised(handler, 404, "Not found.")
+        return True
+    content_type = _ASSET_TYPES.get(file.suffix.lower())
+    if content_type is None:
+        _unauthorised(handler, 404, "Not found.")
+        return True
+    payload = file.read_bytes()
+    handler.send_response(200)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(payload)))
+    handler.send_header("Cache-Control", "public, max-age=86400")
+    handler.end_headers()
+    handler.wfile.write(payload)
+    return True
 
 
 def _unauthorised(handler, status: int, message: str) -> None:
@@ -110,6 +141,8 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
 
         def do_GET(self):
             parsed = urlparse(self.path)
+            if _serve_asset(self, parsed.path):
+                return
             if parsed.path == "/":
                 body = shell.encode("utf-8")
                 self.send_response(200)

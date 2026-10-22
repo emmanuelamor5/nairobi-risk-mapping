@@ -120,6 +120,8 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Text message code" in shell
         assert str(SECRET_LON) not in shell
         assert "compensated resettlement" not in shell
+        assert "figma.com/api/mcp/asset" not in shell
+        assert "Work Sans" not in shell
 
         def fetch(path, token):
             request = Request(base + path, headers={"Authorization": f"Bearer {token}"})
@@ -128,6 +130,12 @@ def test_map_route_refuses_sessions_without_mfa():
                     return response.status, response.read().decode()
             except HTTPError as exc:
                 return exc.code, exc.read().decode()
+
+        status, asset = fetch("/assets/brand-map.svg", "")
+        assert status == 200
+        assert asset.startswith("<svg")
+        status, missing = fetch("/assets/missing-icon.svg", "")
+        assert status == 404
 
         status, body = fetch("/api/map", "")
         assert status == 401
@@ -203,6 +211,36 @@ def test_launch_serves_the_shell_without_blocking():
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_asset_route_stays_inside_the_dashboard_directory():
+    import io
+
+    from src.dashboard.app import _serve_asset
+
+    class Handler:
+        def __init__(self):
+            self.status = None
+            self.wfile = io.BytesIO()
+
+        def send_response(self, status):
+            self.status = status
+
+        def send_header(self, key, value):
+            return
+
+        def end_headers(self):
+            return
+
+    served = Handler()
+    assert _serve_asset(served, "/assets/brand-map.svg") is True
+    assert served.status == 200
+    assert served.wfile.getvalue().startswith(b"<svg")
+
+    blocked = Handler()
+    assert _serve_asset(blocked, "/assets/../shell.html") is True
+    assert blocked.status == 404
+    assert _serve_asset(Handler(), "/api/parcels") is False
 
 
 def test_shell_renders_without_a_firebase_project():
