@@ -168,7 +168,14 @@
     .switch.on .switch-knob { transform: translateX(18px); }
     .avatar.lg { width: 72px; height: 72px; font-size: 22px; }
     .avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
-    .profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .profile-layout { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 980px; }
+    .profile-id { display: flex; gap: 16px; align-items: center; }
+    .profile-id h2, .profile-phone h2 { margin: 0; font-size: 16px; }
+    .profile-id p { margin: 4px 0 0; }
+    .phone-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-top: 8px; }
+    .auth-pill.compact { width: auto; min-width: 132px; padding: 0 18px; }
+    .profile-phone .auth-pill.auth-dark { margin-top: 16px; }
+    @media (max-width: 800px) { .profile-layout { grid-template-columns: 1fr; } .phone-line { grid-template-columns: 1fr; } }
     html[data-theme="dark"] body,
     html[data-theme="dark"] .workspace,
     html[data-theme="dark"] .page { background: #0f1419; color: #e7e9ea; }
@@ -195,15 +202,21 @@
     html[data-theme="dark"] .auth-pill,
     html[data-theme="dark"] .settle-btn,
     html[data-theme="dark"] .note { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .legend,
+    html[data-theme="dark"] .legend .swatch,
+    html[data-theme="dark"] .legend-label { color: #ffffff; }
     html[data-theme="dark"] .map-legend {
-      background: #ffffff; color: #102033;
+      background: #101820; color: #ffffff;
+      border: 1px solid #3d4f63;
       box-shadow: 0 16px 40px rgba(0,0,0,0.45);
     }
     html[data-theme="dark"] .map-legend strong,
     html[data-theme="dark"] .map-legend .legend-head,
-    html[data-theme="dark"] .map-legend b { color: #102033; }
+    html[data-theme="dark"] .map-legend b,
+    html[data-theme="dark"] .legend-row,
     html[data-theme="dark"] .legend-row em,
-    html[data-theme="dark"] .select-key { color: #1c2b3a; }
+    html[data-theme="dark"] .select-key { color: #ffffff; }
+    html[data-theme="dark"] .win-min { background: #1c2b3a; color: #ffffff; border-color: #5c738a; }
     html[data-theme="dark"] .nav-btn:hover:not([aria-pressed="true"]),
     html[data-theme="dark"] .settle-opt:hover { background: #243140; color: #ffffff; transform: translateX(3px); }
     html[data-theme="dark"] .tool:hover:not(:disabled),
@@ -416,6 +429,29 @@
         <input id="enroll-code" type="text" inputmode="numeric" autocomplete="one-time-code">
         <button class="auth-pill auth-dark" type="submit">Verify and enroll</button>
       </form>
+      <form id="code-choice" class="auth-stack" hidden>
+        <button class="auth-back" id="code-back" type="button">All sign-in options</button>
+        <p>Choose where this sign-in code should arrive. It expires after 5 minutes.</p>
+        <div id="code-channels">
+          <button class="auth-pill" id="choose-email" type="button">Send code to email</button>
+          <button class="auth-pill" id="choose-phone-code" type="button">Send code to phone</button>
+        </div>
+        <div id="code-phone-fields" hidden>
+          <label for="login-phone">Phone number</label>
+          <input id="login-phone" type="tel" autocomplete="tel" placeholder="+254712345678">
+          <div id="login-recaptcha"></div>
+          <button class="auth-pill" id="send-login-phone" type="button">Send phone code</button>
+        </div>
+        <div id="code-entry" hidden>
+          <p id="code-destination"></p>
+          <p id="code-timer">5:00</p>
+          <label for="login-code">Text message code</label>
+          <input id="login-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+          <button class="auth-pill auth-dark" id="confirm-login-code" type="button">Continue</button>
+          <button class="auth-pill" id="resend-login-code" type="button">Send a new code</button>
+        </div>
+        <p class="error" id="code-error" role="alert"></p>
+      </form>
     </div>
     <div class="auth-mark" aria-hidden="true"><div><strong>Nairobi Risk Mapping</strong><span>FOLIUM</span></div></div>
     <div class="auth-foot">Nairobi Risk Mapping · Folium</div>
@@ -463,6 +499,10 @@
           <button class="nav-btn" id="nav-unet" type="button">
             <img src="/assets/settings.svg" alt="">
             Attention U-Net
+          </button>
+          <button class="nav-btn" id="nav-fusion" type="button">
+            <img src="/assets/chart-muted.svg" alt="">
+            Fusion engine
           </button>
           <button class="nav-btn" id="nav-settings" type="button">
             <img src="/assets/settings.svg" alt="">
@@ -696,11 +736,11 @@
           </section>
           <section class="panel">
             <strong>Training</strong>
-            <p>Adam, learning rate 0.005, weight decay 0.0005. Stratified 60/20/20 split. Sprint 3 target is validation macro-F1 of at least 0.60. The three-settlement target is 0.70.</p>
+            <p>Adam, learning rate 0.005, weight decay 0.0005. Stratified 60/20/20 split. Sprint 3 target is validation macro-F1 of at least 0.60. The three-settlement target is 0.70. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score.</p>
           </section>
           <section class="panel">
-            <strong>Node inputs</strong>
-            <p>Footprint area, distance to water, distance to sanitation, distance to road, and roof-material score. These are the features the network was trained on.</p>
+            <strong>Colab results</strong>
+            <p>Kibera Sprint 3 validation macro-F1 was 0.9382 (accuracy 0.9371). On the three-settlement run the pooled validation macro-F1 was 0.8813: Kibera 0.8972, Mathare 0.8755, Mukuru 0.7453. That cleared the 0.70 target.</p>
           </section>
         </div>
       </div>
@@ -721,8 +761,26 @@
             <p>BCE plus Dice loss, Adam, optional dropout and weight decay, cosine learning-rate schedule, and early stopping. Transfer target is IoU of at least 0.60. The final flood F1 target is 0.75.</p>
           </section>
           <section class="panel">
-            <strong>Explanation</strong>
-            <p>Grad-CAM is taken from the last decoder convolution on a flood tile. The dashboard shows the satellite view of the selected building because that tile is not stored on the parcel.</p>
+            <strong>Colab results</strong>
+            <p>The first training run reached a train IoU of about 0.77 while validation stayed near the flood-everywhere baseline of about 0.31. After the event-based label, the three-settlement Colab run reached a pooled IoU of 0.7201 and F1 of 0.8373, above the 0.60 and 0.75 targets.</p>
+          </section>
+        </div>
+      </div>
+      <div class="page" id="fusion-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Fusion engine</h1>
+            <div class="sub">Late-fusion policy matrix</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Rule</strong>
+            <p>The flood probability and the deprivation class are read off a fixed matrix. Compensated resettlement is only reached when hazard is high and high deprivation is a majority, not a mere plurality.</p>
+          </section>
+          <section class="panel">
+            <strong>Colab evaluation</strong>
+            <p>The Sprint 5 Colab run fused 18,005 parcels. The justice audit passed, with 1,265 resettlements. River-corridor lift was 0.929, below the bar of 1, so these actions are not a validated flood-hazard map.</p>
           </section>
         </div>
       </div>
@@ -772,26 +830,35 @@
         <header class="top">
           <div>
             <h1>Profile</h1>
-            <div class="sub" id="profile-email">Signed in</div>
+            <div class="sub">Account details for this sign-in</div>
           </div>
         </header>
-        <div class="page-body">
-          <section class="panel">
-            <h2 style="margin:0 0 12px;font-size:15px;">Profile picture</h2>
-            <div class="avatar lg" id="profile-avatar">—</div>
+        <div class="page-body profile-layout">
+          <section class="panel profile-identity">
+            <div class="profile-id">
+              <div class="avatar lg" id="profile-avatar">—</div>
+              <div>
+                <h2>Profile picture</h2>
+                <p class="sub" id="profile-email">Signed in</p>
+              </div>
+            </div>
             <div class="profile-actions">
               <label class="tool" for="avatar-file">Add a profile picture</label>
               <input id="avatar-file" type="file" accept="image/*" hidden>
               <button class="ghost" id="avatar-remove" type="button">Remove picture</button>
             </div>
           </section>
-          <section class="panel">
-            <h2 style="margin:0 0 8px;font-size:15px;">Change phone number</h2>
+          <section class="panel profile-phone">
+            <h2>Change phone number</h2>
             <p class="sub" id="current-phone">No phone number on this account yet.</p>
-            <label for="new-phone">New phone number</label>
-            <input id="new-phone" type="tel" autocomplete="tel" placeholder="+254712345678">
+            <div class="phone-line">
+              <div>
+                <label for="new-phone">New phone number</label>
+                <input id="new-phone" type="tel" autocomplete="tel" placeholder="+254712345678">
+              </div>
+              <button class="auth-pill compact" id="send-phone-change" type="button">Send code</button>
+            </div>
             <div id="phone-change-recaptcha"></div>
-            <button class="auth-pill" id="send-phone-change" type="button">Send code</button>
             <label for="phone-change-code">Text message code</label>
             <input id="phone-change-code" type="text" inputmode="numeric" autocomplete="one-time-code">
             <p class="error" id="profile-error" role="alert"></p>
@@ -857,6 +924,11 @@
     let verificationId = null;
     let phoneChangeId = null;
     let signedInUser = null;
+    let pendingUser = null;
+    let loginChannel = "";
+    let codeDeadline = 0;
+    let codeTimer = null;
+    let freshCodeOk = false;
     let challengeKind = "phone";
     let recaptcha = null;
     let parcels = [];
@@ -884,10 +956,12 @@
       document.getElementById("phone-sign-in").hidden = id !== "phone";
       document.getElementById("challenge").hidden = id !== "challenge";
       document.getElementById("enroll").hidden = id !== "enroll";
+      document.getElementById("code-choice").hidden = id !== "code-choice";
       if (id === "sign-in") {
         document.getElementById("password-step").hidden = true;
         document.getElementById("email-continue").hidden = false;
         document.getElementById("password").required = false;
+        clearInterval(codeTimer);
       }
     }
 
@@ -1061,13 +1135,14 @@
     }
 
     function hideSidePages() {
-      for (const id of ["settings-view", "profile-view", "history-view", "graphsage-view", "unet-view"]) {
+      for (const id of ["settings-view", "profile-view", "history-view", "graphsage-view", "unet-view", "fusion-view"]) {
         document.getElementById(id).hidden = true;
       }
       document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
       document.getElementById("nav-history").setAttribute("aria-pressed", "false");
       document.getElementById("nav-config").setAttribute("aria-pressed", "false");
       document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-fusion").setAttribute("aria-pressed", "false");
     }
 
     function showModel(viewId, buttonId) {
@@ -1111,6 +1186,7 @@
       document.getElementById("history-view").hidden = true;
       document.getElementById("graphsage-view").hidden = true;
       document.getElementById("unet-view").hidden = true;
+      document.getElementById("fusion-view").hidden = true;
       document.getElementById("settings-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
@@ -1129,6 +1205,7 @@
       document.getElementById("profile-view").hidden = true;
       document.getElementById("graphsage-view").hidden = true;
       document.getElementById("unet-view").hidden = true;
+      document.getElementById("fusion-view").hidden = true;
       document.getElementById("history-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
@@ -1152,6 +1229,7 @@
       document.getElementById("history-view").hidden = true;
       document.getElementById("graphsage-view").hidden = true;
       document.getElementById("unet-view").hidden = true;
+      document.getElementById("fusion-view").hidden = true;
       document.getElementById("nav-history").setAttribute("aria-pressed", "false");
       document.getElementById("profile-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
@@ -1574,13 +1652,15 @@
     async function enterApp(user) {
       const tokenResult = await user.getIdTokenResult();
       const signInProvider = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_provider;
-      if (signInProvider === "phone") {
-        /* SMS one-time code already proved possession of the handset. */
+      if (signInProvider === "phone" || freshCodeOk) {
+        /* A phone sign-in, or the code chosen after email, Google, or Apple, already proved a second channel. */
       } else {
         const factors = multiFactor(user).enrolledFactors || [];
         const hasSecondFactor = factors.some((item) => item.factorId === PhoneMultiFactorGenerator.FACTOR_ID || item.factorId === TotpMultiFactorGenerator.FACTOR_ID);
-        if (!hasSecondFactor) {
-          showForm("enroll");
+        const sessionFactor = tokenResult.claims.firebase && tokenResult.claims.firebase.sign_in_second_factor;
+        if (!hasSecondFactor && !sessionFactor) {
+          pendingUser = user;
+          showForm("code-choice");
           document.getElementById("gate").hidden = false;
           return;
         }
@@ -1602,7 +1682,20 @@
     }
 
     async function signedIn(cred) {
-      await enterApp(cred.user);
+      const tokenResult = await cred.user.getIdTokenResult();
+      const firebaseClaims = (tokenResult.claims && tokenResult.claims.firebase) || {};
+      if (firebaseClaims.sign_in_provider === "phone" || firebaseClaims.sign_in_second_factor) {
+        freshCodeOk = firebaseClaims.sign_in_provider === "phone" || Boolean(firebaseClaims.sign_in_second_factor);
+        await enterApp(cred.user);
+        return;
+      }
+      pendingUser = cred.user;
+      loginChannel = "";
+      document.getElementById("code-channels").hidden = false;
+      document.getElementById("code-phone-fields").hidden = true;
+      document.getElementById("code-entry").hidden = true;
+      document.getElementById("code-error").textContent = "";
+      showForm("code-choice");
     }
 
     async function authError(err) {
@@ -1652,6 +1745,125 @@
     document.getElementById("phone-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("challenge-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("enroll-back").addEventListener("click", () => showForm("sign-in"));
+    document.getElementById("code-back").addEventListener("click", async () => {
+      clearInterval(codeTimer);
+      freshCodeOk = false;
+      pendingUser = null;
+      if (auth && auth.currentUser) await signOut(auth);
+      showForm("sign-in");
+    });
+    function startCodeClock() {
+      codeDeadline = Date.now() + 5 * 60 * 1000;
+      document.getElementById("login-code").disabled = false;
+      clearInterval(codeTimer);
+      const tick = () => {
+        const left = codeDeadline - Date.now();
+        const label = document.getElementById("code-timer");
+        if (left <= 0) {
+          clearInterval(codeTimer);
+          label.textContent = "This code expired. Send a new one.";
+          document.getElementById("login-code").disabled = true;
+          return;
+        }
+        const minutes = Math.floor(left / 60000);
+        const seconds = Math.floor((left % 60000) / 1000);
+        label.textContent = minutes + ":" + String(seconds).padStart(2, "0") + " remaining";
+      };
+      tick();
+      codeTimer = setInterval(tick, 250);
+    }
+    function openCodeEntry(where) {
+      document.getElementById("code-channels").hidden = true;
+      document.getElementById("code-phone-fields").hidden = true;
+      document.getElementById("code-entry").hidden = false;
+      document.getElementById("code-destination").textContent = where;
+      document.getElementById("login-code").value = "";
+      document.getElementById("code-error").textContent = "";
+      startCodeClock();
+    }
+    async function sendEmailLoginCode() {
+      const headers = await tokenHeader(pendingUser);
+      headers["Content-Type"] = "application/json";
+      const response = await fetch("/api/email-code", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action: "send" }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "The email was not sent.");
+      loginChannel = "email";
+      openCodeEntry("Sent to " + (pendingUser.email || "your email") + ".");
+    }
+    async function sendPhoneLoginCode() {
+      const phoneNumber = document.getElementById("login-phone").value.trim();
+      const verifier = resetRecaptcha("login-recaptcha");
+      verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(phoneNumber, verifier);
+      loginChannel = "phone";
+      openCodeEntry("Sent to " + phoneNumber + ".");
+    }
+    document.getElementById("choose-email").addEventListener("click", () => runBusy(document.getElementById("choose-email"), async () => {
+      document.getElementById("code-error").textContent = "";
+      try {
+        await sendEmailLoginCode();
+      } catch (err) {
+        document.getElementById("code-error").textContent = err.message || "The email was not sent.";
+      }
+    }));
+    document.getElementById("choose-phone-code").addEventListener("click", () => {
+      document.getElementById("code-phone-fields").hidden = false;
+      document.getElementById("code-error").textContent = "";
+    });
+    document.getElementById("send-login-phone").addEventListener("click", () => runBusy(document.getElementById("send-login-phone"), async () => {
+      document.getElementById("code-error").textContent = "";
+      try {
+        await sendPhoneLoginCode();
+      } catch (err) {
+        document.getElementById("code-error").textContent = err.message || "The text message was not sent.";
+      }
+    }));
+    document.getElementById("resend-login-code").addEventListener("click", () => runBusy(document.getElementById("resend-login-code"), async () => {
+      document.getElementById("code-error").textContent = "";
+      try {
+        if (loginChannel === "phone") await sendPhoneLoginCode();
+        else await sendEmailLoginCode();
+      } catch (err) {
+        document.getElementById("code-error").textContent = err.message || "A new code was not sent.";
+      }
+    }));
+    document.getElementById("confirm-login-code").addEventListener("click", () => runBusy(document.getElementById("confirm-login-code"), async () => {
+      const codeError = document.getElementById("code-error");
+      codeError.textContent = "";
+      if (Date.now() > codeDeadline) {
+        codeError.textContent = "This code expired. Send a new one.";
+        return;
+      }
+      const code = document.getElementById("login-code").value.trim();
+      try {
+        if (loginChannel === "email") {
+          const headers = await tokenHeader(pendingUser);
+          headers["Content-Type"] = "application/json";
+          const response = await fetch("/api/email-code", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ action: "check", code }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || "That code was rejected.");
+        } else {
+          const credential = PhoneAuthProvider.credential(verificationId, code);
+          try {
+            await updatePhoneNumber(pendingUser, credential);
+          } catch (err) {
+            if (err.code !== "auth/provider-already-linked" && err.code !== "auth/credential-already-in-use") throw err;
+          }
+        }
+        freshCodeOk = true;
+        clearInterval(codeTimer);
+        await enterApp(pendingUser);
+      } catch (err) {
+        codeError.textContent = err.message || "That code was rejected.";
+      }
+    }));
     document.getElementById("email").addEventListener("input", (event) => {
       document.getElementById("email-continue").disabled = event.target.value.trim() === "";
     });
@@ -1776,7 +1988,7 @@
     document.getElementById("nav-history").addEventListener("click", showHistory);
     document.getElementById("nav-config").addEventListener("click", () => showModel("graphsage-view", "nav-config"));
     document.getElementById("nav-unet").addEventListener("click", () => showModel("unet-view", "nav-unet"));
-    document.getElementById("nav-config").addEventListener("click", () => showNotice("GraphSAGE, two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score."));
+    document.getElementById("nav-fusion").addEventListener("click", () => showModel("fusion-view", "nav-fusion"));
     document.getElementById("nav-settings").addEventListener("click", showSettings);
     document.getElementById("open-profile").addEventListener("click", showProfile);
     document.getElementById("analyst-initials").addEventListener("click", showProfile);

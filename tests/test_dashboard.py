@@ -216,6 +216,17 @@ def test_shell_renders_without_a_firebase_project():
     assert "kibera" in html
 
 
+def test_email_code_expires_after_five_minutes():
+    from src.dashboard.app import check_email_code, issue_email_code
+
+    code = issue_email_code("planner", now=1_000.0)
+    assert check_email_code("planner", code, now=1_000.0 + 299)[0] is True
+    fresh = issue_email_code("planner", now=2_000.0)
+    ok, message = check_email_code("planner", fresh, now=2_000.0 + 301)
+    assert ok is False
+    assert "expired" in message
+
+
 def test_shell_accepts_settlement_keys_loaded_from_npz():
     html = render_shell({}, np.array(["kibera", "mathare", "mukuru"]))
     assert "kibera" in html and "mukuru" in html
