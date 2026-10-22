@@ -165,7 +165,10 @@
     html[data-theme="dark"] .nav-btn[aria-pressed="true"],
     html[data-theme="dark"] .primary,
     html[data-theme="dark"] .switch.on { background: #e7e9ea; color: #0f1419; }
-    html[data-theme="dark"] .map-loading { background: rgba(15, 20, 25, 0.92); color: #e7e9ea; }
+    html[data-theme="dark"] .layer-menu { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] #map,
+    html[data-theme="dark"] .leaflet-container,
+    html[data-theme="dark"] .leaflet-tile { filter: none; background: #ddd; }
     html[data-theme="dark"] input,
     html[data-theme="dark"] .gate input { background: #0f1419; color: #e7e9ea; border-color: #38444d; }
     .notice { position: absolute; right: 0; top: 44px; width: 320px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 20; }
@@ -174,18 +177,18 @@
     .legend-label { font-weight: 500; }
     .swatch { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
     .dot { width: 7px; height: 7px; border-radius: 100px; display: inline-block; flex: none; }
-    .map-tools { display: flex; gap: 8px; }
+    .map-tools { display: flex; gap: 8px; position: relative; }
     .map-tools .tool { height: 32px; font-size: 11px; }
     .stage { position: relative; flex: 1; min-height: 560px; margin: 0 20px 20px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #d7e0d4; }
     #map { height: 100%; min-height: 560px; background: #d7e0d4; }
     .leaflet-container { width: 100%; height: 100%; min-height: 560px; background: #d7e0d4; font: inherit; }
-    .leaflet-container img { max-width: none !important; max-height: none !important; }
+    #map, .leaflet-container, .leaflet-tile, .leaflet-tile-pane { filter: none; mix-blend-mode: normal; }
     .hud { position: absolute; z-index: 500; left: 18px; top: 18px; display: flex; flex-direction: column; gap: 16px; }
     .tile-source { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; background: rgba(255, 255, 255, 0.94); border-radius: 6px; color: var(--muted); font-size: 11px; }
     .zoom-stack { width: 34px; display: flex; flex-direction: column; gap: 7px; }
     .zoom-stack button { width: 34px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 16px; line-height: 1; }
     .measure-readout { background: white; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; }
-    .layer-menu { position: absolute; z-index: 500; top: 64px; right: 250px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; box-shadow: 0 2px 8px rgba(23, 33, 47, 0.07); }
+    .layer-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 168px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 4px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.12); }
     .layer-menu button { display: block; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
     .layer-menu button[aria-pressed="true"] { background: #eaf5ef; color: var(--green); font-weight: 600; }
     .map-legend { position: absolute; z-index: 500; left: 18px; bottom: 18px; width: 292px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); }
@@ -196,7 +199,9 @@
     .legend-row strong { display: block; font-size: 11px; font-weight: 600; }
     .legend-row em { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-style: normal; }
     .legend-row b { font-size: 11px; font-weight: 500; color: var(--muted); }
-    .select-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; color: var(--muted); font-size: 10px; }
+    .select-key { display: flex; align-items: center; gap: 7px; margin-top: 14px; color: var(--muted); font-size: 11px; cursor: pointer; }
+    .select-key input { width: 14px; height: 14px; margin: 0; }
+    .page-body p { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .select-box { width: 10px; height: 10px; border: 1.5px solid var(--ink); border-radius: 2px; }
     .scale-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 10px; }
     .scale-bar { width: 60px; height: 3px; background: var(--ink); }
@@ -446,9 +451,13 @@
         <div class="toolbar">
           <div class="legend" id="legend"></div>
           <div class="map-tools">
-            <button class="tool" id="layers-btn" type="button" aria-expanded="false">Layers</button>
+            <button class="tool" id="layers-btn" type="button" aria-expanded="false" aria-controls="layer-menu">Layers</button>
             <button class="tool" id="measure-btn" type="button" aria-pressed="false">Measure</button>
             <button class="tool" id="fullscreen-btn" type="button">Full screen</button>
+            <div class="layer-menu" id="layer-menu" hidden>
+              <button type="button" data-layer="streets" aria-pressed="true">Street map</button>
+              <button type="button" data-layer="satellite" aria-pressed="false">Satellite</button>
+            </div>
           </div>
         </div>
         <div class="stage" id="stage">
@@ -458,7 +467,7 @@
           </div>
           <div id="map"></div>
           <div class="hud">
-            <div class="tile-source"><img src="/assets/map-muted.svg" alt=""><span id="tile-source">Tile source: satellite imagery</span></div>
+            <div class="tile-source"><img src="/assets/map-muted.svg" alt=""><span id="tile-source">Tile source: OpenStreetMap</span></div>
             <div class="zoom-stack">
               <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
               <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
@@ -466,21 +475,17 @@
             </div>
             <div class="measure-readout" id="measure-readout" hidden></div>
           </div>
-          <div class="layer-menu" id="layer-menu" hidden>
-            <button type="button" data-layer="satellite" aria-pressed="true">Satellite</button>
-            <button type="button" data-layer="streets" aria-pressed="false">Streets</button>
-          </div>
           <aside class="map-legend" id="map-legend">
             <div class="legend-head">
-              Policy &amp; governance categories
-              <button id="legend-toggle" type="button" aria-expanded="true" aria-label="Collapse legend">
-                <img id="legend-chevron-up" src="/assets/chevron-up.svg" alt="">
-                <img id="legend-chevron-down" src="/assets/chevron-down.svg" alt="" hidden>
-              </button>
+              <span>Policy &amp; governance categories</span>
+              <button class="ghost" id="legend-toggle" type="button" aria-expanded="true">Minimize</button>
             </div>
             <div id="legend-body">
               <div id="legend-rows"></div>
-              <div class="select-key"><span class="select-box"></span> Outlined parcel is the current selection</div>
+              <label class="select-key" for="outline-selection">
+                <input id="outline-selection" type="checkbox" checked>
+                Outlined parcel is the current selection
+              </label>
               <div class="scale-row"><span>N</span><span class="scale-bar"></span><span id="scale-label"></span></div>
             </div>
           </aside>
@@ -618,6 +623,28 @@
           </div>
         </div>
       </div>
+      <div class="page" id="history-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Run history</h1>
+            <div class="sub">Saved inference runs for this policy table</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <strong>Sprint 5 late fusion</strong>
+            <p id="history-lift"></p>
+          </section>
+          <section class="panel">
+            <strong>GraphSAGE</strong>
+            <p>Two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score.</p>
+          </section>
+          <section class="panel">
+            <strong>Attention U-Net</strong>
+            <p>Flood head. Grad-CAM is computed on the flood tile, not stored on each building.</p>
+          </section>
+        </div>
+      </div>
       <div class="page" id="settings-view" hidden>
         <header class="top">
           <div>
@@ -712,6 +739,15 @@
       compensated_resettlement: "#fbeeed",
       insufficient_evidence: "#f4f6f8",
     };
+    const DARK_ACTION_COLORS = {
+      retain_formalise: "#3ddea0",
+      retain_upgrade: "#ffd15a",
+      in_situ_upgrade_priority: "#8ec5ff",
+      flood_resilient_upgrade: "#9ee7f5",
+      compensated_resettlement: "#ff8f88",
+      insufficient_evidence: "#e4ebf2",
+    };
+    let outlineSelection = true;
     const errorEl = document.getElementById("gate-error");
     let resolver = null;
     let confirmationResult = null;
@@ -769,11 +805,13 @@
       });
     }
 
-    function showMapLoading() {
+    function showMapLoading(hold) {
       const overlay = document.getElementById("map-loading");
       overlay.hidden = false;
       clearTimeout(showMapLoading.timer);
+      if (hold) return () => { overlay.hidden = true; };
       showMapLoading.timer = setTimeout(() => { overlay.hidden = true; }, 1000);
+      return null;
     }
 
     function applyTheme(theme) {
@@ -784,6 +822,10 @@
       const on = theme === "dark";
       toggle.classList.toggle("on", on);
       toggle.setAttribute("aria-checked", on ? "true" : "false");
+      if (document.getElementById("app").classList.contains("on") && map) {
+        drawLegend();
+        draw(shown, false);
+      }
     }
 
     function photoKey(user) {
@@ -820,11 +862,19 @@
       return ACTION_LABELS[key] || String(key || "").replaceAll("_", " ");
     }
 
+    function markerColor(name) {
+      const dark = document.documentElement.dataset.theme === "dark";
+      if (dark && DARK_ACTION_COLORS[name]) return DARK_ACTION_COLORS[name];
+      return colors[name] || (dark ? "#e4ebf2" : "#a7b4c1");
+    }
+
     function paintPill(pillId, dotId, nameId, action) {
       const pill = document.getElementById(pillId);
-      pill.style.background = ACTION_WASH[action] || "#f6f8fa";
-      pill.style.color = colors[action] || "#17212f";
-      document.getElementById(dotId).style.background = colors[action] || "#a7b4c1";
+      const color = markerColor(action);
+      const dark = document.documentElement.dataset.theme === "dark";
+      pill.style.background = dark ? "rgba(255,255,255,0.08)" : (ACTION_WASH[action] || "#f6f8fa");
+      pill.style.color = color;
+      document.getElementById(dotId).style.background = color;
       document.getElementById(nameId).textContent = actionName(action);
     }
 
@@ -870,14 +920,14 @@
         swatch.className = "swatch";
         const dot = document.createElement("span");
         dot.className = "dot";
-        dot.style.background = color;
+        dot.style.background = markerColor(name);
         swatch.append(dot, document.createTextNode(actionName(name)));
         legend.append(swatch);
         const row = document.createElement("div");
         row.className = "legend-row";
         const square = document.createElement("span");
         square.className = "swatch-sq";
-        square.style.background = color;
+        square.style.background = markerColor(name);
         const copy = document.createElement("div");
         const strong = document.createElement("strong");
         strong.textContent = actionName(name);
@@ -891,7 +941,7 @@
         const footItem = document.createElement("span");
         const marker = document.createElement("span");
         marker.className = "dot";
-        marker.style.background = color;
+        marker.style.background = markerColor(name);
         footItem.append(marker, document.createTextNode(count + " " + actionName(name)));
         foot.append(footItem);
       }
@@ -907,10 +957,16 @@
       document.querySelector("#nav-xai .when-off").hidden = !mapOn;
     }
 
-    function showMap() {
+    function hideSidePages() {
       document.getElementById("settings-view").hidden = true;
       document.getElementById("profile-view").hidden = true;
+      document.getElementById("history-view").hidden = true;
       document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
+    }
+
+    function showMap() {
+      hideSidePages();
       document.getElementById("map-view").hidden = false;
       document.getElementById("xai-view").classList.remove("on");
       setNav("map");
@@ -923,9 +979,7 @@
         showNotice("Select a parcel on the map to open its explanation.");
         return;
       }
-      document.getElementById("settings-view").hidden = true;
-      document.getElementById("profile-view").hidden = true;
-      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      hideSidePages();
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.add("on");
       setNav("xai");
@@ -935,9 +989,11 @@
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.remove("on");
       document.getElementById("profile-view").hidden = true;
+      document.getElementById("history-view").hidden = true;
       document.getElementById("settings-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
       document.getElementById("nav-settings").setAttribute("aria-pressed", "true");
       document.querySelector("#nav-map .when-on").hidden = true;
       document.querySelector("#nav-map .when-off").hidden = false;
@@ -945,11 +1001,31 @@
       document.querySelector("#nav-xai .when-off").hidden = false;
     }
 
+    function showHistory() {
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("settings-view").hidden = true;
+      document.getElementById("profile-view").hidden = true;
+      document.getElementById("history-view").hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-history").setAttribute("aria-pressed", "true");
+      document.querySelector("#nav-map .when-on").hidden = true;
+      document.querySelector("#nav-map .when-off").hidden = false;
+      document.querySelector("#nav-xai .when-on").hidden = true;
+      document.querySelector("#nav-xai .when-off").hidden = false;
+      const note = document.getElementById("history-lift");
+      if (note && !note.textContent) note.textContent = liftNote;
+    }
+
     function showProfile() {
       document.getElementById("account-menu").hidden = true;
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.remove("on");
       document.getElementById("settings-view").hidden = true;
+      document.getElementById("history-view").hidden = true;
+      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
       document.getElementById("profile-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
@@ -1159,15 +1235,15 @@
     }
 
     function useBase(kind) {
-      if (!map) return;
-      baseKind = kind;
+      ensureMap();
+      baseKind = kind === "satellite" ? "satellite" : "streets";
       if (baseLayer) baseLayer.remove();
-      baseLayer = (kind === "streets" ? streets : satellite).addTo(map);
-      document.getElementById("tile-source").textContent = kind === "streets"
+      baseLayer = (baseKind === "streets" ? streets : satellite).addTo(map);
+      document.getElementById("tile-source").textContent = baseKind === "streets"
         ? "Tile source: OpenStreetMap"
         : "Tile source: satellite imagery";
       for (const button of document.querySelectorAll("#layer-menu button")) {
-        button.setAttribute("aria-pressed", button.dataset.layer === kind ? "true" : "false");
+        button.setAttribute("aria-pressed", button.dataset.layer === baseKind ? "true" : "false");
       }
       document.getElementById("layer-menu").hidden = true;
       document.getElementById("layers-btn").setAttribute("aria-expanded", "false");
@@ -1180,6 +1256,9 @@
       L.circleMarker(event.latlng, {
         radius: 4, color: "#17212f", weight: 2, fillColor: "#ffffff", fillOpacity: 1,
       }).addTo(measureLayer);
+      if (measurePts.length === 1) {
+        document.getElementById("measure-readout").textContent = "Click the second point.";
+      }
       if (measurePts.length >= 2) {
         const start = measurePts[measurePts.length - 2];
         const end = measurePts[measurePts.length - 1];
@@ -1203,18 +1282,6 @@
         attribution: "Tiles &copy; Esri",
         maxZoom: 19,
       });
-      streets.on("tileerror", () => {
-        if (!tileFallbackUsed && baseKind === "streets") {
-          tileFallbackUsed = true;
-          useBase("satellite");
-        }
-      });
-      satellite.on("tileerror", () => {
-        if (!tileFallbackUsed && baseKind === "satellite") {
-          tileFallbackUsed = true;
-          useBase("streets");
-        }
-      });
       useBase("streets");
       map.on("zoomend moveend", updateScale);
       map.on("click", onMeasureClick);
@@ -1227,17 +1294,17 @@
       layer = L.layerGroup().addTo(map);
       const bounds = [];
       for (const parcel of list) {
-        const active = selected && selected.index === parcel.index;
-        const color = colors[parcel.action] || "#a7b4c1";
+        const outlined = outlineSelection && selected && selected.index === parcel.index;
+        const fill = markerColor(parcel.action);
         const marker = L.circleMarker([parcel.lat, parcel.lon], {
-          radius: active ? 7 : 5,
-          color: active ? "#17212f" : color,
-          fillColor: color,
-          fillOpacity: 0.92,
-          weight: active ? 3 : 1,
+          radius: outlined ? 7 : 5,
+          color: outlined ? "#ffffff" : fill,
+          fillColor: fill,
+          fillOpacity: 0.95,
+          weight: outlined ? 3 : 1,
         });
         marker.bindTooltip(parcel.id, {
-          permanent: active,
+          permanent: outlined,
           direction: "bottom",
           className: "parcel-tip",
           offset: [0, 6],
@@ -1259,7 +1326,7 @@
       } catch (err) {
         map.setView([-1.313, 36.79], 13);
       }
-      document.getElementById("map-sub").textContent = "Parcel-level policy classification · " + list.length + " parcels";
+      if (measureLayer) measureLayer.bringToFront();
       setTimeout(() => {
         map.invalidateSize();
         updateScale();
@@ -1296,6 +1363,7 @@
     }
 
     async function chooseSettlement(name) {
+      const hideLoading = showMapLoading(true);
       activeSettlement = name;
       document.getElementById("settlement-menu").hidden = true;
       document.getElementById("settlement-toggle").setAttribute("aria-expanded", "false");
@@ -1304,7 +1372,11 @@
       renderSettlementMenu();
       selected = null;
       document.getElementById("parcel-card").hidden = true;
-      await loadParcels(true);
+      try {
+        await loadParcels(true);
+      } finally {
+        setTimeout(hideLoading, 1000);
+      }
     }
 
     async function loadParcels(fit) {
@@ -1378,6 +1450,8 @@
       document.getElementById("analyst-name").textContent = name;
       paintAvatar(user);
       document.getElementById("note-body").textContent = liftNote;
+      const historyLift = document.getElementById("history-lift");
+      if (historyLift) historyLift.textContent = liftNote;
       renderSettlementMenu();
       drawLegend();
       showMapLoading();
@@ -1557,7 +1631,7 @@
     document.getElementById("nav-map").addEventListener("click", showMap);
     document.getElementById("back-map").addEventListener("click", showMap);
     document.getElementById("nav-xai").addEventListener("click", showXai);
-    document.getElementById("nav-history").addEventListener("click", () => showNotice(liftNote));
+    document.getElementById("nav-history").addEventListener("click", showHistory);
     document.getElementById("nav-config").addEventListener("click", () => showNotice("GraphSAGE, two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score."));
     document.getElementById("nav-settings").addEventListener("click", showSettings);
     document.getElementById("open-profile").addEventListener("click", showProfile);
@@ -1648,8 +1722,15 @@
       body.hidden = !body.hidden;
       const open = !body.hidden;
       document.getElementById("legend-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-      document.getElementById("legend-chevron-up").hidden = !open;
-      document.getElementById("legend-chevron-down").hidden = open;
+      document.getElementById("legend-toggle").textContent = open ? "Minimize" : "Expand";
+    });
+    document.getElementById("outline-selection").addEventListener("change", (event) => {
+      outlineSelection = event.target.checked;
+      if (outlineSelection && !selected) {
+        showNotice("Select a parcel on the map. The outline marks that parcel.");
+      }
+      if (outlineSelection && selected && map) map.panTo([selected.lat, selected.lon]);
+      draw(shown, false);
     });
     document.getElementById("card-close").addEventListener("click", () => {
       document.getElementById("parcel-card").hidden = true;
@@ -1668,6 +1749,7 @@
       map.fitBounds(shown.map((parcel) => [parcel.lat, parcel.lon]), { padding: [24, 24] });
     });
     document.getElementById("layers-btn").addEventListener("click", () => {
+      ensureMap();
       const menu = document.getElementById("layer-menu");
       menu.hidden = !menu.hidden;
       document.getElementById("layers-btn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
@@ -1676,13 +1758,19 @@
       button.addEventListener("click", () => useBase(button.dataset.layer));
     }
     document.getElementById("measure-btn").addEventListener("click", () => {
+      ensureMap();
       measuring = !measuring;
       document.getElementById("measure-btn").setAttribute("aria-pressed", measuring ? "true" : "false");
+      map.getContainer().style.cursor = measuring ? "crosshair" : "";
       measurePts = [];
-      if (!measuring && measureLayer) {
+      const readout = document.getElementById("measure-readout");
+      if (measuring) {
+        readout.hidden = false;
+        readout.textContent = "Click two points on the map.";
+      } else if (measureLayer) {
         measureLayer.remove();
         measureLayer = null;
-        document.getElementById("measure-readout").hidden = true;
+        readout.hidden = true;
       }
     });
     document.getElementById("fullscreen-btn").addEventListener("click", () => {
