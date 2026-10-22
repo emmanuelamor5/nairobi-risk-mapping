@@ -1,11 +1,14 @@
 """
 Folium map of parcel policy actions.
 
-The shell follows the supplied wireframes: choropleth map with a parcel
-card, then an XAI summary. This module builds the Folium map and the
-parcel records those screens read. Both are returned only after the
-auth gate. Feature labels are the five GraphSAGE inputs, not the
-placeholder names drawn on the wireframe.
+The signed-in shell follows the Folium dashboard frames: a choropleth
+map with a parcel card, then an XAI summary. Those frames live in
+https://www.figma.com/design/VKrzELW8ubZyqCzlSOUOco (Sign in 4:65,
+Choropleth map 4:66, XAI summary 4:67) and use the team Body style,
+Work Sans. This module builds the Folium map and the parcel records
+those screens read. Both are returned only after the auth gate.
+Feature labels are the five GraphSAGE inputs, not the placeholder
+names drawn on the wireframe.
 
 Coordinates may be geographic (EPSG:4326) or projected. Projected
 positions are transformed with pyproj before Folium sees them.
