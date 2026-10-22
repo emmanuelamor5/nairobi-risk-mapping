@@ -113,8 +113,9 @@ def test_map_route_refuses_sessions_without_mfa():
     try:
         shell = urlopen(base + "/").read().decode()
         assert "Sign in" in shell
-        assert "Sign in with Google" in shell
-        assert "Sign in with Apple" in shell
+        assert "Continue with Google" in shell
+        assert "Continue with Apple" in shell
+        assert "Continue with phone" in shell
         assert "Sign in with phone" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
