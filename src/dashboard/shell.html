@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Folium — parcel policy</title>
+  <script>
+    try {
+      if (localStorage.getItem("folium-theme") === "dark") document.documentElement.dataset.theme = "dark";
+    } catch (err) { /* private browsing can block storage */ }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -30,7 +35,9 @@
     .auth-copy { width: min(440px, 100%); margin-left: auto; padding-right: 24px; }
     .gate h1 { margin: 0 0 48px; font-size: clamp(52px, 5vw, 76px); line-height: 1.05; font-weight: 800; letter-spacing: -1.6px; color: #0f1419; }
     .auth-stack { width: 300px; display: flex; flex-direction: column; gap: 12px; }
-    .auth-pill { width: 100%; height: 40px; border-radius: 999px; border: 1px solid #cfd9de; background: #fff; color: #0f1419; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; }
+    .auth-pill { position: relative; width: 100%; height: 40px; border-radius: 999px; border: 1px solid #cfd9de; background: #fff; color: #0f1419; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; transition: background 0.15s ease, border-color 0.15s ease; }
+    .auth-pill:hover:not(:disabled) { background: #f0f3f5; }
+    .auth-dark:hover:not(:disabled), .auth-continue:not(:disabled):hover { background: #272c30; }
     .auth-pill svg { flex: none; }
     .auth-dark { background: #0f1419; color: #fff; border-color: #0f1419; }
     .auth-continue { background: #eff3f4; color: #8b98a5; border-color: #eff3f4; cursor: default; }
@@ -60,7 +67,8 @@
       width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: white;
     }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    .primary { background: var(--nav); color: white; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    .primary { position: relative; background: var(--nav); color: white; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    .tool { position: relative; }
     .ghost { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
     .error { color: #922b21; min-height: 1.2em; font-size: 13px; }
     .app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
@@ -71,6 +79,7 @@
     .group-label { margin: 0 0 8px; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
     .nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; }
     .nav-btn[aria-pressed="true"] { background: var(--nav); color: white; font-weight: 600; }
+    .nav-btn:hover:not([aria-pressed="true"]) { background: #eef2f5; }
     .dataset-name { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; }
     .settle { position: relative; }
     .settle-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; }
@@ -101,7 +110,64 @@
     .search-wrap input::placeholder { color: var(--faint); }
     .tool { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; }
     .tool.square { width: 36px; padding: 0; }
+    .tool:hover:not(:disabled) { background: #f4f7f8; }
     .tool[aria-pressed="true"] { background: var(--nav); color: white; border-color: var(--nav); }
+    .tool[aria-pressed="true"]:hover { background: #272c30; }
+    .primary:hover:not(:disabled) { filter: brightness(1.12); }
+    .ghost:hover:not(:disabled), .settle-btn:hover, .zoom-stack button:hover, .icon-btn:hover { background: #f4f7f8; }
+    .auth-pill.is-loading, .tool.is-loading, .primary.is-loading { color: transparent; }
+    .auth-pill.is-loading > *, .tool.is-loading > *, .primary.is-loading > * { visibility: hidden; }
+    .auth-pill.is-loading::after, .tool.is-loading::after, .primary.is-loading::after {
+      content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #0f1419; border-right-color: transparent; animation: spin 0.7s linear infinite;
+    }
+    .auth-dark.is-loading::after, .primary.is-loading::after { border-color: #fff; border-right-color: transparent; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .map-loading {
+      position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px; background: rgba(246, 248, 250, 0.92);
+      color: var(--ink); font-size: 15px; font-weight: 600;
+    }
+    .map-loading .spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #cfd9de; border-top-color: #152331; animation: spin 0.7s linear infinite; }
+    .page { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--paper); }
+    .page-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; overflow: auto; }
+    .setting-row { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .switch { width: 44px; height: 26px; border-radius: 999px; border: 0; background: #cfd9de; padding: 3px; cursor: pointer; flex: none; }
+    .switch:hover { filter: brightness(0.95); }
+    .switch-knob { display: block; width: 20px; height: 20px; border-radius: 50%; background: white; transition: transform 0.15s ease; }
+    .switch.on { background: #152331; }
+    .switch.on .switch-knob { transform: translateX(18px); }
+    .avatar.lg { width: 72px; height: 72px; font-size: 22px; }
+    .avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
+    .profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    html[data-theme="dark"] body,
+    html[data-theme="dark"] .workspace,
+    html[data-theme="dark"] .page { background: #0f1419; color: #e7e9ea; }
+    html[data-theme="dark"] .gate { background: #0f1419; color: #e7e9ea; }
+    html[data-theme="dark"] .gate h1,
+    html[data-theme="dark"] .auth-mark,
+    html[data-theme="dark"] .auth-or { color: #e7e9ea; }
+    html[data-theme="dark"] aside,
+    html[data-theme="dark"] .top,
+    html[data-theme="dark"] .panel,
+    html[data-theme="dark"] .card,
+    html[data-theme="dark"] footer,
+    html[data-theme="dark"] .tool,
+    html[data-theme="dark"] .search-wrap,
+    html[data-theme="dark"] .auth-pill,
+    html[data-theme="dark"] .settle-btn,
+    html[data-theme="dark"] .map-legend,
+    html[data-theme="dark"] .note { background: #15202b; color: #e7e9ea; border-color: #38444d; }
+    html[data-theme="dark"] .nav-btn:hover:not([aria-pressed="true"]),
+    html[data-theme="dark"] .tool:hover:not(:disabled),
+    html[data-theme="dark"] .auth-pill:hover:not(:disabled):not(.auth-dark) { background: #1e2732; }
+    html[data-theme="dark"] .auth-dark,
+    html[data-theme="dark"] .nav-btn[aria-pressed="true"],
+    html[data-theme="dark"] .primary,
+    html[data-theme="dark"] .switch.on { background: #e7e9ea; color: #0f1419; }
+    html[data-theme="dark"] .map-loading { background: rgba(15, 20, 25, 0.92); color: #e7e9ea; }
+    html[data-theme="dark"] input,
+    html[data-theme="dark"] .gate input { background: #0f1419; color: #e7e9ea; border-color: #38444d; }
     .notice { position: absolute; right: 0; top: 44px; width: 320px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 20; }
     .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 64px; padding: 12px 24px; }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: var(--muted); }
@@ -350,6 +416,7 @@
           <img src="/assets/ellipsis.svg" alt="">
         </button>
         <div class="account-menu" id="account-menu" hidden>
+          <button id="open-profile" type="button">Profile</button>
           <button id="sign-out" type="button">Sign out</button>
         </div>
       </div>
@@ -385,6 +452,10 @@
           </div>
         </div>
         <div class="stage" id="stage">
+          <div class="map-loading" id="map-loading" hidden>
+            <span class="spin" aria-hidden="true"></span>
+            Loading the map
+          </div>
           <div id="map"></div>
           <div class="hud">
             <div class="tile-source"><img src="/assets/map-muted.svg" alt=""><span id="tile-source">Tile source: satellite imagery</span></div>
@@ -547,6 +618,57 @@
           </div>
         </div>
       </div>
+      <div class="page" id="settings-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Settings</h1>
+            <div class="sub">Appearance for this browser</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel setting-row">
+            <div>
+              <strong>Dark mode</strong>
+              <div class="sub">Switch the dashboard and the sign-in page to a dark background.</div>
+            </div>
+            <button class="switch" id="dark-mode" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
+              <span class="switch-knob"></span>
+            </button>
+          </section>
+          <p class="sub">The policy matrix is fixed. Compensated resettlement still requires high deprivation and high hazard.</p>
+        </div>
+      </div>
+      <div class="page" id="profile-view" hidden>
+        <header class="top">
+          <div>
+            <h1>Profile</h1>
+            <div class="sub" id="profile-email">Signed in</div>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel">
+            <h2 style="margin:0 0 12px;font-size:15px;">Profile picture</h2>
+            <div class="avatar lg" id="profile-avatar">—</div>
+            <div class="profile-actions">
+              <label class="tool" for="avatar-file">Add a profile picture</label>
+              <input id="avatar-file" type="file" accept="image/*" hidden>
+              <button class="ghost" id="avatar-remove" type="button">Remove picture</button>
+            </div>
+          </section>
+          <section class="panel">
+            <h2 style="margin:0 0 8px;font-size:15px;">Change phone number</h2>
+            <p class="sub" id="current-phone">No phone number on this account yet.</p>
+            <label for="new-phone">New phone number</label>
+            <input id="new-phone" type="tel" autocomplete="tel" placeholder="+254712345678">
+            <div id="phone-change-recaptcha"></div>
+            <button class="auth-pill" id="send-phone-change" type="button">Send code</button>
+            <label for="phone-change-code">Text message code</label>
+            <input id="phone-change-code" type="text" inputmode="numeric" autocomplete="one-time-code">
+            <p class="error" id="profile-error" role="alert"></p>
+            <button class="auth-pill auth-dark" id="confirm-phone-change" type="button">Update phone number</button>
+          </section>
+        </div>
+      </div>
       <footer>
         <div>GraphSAGE, two-layer mean aggregation · Attention U-Net flood head</div>
         <div class="totals" id="map-foot"></div>
@@ -557,7 +679,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
     import {
-      getAuth, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor,
+      getAuth, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor, updatePhoneNumber,
       TotpMultiFactorGenerator, PhoneAuthProvider, PhoneMultiFactorGenerator,
       RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
@@ -594,6 +716,8 @@
     let resolver = null;
     let confirmationResult = null;
     let verificationId = null;
+    let phoneChangeId = null;
+    let signedInUser = null;
     let challengeKind = "phone";
     let recaptcha = null;
     let parcels = [];
@@ -625,6 +749,61 @@
         document.getElementById("password-step").hidden = true;
         document.getElementById("email-continue").hidden = false;
         document.getElementById("password").required = false;
+      }
+    }
+
+    function runBusy(button, work) {
+      if (!button) return Promise.resolve().then(work);
+      button.classList.add("is-loading");
+      button.setAttribute("aria-busy", "true");
+      const wasDisabled = button.disabled;
+      button.disabled = true;
+      const started = Date.now();
+      return Promise.resolve().then(work).finally(() => {
+        const delay = Math.max(0, 800 - (Date.now() - started));
+        setTimeout(() => {
+          button.classList.remove("is-loading");
+          button.removeAttribute("aria-busy");
+          button.disabled = wasDisabled;
+        }, delay);
+      });
+    }
+
+    function showMapLoading() {
+      const overlay = document.getElementById("map-loading");
+      overlay.hidden = false;
+      clearTimeout(showMapLoading.timer);
+      showMapLoading.timer = setTimeout(() => { overlay.hidden = true; }, 1000);
+    }
+
+    function applyTheme(theme) {
+      if (theme === "dark") document.documentElement.dataset.theme = "dark";
+      else delete document.documentElement.dataset.theme;
+      try { localStorage.setItem("folium-theme", theme === "dark" ? "dark" : "light"); } catch (err) { /* storage may be blocked */ }
+      const toggle = document.getElementById("dark-mode");
+      const on = theme === "dark";
+      toggle.classList.toggle("on", on);
+      toggle.setAttribute("aria-checked", on ? "true" : "false");
+    }
+
+    function photoKey(user) {
+      return "folium-photo-" + (user && user.uid ? user.uid : "local");
+    }
+
+    function paintAvatar(user) {
+      let url = "";
+      try { url = localStorage.getItem(photoKey(user)) || ""; } catch (err) { url = ""; }
+      const label = initials((user && (user.email || user.phoneNumber)) || "Signed in");
+      for (const id of ["analyst-initials", "profile-avatar"]) {
+        const node = document.getElementById(id);
+        node.textContent = label;
+        if (url) {
+          node.style.backgroundImage = "url('" + url.replace(/'/g, "") + "')";
+          node.classList.add("has-photo");
+        } else {
+          node.style.backgroundImage = "";
+          node.classList.remove("has-photo");
+        }
       }
     }
 
@@ -729,9 +908,13 @@
     }
 
     function showMap() {
+      document.getElementById("settings-view").hidden = true;
+      document.getElementById("profile-view").hidden = true;
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
       document.getElementById("map-view").hidden = false;
       document.getElementById("xai-view").classList.remove("on");
       setNav("map");
+      showMapLoading();
       if (map) setTimeout(() => map.invalidateSize(), 0);
     }
 
@@ -740,9 +923,44 @@
         showNotice("Select a parcel on the map to open its explanation.");
         return;
       }
+      document.getElementById("settings-view").hidden = true;
+      document.getElementById("profile-view").hidden = true;
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.add("on");
       setNav("xai");
+    }
+
+    function showSettings() {
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("profile-view").hidden = true;
+      document.getElementById("settings-view").hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "true");
+      document.querySelector("#nav-map .when-on").hidden = true;
+      document.querySelector("#nav-map .when-off").hidden = false;
+      document.querySelector("#nav-xai .when-on").hidden = true;
+      document.querySelector("#nav-xai .when-off").hidden = false;
+    }
+
+    function showProfile() {
+      document.getElementById("account-menu").hidden = true;
+      document.getElementById("map-view").hidden = true;
+      document.getElementById("xai-view").classList.remove("on");
+      document.getElementById("settings-view").hidden = true;
+      document.getElementById("profile-view").hidden = false;
+      document.getElementById("nav-map").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
+      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
+      if (signedInUser) {
+        paintAvatar(signedInUser);
+        document.getElementById("profile-email").textContent = signedInUser.email || signedInUser.phoneNumber || "Signed in";
+        document.getElementById("current-phone").textContent = signedInUser.phoneNumber
+          ? "Current number: " + signedInUser.phoneNumber
+          : "No phone number on this account yet.";
+      }
     }
 
     function renderClasses(detail, titleId, tagId, rowId, noteId) {
@@ -1155,12 +1373,14 @@
       }
       document.getElementById("gate").hidden = true;
       document.getElementById("app").classList.add("on");
+      signedInUser = user;
       const name = user.email ? user.email.split("@")[0] : (user.phoneNumber || "Signed in");
       document.getElementById("analyst-name").textContent = name;
-      document.getElementById("analyst-initials").textContent = initials(name);
+      paintAvatar(user);
       document.getElementById("note-body").textContent = liftNote;
       renderSettlementMenu();
       drawLegend();
+      showMapLoading();
       await loadParcels(true);
       setTimeout(() => map && map.invalidateSize(), 50);
     }
@@ -1181,7 +1401,7 @@
       errorEl.textContent = err.message || "Sign-in failed.";
     }
 
-    document.getElementById("send-signin-code").addEventListener("click", async () => {
+    document.getElementById("send-signin-code").addEventListener("click", () => runBusy(document.getElementById("send-signin-code"), async () => {
       errorEl.textContent = "";
       if (!auth) return;
       const phoneNumber = document.getElementById("signin-phone").value.trim();
@@ -1193,51 +1413,61 @@
         errorEl.textContent = err.message || "SMS was not sent.";
         try { verifier.clear(); } catch (ignore) { /* let the next attempt render a new widget */ }
       }
-    });
+    }));
 
-    document.getElementById("phone-sign-in").addEventListener("submit", async (event) => {
+    document.getElementById("phone-sign-in").addEventListener("submit", (event) => {
       event.preventDefault();
-      errorEl.textContent = "";
-      try {
-        const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
-        await enterApp(result.user);
-      } catch (err) {
-        errorEl.textContent = err.message || "That code was rejected.";
-      }
+      const button = event.submitter;
+      return runBusy(button, async () => {
+        errorEl.textContent = "";
+        try {
+          const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
+          await enterApp(result.user);
+        } catch (err) {
+          errorEl.textContent = err.message || "That code was rejected.";
+        }
+      });
     });
 
-    document.getElementById("show-phone").addEventListener("click", () => showForm("phone"));
+    document.getElementById("show-phone").addEventListener("click", () => runBusy(document.getElementById("show-phone"), async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      showForm("phone");
+    }));
     document.getElementById("phone-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("challenge-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("enroll-back").addEventListener("click", () => showForm("sign-in"));
     document.getElementById("email").addEventListener("input", (event) => {
       document.getElementById("email-continue").disabled = event.target.value.trim() === "";
     });
-    document.getElementById("email-continue").addEventListener("click", () => {
+    document.getElementById("email-continue").addEventListener("click", () => runBusy(document.getElementById("email-continue"), async () => {
       if (document.getElementById("email").value.trim() === "") return;
+      await new Promise((resolve) => setTimeout(resolve, 800));
       document.getElementById("password-step").hidden = false;
       document.getElementById("email-continue").hidden = true;
       document.getElementById("password").required = true;
       document.getElementById("password").focus();
-    });
+    }));
 
-    document.getElementById("sign-in").addEventListener("submit", async (event) => {
+    document.getElementById("sign-in").addEventListener("submit", (event) => {
       if (document.getElementById("password-step").hidden) {
         event.preventDefault();
         document.getElementById("email-continue").click();
         return;
       }
       event.preventDefault();
-      errorEl.textContent = "";
-      if (!auth) return;
-      try {
-        await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
-      } catch (err) {
-        await authError(err);
-      }
+      const button = event.submitter;
+      return runBusy(button, async () => {
+        errorEl.textContent = "";
+        if (!auth) return;
+        try {
+          await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
+        } catch (err) {
+          await authError(err);
+        }
+      });
     });
 
-    document.getElementById("google").addEventListener("click", async () => {
+    document.getElementById("google").addEventListener("click", () => runBusy(document.getElementById("google"), async () => {
       errorEl.textContent = "";
       if (!auth) return;
       try {
@@ -1245,9 +1475,9 @@
       } catch (err) {
         await authError(err);
       }
-    });
+    }));
 
-    document.getElementById("apple").addEventListener("click", async () => {
+    document.getElementById("apple").addEventListener("click", () => runBusy(document.getElementById("apple"), async () => {
       errorEl.textContent = "";
       if (!auth) return;
       const apple = new OAuthProvider("apple.com");
@@ -1258,27 +1488,30 @@
       } catch (err) {
         await authError(err);
       }
-    });
+    }));
 
-    document.getElementById("challenge").addEventListener("submit", async (event) => {
+    document.getElementById("challenge").addEventListener("submit", (event) => {
       event.preventDefault();
-      errorEl.textContent = "";
-      try {
-        const code = document.getElementById("otp").value.trim();
-        let assertion;
-        if (challengeKind === "phone") {
-          assertion = PhoneMultiFactorGenerator.assertion(PhoneAuthProvider.credential(verificationId, code));
-        } else {
-          const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
-          assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+      const button = event.submitter;
+      return runBusy(button, async () => {
+        errorEl.textContent = "";
+        try {
+          const code = document.getElementById("otp").value.trim();
+          let assertion;
+          if (challengeKind === "phone") {
+            assertion = PhoneMultiFactorGenerator.assertion(PhoneAuthProvider.credential(verificationId, code));
+          } else {
+            const hint = resolver.hints.find((item) => item.factorId === TotpMultiFactorGenerator.FACTOR_ID) || resolver.hints[0];
+            assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+          }
+          await enterApp((await resolver.resolveSignIn(assertion)).user);
+        } catch (err) {
+          errorEl.textContent = err.message || "That code was rejected.";
         }
-        await enterApp((await resolver.resolveSignIn(assertion)).user);
-      } catch (err) {
-        errorEl.textContent = err.message || "That code was rejected.";
-      }
+      });
     });
 
-    document.getElementById("send-enroll").addEventListener("click", async () => {
+    document.getElementById("send-enroll").addEventListener("click", () => runBusy(document.getElementById("send-enroll"), async () => {
       errorEl.textContent = "";
       try {
         const session = await multiFactor(auth.currentUser).getSession();
@@ -1291,20 +1524,22 @@
       } catch (err) {
         errorEl.textContent = err.message || "Could not send the text message.";
       }
-    });
+    }));
 
-    document.getElementById("enroll").addEventListener("submit", async (event) => {
+    document.getElementById("enroll").addEventListener("submit", (event) => {
       event.preventDefault();
-      errorEl.textContent = "";
-      try {
-        const credential = PhoneAuthProvider.credential(verificationId, document.getElementById("enroll-code").value.trim());
-        await multiFactor(auth.currentUser).enroll(PhoneMultiFactorGenerator.assertion(credential), "Phone");
-        await signOut(auth);
-        showForm("sign-in");
-        errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
-      } catch (err) {
-        errorEl.textContent = err.message || "Enrollment failed.";
-      }
+      return runBusy(event.submitter, async () => {
+        errorEl.textContent = "";
+        try {
+          const credential = PhoneAuthProvider.credential(verificationId, document.getElementById("enroll-code").value.trim());
+          await multiFactor(auth.currentUser).enroll(PhoneMultiFactorGenerator.assertion(credential), "Phone");
+          await signOut(auth);
+          showForm("sign-in");
+          errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
+        } catch (err) {
+          errorEl.textContent = err.message || "Enrollment failed.";
+        }
+      });
     });
 
     document.getElementById("sign-out").addEventListener("click", async () => {
@@ -1324,7 +1559,74 @@
     document.getElementById("nav-xai").addEventListener("click", showXai);
     document.getElementById("nav-history").addEventListener("click", () => showNotice(liftNote));
     document.getElementById("nav-config").addEventListener("click", () => showNotice("GraphSAGE, two-layer mean aggregation. Inputs are footprint area, distance to water, sanitation, and road, and a roof-material score."));
-    document.getElementById("nav-settings").addEventListener("click", () => showNotice("The policy matrix is fixed. Compensated resettlement still requires high deprivation and high hazard."));
+    document.getElementById("nav-settings").addEventListener("click", showSettings);
+    document.getElementById("open-profile").addEventListener("click", showProfile);
+    document.getElementById("analyst-initials").addEventListener("click", showProfile);
+    document.getElementById("analyst-initials").style.cursor = "pointer";
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    document.getElementById("dark-mode").addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
+    document.getElementById("avatar-file").addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file || !signedInUser) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 128;
+          canvas.height = 128;
+          const ctx = canvas.getContext("2d");
+          const scale = Math.max(128 / image.width, 128 / image.height);
+          const width = image.width * scale;
+          const height = image.height * scale;
+          ctx.drawImage(image, (128 - width) / 2, (128 - height) / 2, width, height);
+          const url = canvas.toDataURL("image/jpeg", 0.85);
+          try { localStorage.setItem(photoKey(signedInUser), url); } catch (err) {
+            document.getElementById("profile-error").textContent = "This browser could not store the picture.";
+            return;
+          }
+          paintAvatar(signedInUser);
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    document.getElementById("avatar-remove").addEventListener("click", () => {
+      if (!signedInUser) return;
+      try { localStorage.removeItem(photoKey(signedInUser)); } catch (err) { /* ignore */ }
+      paintAvatar(signedInUser);
+    });
+    document.getElementById("send-phone-change").addEventListener("click", () => runBusy(document.getElementById("send-phone-change"), async () => {
+      const profileError = document.getElementById("profile-error");
+      profileError.textContent = "";
+      if (!auth || !auth.currentUser) return;
+      try {
+        const verifier = resetRecaptcha("phone-change-recaptcha");
+        phoneChangeId = await new PhoneAuthProvider(auth).verifyPhoneNumber(document.getElementById("new-phone").value.trim(), verifier);
+        profileError.textContent = "Code sent. Enter it below.";
+      } catch (err) {
+        profileError.textContent = err.message || "Could not send the text message.";
+      }
+    }));
+    document.getElementById("confirm-phone-change").addEventListener("click", () => runBusy(document.getElementById("confirm-phone-change"), async () => {
+      const profileError = document.getElementById("profile-error");
+      profileError.textContent = "";
+      if (!auth || !auth.currentUser || !phoneChangeId) {
+        profileError.textContent = "Send a code to the new number first.";
+        return;
+      }
+      try {
+        const credential = PhoneAuthProvider.credential(phoneChangeId, document.getElementById("phone-change-code").value.trim());
+        await updatePhoneNumber(auth.currentUser, credential);
+        signedInUser = auth.currentUser;
+        document.getElementById("current-phone").textContent = "Current number: " + auth.currentUser.phoneNumber;
+        profileError.textContent = "Phone number updated.";
+      } catch (err) {
+        profileError.textContent = err.message || "Could not update the phone number.";
+      }
+    }));
     document.getElementById("bell").addEventListener("click", () => {
       const notice = document.getElementById("notice");
       if (notice.hidden) showNotice(liftNote);

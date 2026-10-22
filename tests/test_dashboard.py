@@ -117,6 +117,10 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Continue with Apple" in shell
         assert "Continue with phone" in shell
         assert "Sign in with phone" in shell
+        assert "Loading the map" in shell
+        assert "Dark mode" in shell
+        assert "Add a profile picture" in shell
+        assert "Change phone number" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
         assert str(SECRET_LON) not in shell
