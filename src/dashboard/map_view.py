@@ -21,10 +21,9 @@ import numpy as np
 from .. import config
 from ..models.fusion import POLICY_ACTIONS, action_labels
 
-# The mockup paints three actions: retain & formalise, retain & upgrade,
-# and compensated resettlement. The other three stay in the legend so a
-# live six-way map does not collapse them into those swatches. Their
-# hues stay far enough from the mockup trio to tell the markers apart.
+# Colour is the action. Formalise, upgrade, and resettlement use the
+# Folium frame colours. The other matrix cells stay distinct so a
+# six-way map does not collapse them into those three swatches.
 # Labels for the five model inputs. The wireframe's example names
 # (floodplain distance, structural density, and so on) are not features
 # this GraphSAGE was trained on.
@@ -42,10 +41,10 @@ PARCEL_PREFIX = {"kibera": "KB", "mathare": "MA", "mukuru": "MU"}
 ACTION_COLORS = {
     "retain_formalise": "#28835b",
     "retain_upgrade": "#d6a344",
-    "in_situ_upgrade_priority": "#b9770e",
-    "flood_resilient_upgrade": "#8e3a34",
+    "in_situ_upgrade_priority": "#354a60",
+    "flood_resilient_upgrade": "#6e8b9a",
     "compensated_resettlement": "#cf655e",
-    "insufficient_evidence": "#929ca9",
+    "insufficient_evidence": "#a7b4c1",
 }
 
 
@@ -163,8 +162,17 @@ def parcel_rows(records: dict, settlement: str = None) -> list:
         if deprivation is not None and int(deprivation[i]) >= 0:
             dep_name = config.DEPRIVATION_CLASS_NAMES[int(deprivation[i])]
         class_probability = None
+        class_probabilities = None
         if proba is not None and proba.ndim == 2 and i < proba.shape[0]:
             class_probability = float(np.max(proba[i]))
+            names = list(config.DEPRIVATION_CLASS_NAMES)
+            class_probabilities = [
+                {
+                    "name": names[j] if j < len(names) else str(j),
+                    "value": float(proba[i, j]),
+                }
+                for j in range(proba.shape[1])
+            ]
         row = {
             "index": int(i),
             "id": _parcel_id(settlement_name or "parcel", number + 1),
@@ -175,6 +183,7 @@ def parcel_rows(records: dict, settlement: str = None) -> list:
             "flood_proba": None if flood is None or not np.isfinite(flood[i]) else float(flood[i]),
             "deprivation_class": dep_name,
             "class_probability": class_probability,
+            "class_probabilities": class_probabilities,
             "confidence": None if confidence is None or not np.isfinite(confidence[i]) else float(confidence[i]),
         }
         if features is not None and i < features.shape[0]:

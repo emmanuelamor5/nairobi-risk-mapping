@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.dashboard.app import make_handler, render_shell
 from src.dashboard.auth_gate import bearer_token, mfa_satisfied
-from src.dashboard.map_view import action_counts, build_policy_map, to_lonlat
+from src.dashboard.map_view import action_counts, build_policy_map, parcel_rows, to_lonlat
 from src.models.attention_unet import AttentionUNet
 from src.models.attention_unet_model import AttentionUNetModel
 from src.models.explanations import exact_feature_shapley, grad_cam_decoder
@@ -113,8 +113,9 @@ def test_map_route_refuses_sessions_without_mfa():
     try:
         shell = urlopen(base + "/").read().decode()
         assert "Sign in" in shell
-        assert "Sign in with Google" in shell
-        assert "Sign in with Apple" in shell
+        assert "Continue with Google" in shell
+        assert "Continue with Apple" in shell
+        assert "Continue with phone" in shell
         assert "Sign in with phone" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
@@ -252,3 +253,43 @@ def test_shell_renders_without_a_firebase_project():
 def test_shell_accepts_settlement_keys_loaded_from_npz():
     html = render_shell({}, np.array(["kibera", "mathare", "mukuru"]))
     assert "kibera" in html and "mukuru" in html
+
+
+def test_parcel_rows_carry_the_class_probability_vector():
+    records = _records()
+    records["deprivation_proba"] = np.array([[0.05, 0.15, 0.80], [0.70, 0.20, 0.10]])
+    rows = parcel_rows(records)
+    assert rows[0]["class_probabilities"][2] == {"name": "high", "value": pytest.approx(0.80)}
+    assert rows[0]["class_probability"] == pytest.approx(0.80)
+    assert rows[1]["class_probabilities"][0]["name"] == "low"
+
+
+def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
+    html = render_shell({"apiKey": "test", "authDomain": "t.firebaseapp.com", "projectId": "t"}, ["kibera"])
+    assert "Full-Settlement Choropleth Map" in html
+    assert "Choropleth Map" in html
+    assert "XAI Summary" in html
+    assert "/assets/brand-map.svg" in html
+    assert "/assets/satellite.png" in html
+    assert "#28835b" in html
+
+    def verifier(token):
+        raise ValueError("rejected")
+
+    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=verifier)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        icon = urlopen(base + "/assets/brand-map.svg").read().decode()
+        assert "<svg" in icon
+        assert urlopen(base + "/assets/satellite.png").status == 200
+        try:
+            urlopen(base + "/assets/../app.py")
+            raise AssertionError("asset paths must stay inside the asset directory")
+        except HTTPError as exc:
+            assert exc.code == 404
+    finally:
+        server.shutdown()
+        server.server_close()

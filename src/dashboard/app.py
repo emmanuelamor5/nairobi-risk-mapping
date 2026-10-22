@@ -25,7 +25,13 @@ from .map_view import ACTION_COLORS, action_counts, build_policy_map, parcel_row
 
 SHELL_PATH = Path(__file__).with_name("shell.html")
 ASSETS_DIR = Path(__file__).with_name("assets")
-_ASSET_TYPES = {".svg": "image/svg+xml", ".png": "image/png"}
+_ASSET_TYPES = {
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
 
 LIFT_NOTE = (
     "River-corridor lift on the Sprint 5 Colab run was 0.929, below the "
@@ -72,15 +78,17 @@ def _serve_asset(handler, url_path: str) -> bool:
     """
     Dashboard chrome (icons and the illustrative attention image).
 
-    The name has to be a single file inside ``assets``. Parcel coordinates
-    are not in that directory.
+    Returns false when the path is not an asset URL, so the caller can
+    keep routing. A bad asset name is a 404 and still counts as handled.
+    Parcel coordinates are not in that directory.
     """
     prefix = "/assets/"
     if not url_path.startswith(prefix):
         return False
     name = url_path[len(prefix):]
-    file = (ASSETS_DIR / name).resolve()
-    if name != Path(name).name or ASSETS_DIR.resolve() not in file.parents or not file.is_file():
+    root = ASSETS_DIR.resolve()
+    file = (root / name).resolve()
+    if not name or any(part in {"", ".", ".."} for part in name.split("/")) or root not in file.parents or not file.is_file():
         _unauthorised(handler, 404, "Not found.")
         return True
     content_type = _ASSET_TYPES.get(file.suffix.lower())
