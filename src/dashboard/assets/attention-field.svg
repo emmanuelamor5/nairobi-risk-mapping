@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="234" height="193.6" viewBox="0 0 234 193.6" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse id="Attention field" cx="117" cy="96.8" rx="117" ry="96.8" fill="url(#paint0_radial_0_12)"/>
+<defs>
+<radialGradient id="paint0_radial_0_12" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(121.68 96.8) scale(112.32 96.8)">
+<stop stop-color="#E83E24" stop-opacity="0.721569"/>
+<stop offset="0.27" stop-color="#FF8026" stop-opacity="0.639216"/>
+<stop offset="0.5" stop-color="#F7D443" stop-opacity="0.513726"/>
+<stop offset="0.76" stop-color="#60B8A6" stop-opacity="0.301961"/>
+<stop offset="1" stop-color="#60B8A6" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>
