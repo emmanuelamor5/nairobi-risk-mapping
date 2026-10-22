@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import json
 import os
+import random
+import time
+import urllib.request
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -25,6 +28,7 @@ from .map_view import ACTION_COLORS, action_counts, build_policy_map, parcel_row
 
 SHELL_PATH = Path(__file__).with_name("shell.html")
 ASSETS_DIR = Path(__file__).with_name("assets")
+VENDOR_DIR = Path(__file__).with_name("vendor")
 
 LIFT_NOTE = (
     "River-corridor lift on the Sprint 5 Colab run was 0.929, below the "
@@ -74,26 +78,89 @@ def _content_type(path: Path) -> str:
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
+        ".js": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
     }.get(path.suffix.lower(), "application/octet-stream")
 
 
-def _serve_asset(handler, url_path: str) -> None:
-    """Icons and the labelled attention illustration. No parcel coordinates."""
-    relative = url_path[len("/assets/"):]
+def _serve_static(handler, url_path: str, prefix: str, root: Path) -> bool:
+    """Serve one file from ``root``. False when the URL is not under ``prefix``."""
+    if not url_path.startswith(prefix):
+        return False
+    relative = url_path[len(prefix):]
     parts = relative.split("/")
-    if not relative or any(part in {"", ".", ".."} for part in parts):
+    base = root.resolve()
+    target = (base / relative).resolve()
+    if not relative or any(part in {"", ".", ".."} for part in parts) or base not in target.parents or not target.is_file():
         _unauthorised(handler, 404, "Not found.")
-        return
-    root = ASSETS_DIR.resolve()
-    target = (root / relative).resolve()
-    if root not in target.parents or not target.is_file():
-        _unauthorised(handler, 404, "Not found.")
-        return
+        return True
     body = target.read_bytes()
     handler.send_response(200)
     handler.send_header("Content-Type", _content_type(target))
     handler.send_header("Content-Length", str(len(body)))
     handler.send_header("Cache-Control", "public, max-age=3600")
+    handler.end_headers()
+    handler.wfile.write(body)
+    return True
+
+
+def _serve_asset(handler, url_path: str) -> None:
+    """Icons and the labelled attention illustration. No parcel coordinates."""
+    _serve_static(handler, url_path, "/assets/", ASSETS_DIR)
+
+
+_EMAIL_CODES = {}
+EMAIL_CODE_SECONDS = 300
+
+
+def issue_email_code(uid: str, now: float = None) -> str:
+    """Store a 6-digit code for five minutes. A new code replaces the old one."""
+    moment = time.time() if now is None else now
+    code = f"{random.randint(0, 999999):06d}"
+    _EMAIL_CODES[str(uid)] = {"code": code, "exp": moment + EMAIL_CODE_SECONDS}
+    return code
+
+
+def check_email_code(uid: str, submitted: str, now: float = None):
+    """Return (ok, message). An expired or unknown code does not succeed."""
+    moment = time.time() if now is None else now
+    row = _EMAIL_CODES.get(str(uid))
+    if not row:
+        return False, "Send a code first."
+    if moment > row["exp"]:
+        _EMAIL_CODES.pop(str(uid), None)
+        return False, "That code expired. Send a new one."
+    if str(submitted or "").strip() != row["code"]:
+        return False, "That code was rejected."
+    _EMAIL_CODES.pop(str(uid), None)
+    return True, ""
+
+
+def send_login_email(email: str, code: str) -> None:
+    """Deliver the sign-in code. Raises if the mail relay refuses it."""
+    payload = json.dumps({
+        "_subject": "Nairobi Risk Mapping code",
+        "_captcha": "false",
+        "_template": "box",
+        "message": f"Your Nairobi Risk Mapping code is {code}. It expires in 5 minutes.",
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        "https://formsubmit.co/ajax/" + email,
+        data=payload,
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        if response.status >= 400:
+            raise RuntimeError("mail relay refused the message")
+
+
+def _json_response(handler, status: int, payload: dict) -> None:
+    body = json.dumps(payload).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Cache-Control", "no-store")
     handler.end_headers()
     handler.wfile.write(body)
 
@@ -140,10 +207,21 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
                 return None
             return claims
 
+        def _identity(self):
+            """A valid Firebase session. The login code itself is the second step."""
+            token = bearer_token(self.headers.get("Authorization", ""))
+            try:
+                return verifier(token)
+            except ValueError as exc:
+                _unauthorised(self, 401, str(exc))
+                return None
+
         def do_GET(self):
             parsed = urlparse(self.path)
             if parsed.path.startswith("/assets/"):
                 _serve_asset(self, parsed.path)
+                return
+            if _serve_static(self, parsed.path, "/vendor/", VENDOR_DIR):
                 return
             if parsed.path == "/":
                 body = shell.encode("utf-8")
@@ -200,6 +278,43 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(payload)
+
+        def do_POST(self):
+            parsed = urlparse(self.path)
+            if parsed.path != "/api/email-code":
+                _unauthorised(self, 404, "Not found.")
+                return
+            claims = self._identity()
+            if claims is None:
+                return
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b"{}"
+            try:
+                body = json.loads(raw.decode("utf-8") or "{}")
+            except json.JSONDecodeError:
+                _json_response(self, 400, {"ok": False, "error": "Bad request."})
+                return
+            uid = str(claims.get("user_id") or claims.get("sub") or claims.get("email") or "")
+            email = str(claims.get("email") or "")
+            action = body.get("action")
+            if action == "send":
+                if not email:
+                    _json_response(self, 400, {"ok": False, "error": "This account has no email address. Use a phone code."})
+                    return
+                code = issue_email_code(uid)
+                try:
+                    send_login_email(email, code)
+                except Exception:
+                    _EMAIL_CODES.pop(uid, None)
+                    _json_response(self, 502, {"ok": False, "error": "The email was not sent. Use a phone code, or try again."})
+                    return
+                _json_response(self, 200, {"ok": True, "expires_in": EMAIL_CODE_SECONDS})
+                return
+            if action == "check":
+                ok, message = check_email_code(uid, body.get("code"))
+                _json_response(self, 200 if ok else 400, {"ok": ok, "error": message})
+                return
+            _json_response(self, 400, {"ok": False, "error": "Unknown action."})
 
     return Handler
 
