@@ -1619,9 +1619,23 @@
         recaptcha = null;
       }
       const container = document.getElementById(containerId);
+      container.hidden = false;
       container.replaceChildren();
-      recaptcha = new RecaptchaVerifier(auth, container, { size: "normal" });
+      recaptcha = new RecaptchaVerifier(auth, container, {
+        size: "normal",
+        callback: () => { container.hidden = true; },
+        "expired-callback": () => { container.hidden = false; },
+      });
       return recaptcha;
+    }
+
+    function hideRecaptcha(containerId) {
+      const container = document.getElementById(containerId);
+      if (container) container.hidden = true;
+      if (recaptcha) {
+        try { recaptcha.clear(); } catch (err) { /* the solved widget is no longer needed */ }
+        recaptcha = null;
+      }
     }
 
     async function beginChallenge(err) {
@@ -1637,6 +1651,7 @@
           { multiFactorHint: phoneHint, session: resolver.session },
           verifier,
         );
+        hideRecaptcha("challenge-recaptcha");
         document.getElementById("challenge-copy").textContent = "Enter the code texted to " + shownPhone + ".";
         return;
       }
@@ -1717,6 +1732,7 @@
       const verifier = resetRecaptcha("signin-recaptcha");
       try {
         confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+        hideRecaptcha("signin-recaptcha");
         errorEl.textContent = "Code sent. Enter it below.";
       } catch (err) {
         errorEl.textContent = err.message || "SMS was not sent.";
@@ -1798,6 +1814,7 @@
       const phoneNumber = document.getElementById("login-phone").value.trim();
       const verifier = resetRecaptcha("login-recaptcha");
       verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(phoneNumber, verifier);
+      hideRecaptcha("login-recaptcha");
       loginChannel = "phone";
       openCodeEntry("Sent to " + phoneNumber + ".");
     }
@@ -1948,6 +1965,7 @@
           { phoneNumber: document.getElementById("phone").value.trim(), session },
           verifier,
         );
+        hideRecaptcha("enroll-recaptcha");
         errorEl.textContent = "Code sent. Enter it below.";
       } catch (err) {
         errorEl.textContent = err.message || "Could not send the text message.";
@@ -2037,6 +2055,7 @@
       try {
         const verifier = resetRecaptcha("phone-change-recaptcha");
         phoneChangeId = await new PhoneAuthProvider(auth).verifyPhoneNumber(document.getElementById("new-phone").value.trim(), verifier);
+        hideRecaptcha("phone-change-recaptcha");
         profileError.textContent = "Code sent. Enter it below.";
       } catch (err) {
         profileError.textContent = err.message || "Could not send the text message.";

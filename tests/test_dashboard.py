@@ -123,6 +123,9 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Change phone number" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
+        assert "function hideRecaptcha" in shell
+        assert 'callback: () => { container.hidden = true; }' in shell
+        assert '"expired-callback": () => { container.hidden = false; }' in shell
         assert str(SECRET_LON) not in shell
         assert "compensated resettlement" not in shell
 
