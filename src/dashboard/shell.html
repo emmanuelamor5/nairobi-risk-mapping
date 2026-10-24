@@ -72,22 +72,6 @@
       position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
       pointer-events: none; opacity: 0.78;
     }
-    .gate-top-bar {
-      position: absolute; top: 20px; left: 5vw; right: 5vw; z-index: 3;
-      display: flex; justify-content: flex-start; align-items: center; gap: 12px;
-      pointer-events: none;
-    }
-    .gate-top-bar .gate-glass-chip { pointer-events: auto; }
-    .gate-glass-chip {
-      display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px;
-      border-radius: 999px; font-size: 12px; font-weight: 600; color: #f8fafc;
-      background: rgba(255, 255, 255, 0.14);
-      border: 1px solid rgba(255, 255, 255, 0.34);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 28px rgba(4, 10, 22, 0.32);
-      backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
-    }
-    button.gate-glass-chip { cursor: pointer; transition: background 0.15s ease, transform 0.15s ease; }
-    button.gate-glass-chip:hover { background: rgba(255, 255, 255, 0.22); transform: translateY(-1px); }
     .auth-copy {
       position: relative; z-index: 2; width: min(468px, 100%); margin: 0 auto; padding: 32px 32px 26px;
       border-radius: 34px;
@@ -176,9 +160,9 @@
       width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: white;
     }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    .primary { position: relative; background: var(--nav); color: white; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    .primary { position: relative; background: var(--nav); color: #ffffff; border: 0; border-radius: 6px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
     .tool { position: relative; }
-    .ghost { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+    .ghost { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; color: #0f172a; }
     .error { color: #922b21; min-height: 1.2em; font-size: 13px; }
     .app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
     .app.on { display: grid; }
@@ -218,13 +202,21 @@
     .search-wrap { display: flex; align-items: center; gap: 8px; width: 220px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; }
     .search-wrap input { border: 0; padding: 0; width: 100%; outline: none; font-size: 12px; }
     .search-wrap input::placeholder { color: var(--faint); }
-    .tool { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .tool { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: white; color: #0f172a; cursor: pointer; font-size: 12px; font-weight: 500; }
     .tool.square { width: 36px; padding: 0; }
-    .tool:hover:not(:disabled) { background: #f4f7f8; }
-    .tool[aria-pressed="true"] { background: var(--nav); color: white; border-color: var(--nav); }
-    .tool[aria-pressed="true"]:hover { background: #272c30; }
-    .primary:hover:not(:disabled) { filter: brightness(1.12); }
-    .ghost:hover:not(:disabled), .settle-btn:hover, .zoom-stack button:hover, .icon-btn:hover { background: #f4f7f8; }
+    .tool:hover:not(:disabled) { background: #e8eef3; color: #0f172a; }
+    .tool[aria-pressed="true"] { background: var(--nav); color: #ffffff; border-color: var(--nav); }
+    .tool[aria-pressed="true"]:hover { background: #272c30; color: #ffffff; }
+    .primary:hover:not(:disabled) { color: #ffffff; filter: brightness(1.12); }
+    .ghost:hover:not(:disabled), .settle-btn:hover, .zoom-stack button:hover, .icon-btn:hover {
+      background: #e8eef3; color: #0f172a;
+    }
+    .account-menu button:hover { background: #e8eef3; color: #0f172a; }
+    .layer-menu button:hover { background: #e8eef3; color: #0f172a; }
+    .notice-close:hover { background: #e8eef3; color: #0f172a; }
+    .win-min:hover { background: #e7eef5; color: #0f172a; }
+    .settle-btn { color: #0f172a; }
+    .auth-back:hover { color: #bae6fd; }
     .auth-pill.is-loading, .tool.is-loading, .primary.is-loading { color: transparent; }
     .auth-pill.is-loading > *, .tool.is-loading > *, .primary.is-loading > * { visibility: hidden; }
     .auth-pill.is-loading::after, .tool.is-loading::after, .primary.is-loading::after {
@@ -411,7 +403,6 @@
     .notice { position: absolute; right: 0; top: 44px; width: 320px; display: flex; align-items: flex-start; gap: 8px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(23, 33, 47, 0.08); font-size: 12px; line-height: 1.5; color: var(--muted); z-index: 40; }
     .notice p { margin: 0; flex: 1; }
     .notice-close { width: 22px; height: 22px; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font-size: 16px; line-height: 1; cursor: pointer; flex: none; }
-    .notice-close:hover { background: #f4f7f8; }
     .toolbar { position: relative; z-index: 1200; display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 64px; padding: 12px 24px; }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: var(--muted); }
     .legend-label { font-weight: 500; }
@@ -432,7 +423,6 @@
     .layer-menu { position: absolute; top: 12px; right: 12px; z-index: 1200; min-width: 196px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 8px; box-shadow: 0 12px 32px rgba(23, 33, 47, 0.2); }
     .layer-title { margin: 2px 8px 6px; font-size: 11px; font-weight: 600; color: var(--muted); }
     .layer-menu button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: white; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
-    .layer-menu button:hover { background: #f4f7f8; }
     .layer-check { width: 14px; height: 14px; border: 1.5px solid #9aabba; border-radius: 3px; display: inline-grid; place-items: center; flex: none; }
     .layer-menu button[aria-pressed="true"] { background: #eaf5ef; color: var(--green); font-weight: 600; }
     .layer-menu button[aria-pressed="true"] .layer-check { background: var(--green); border-color: var(--green); }
@@ -444,7 +434,6 @@
     .legend-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: grab; }
     .legend-head:active { cursor: grabbing; }
     .win-min { width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 4px; background: #f4f7f8; padding: 0; display: grid; place-items: center; cursor: pointer; flex: none; }
-    .win-min:hover { background: #e7eef5; }
     .map-legend.is-min { width: auto; max-width: 280px; height: auto; padding: 8px 10px; left: 18px; bottom: 18px; overflow: hidden; }
     .map-legend.is-min #legend-body { display: none; }
     .parcel-pin {
@@ -679,12 +668,6 @@
         <circle cx="1220" cy="430" r="5.5" fill="#38bdf8"/>
       </g>
     </svg>
-    <div class="gate-top-bar">
-      <div class="gate-glass-chip">
-        <span class="status-dot"></span>
-        Settlement Governance Decision Support System · Kibera, Mathare &amp; Mukuru
-      </div>
-    </div>
     <div class="auth-copy">
       <h1>Nairobi<br>Risk Mapping</h1>
       <p class="gate-lead">Parcel-level flood hazard &amp; structural deprivation decision support for Kibera, Mathare, and Mukuru.</p>
@@ -1109,7 +1092,7 @@
               <span class="stat-badge warn">Locked</span>
             </div>
             <div class="admin-controls" style="margin-top:10px;">
-              <input id="admin-passcode" type="password" placeholder="ADMIN_PASSCODE">
+              <input id="admin-passcode" type="password" placeholder="Administrator passcode" autocomplete="current-password">
               <button class="primary" id="admin-elevate-btn" type="button">Unlock Admin Console</button>
               <span class="error" id="admin-elevate-error" role="alert"></span>
             </div>
@@ -1467,7 +1450,6 @@
       RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
-    const firebaseConfig = {{FIREBASE_CONFIG_JSON}};
     const liftNote = {{LIFT_NOTE_JSON}};
     const settlements = {{SETTLEMENTS_JSON}};
     const colors = {{COLORS_JSON}};
@@ -1505,6 +1487,8 @@
     };
     let outlineSelection = true;
     const errorEl = document.getElementById("gate-error");
+    let auth = null;
+    let authReady = null;
     let resolver = null;
     let confirmationResult = null;
     let verificationId = null;
@@ -1534,10 +1518,58 @@
     let measureLayer = null;
     let activeSettlement = settlements[0] || "";
 
-    if (!firebaseConfig || !firebaseConfig.apiKey) {
-      errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
+    function publicAuthError(err) {
+      const code = err && err.code ? String(err.code) : "";
+      const friendly = {
+        "auth/popup-closed-by-user": "Google sign-in was closed before it finished.",
+        "auth/popup-blocked": "The browser blocked the sign-in popup. Allow popups and try again.",
+        "auth/cancelled-popup-request": "Another sign-in popup is already open.",
+        "auth/network-request-failed": "Network error during sign-in. Check your connection.",
+        "auth/unauthorized-domain": "This site is not an authorized domain in Firebase Authentication.",
+        "auth/operation-not-allowed": "This sign-in method is disabled in Firebase Authentication.",
+        "auth/invalid-api-key": "Sign-in is misconfigured on the server.",
+        "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Sign-in is misconfigured on the server.",
+      };
+      if (code && friendly[code]) return friendly[code];
+      let msg = err && err.message ? String(err.message) : (code || "Sign-in failed.");
+      msg = msg
+        .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[redacted]")
+        .replace(/api[_-]?key[=:][^&\s"'<>]+/gi, "apiKey=[redacted]")
+        .replace(/https?:\/\/[^\s"'<>]+/gi, (url) => url.replace(/api[_-]?key[=:][^&\s"'<>]+/gi, "apiKey=[redacted]"));
+      if (/\[redacted\]|firebaseapp\.com\/__\/|Identity Toolkit|API key/i.test(msg)) {
+        return "Sign-in failed. Check Firebase authorized domains and try again.";
+      }
+      return msg || "Sign-in failed.";
     }
-    const auth = firebaseConfig && firebaseConfig.apiKey ? getAuth(initializeApp(firebaseConfig)) : null;
+
+    async function bootstrapAuth() {
+      try {
+        const response = await fetch("/api/auth/config", { cache: "no-store" });
+        if (!response.ok) throw new Error("config unavailable");
+        const config = await response.json();
+        if (!config || !config.apiKey) {
+          errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
+          return null;
+        }
+        auth = getAuth(initializeApp({
+          apiKey: config.apiKey,
+          authDomain: config.authDomain || undefined,
+          projectId: config.projectId || undefined,
+          appId: config.appId || undefined,
+        }));
+        return auth;
+      } catch (_err) {
+        errorEl.textContent = "Firebase web config is not set on the server. The map stays closed.";
+        return null;
+      }
+    }
+    authReady = bootstrapAuth();
+
+    async function requireAuth() {
+      await authReady;
+      if (!auth) throw new Error("Sign-in is not available.");
+      return auth;
+    }
 
     function showForm(id) {
       document.getElementById("auth-home").hidden = id !== "sign-in";
@@ -2637,20 +2669,20 @@
     }
 
     async function authError(err) {
-      if (err.code === "auth/multi-factor-auth-required") {
+      if (err && err.code === "auth/multi-factor-auth-required") {
         try {
           await beginChallenge(err);
         } catch (sendErr) {
-          errorEl.textContent = sendErr.message || "Could not send the text message.";
+          errorEl.textContent = publicAuthError(sendErr);
         }
         return;
       }
-      errorEl.textContent = err.message || "Sign-in failed.";
+      errorEl.textContent = publicAuthError(err);
     }
 
     document.getElementById("send-signin-code").addEventListener("click", () => runBusy(document.getElementById("send-signin-code"), async () => {
       errorEl.textContent = "";
-      if (!auth) return;
+      try { await requireAuth(); } catch (_err) { errorEl.textContent = "Sign-in is not available."; return; }
       const phoneNumber = document.getElementById("signin-phone").value.trim();
       const verifier = resetRecaptcha("signin-recaptcha");
       try {
@@ -2658,7 +2690,7 @@
         hideRecaptcha("signin-recaptcha");
         errorEl.textContent = "Code sent. Enter it below.";
       } catch (err) {
-        errorEl.textContent = err.message || "SMS was not sent.";
+        errorEl.textContent = publicAuthError(err);
         try { verifier.clear(); } catch (ignore) { /* let the next attempt render a new widget */ }
       }
     }));
@@ -2672,7 +2704,7 @@
           const result = await confirmationResult.confirm(document.getElementById("signin-code").value.trim());
           await enterApp(result.user);
         } catch (err) {
-          errorEl.textContent = err.message || "That code was rejected.";
+          errorEl.textContent = publicAuthError(err);
         }
       });
     });
@@ -2748,7 +2780,7 @@
       try {
         await sendEmailLoginCode();
       } catch (err) {
-        document.getElementById("code-error").textContent = err.message || "The email was not sent.";
+        document.getElementById("code-error").textContent = publicAuthError(err);
       }
     }));
     document.getElementById("choose-phone-code").addEventListener("click", () => {
@@ -2760,7 +2792,7 @@
       try {
         await sendPhoneLoginCode();
       } catch (err) {
-        document.getElementById("code-error").textContent = err.message || "The text message was not sent.";
+        document.getElementById("code-error").textContent = publicAuthError(err);
       }
     }));
     document.getElementById("resend-login-code").addEventListener("click", () => runBusy(document.getElementById("resend-login-code"), async () => {
@@ -2769,7 +2801,7 @@
         if (loginChannel === "phone") await sendPhoneLoginCode();
         else await sendEmailLoginCode();
       } catch (err) {
-        document.getElementById("code-error").textContent = err.message || "A new code was not sent.";
+        document.getElementById("code-error").textContent = publicAuthError(err);
       }
     }));
     document.getElementById("confirm-login-code").addEventListener("click", () => runBusy(document.getElementById("confirm-login-code"), async () => {
@@ -2815,7 +2847,7 @@
         clearInterval(codeTimer);
         await enterApp(pendingUser);
       } catch (err) {
-        codeError.textContent = err.message || "That code was rejected.";
+        codeError.textContent = publicAuthError(err);
       }
     }));
     document.getElementById("email").addEventListener("input", (event) => {
@@ -2840,7 +2872,7 @@
       const button = event.submitter;
       return runBusy(button, async () => {
         errorEl.textContent = "";
-        if (!auth) return;
+        try { await requireAuth(); } catch (_err) { errorEl.textContent = "Sign-in is not available."; return; }
         try {
           await signedIn(await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value));
         } catch (err) {
@@ -2851,9 +2883,11 @@
 
     document.getElementById("google").addEventListener("click", () => runBusy(document.getElementById("google"), async () => {
       errorEl.textContent = "";
-      if (!auth) return;
+      try { await requireAuth(); } catch (_err) { errorEl.textContent = "Sign-in is not available."; return; }
       try {
-        await signedIn(await signInWithPopup(auth, new GoogleAuthProvider()));
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        await signedIn(await signInWithPopup(auth, provider));
       } catch (err) {
         await authError(err);
       }
@@ -2861,7 +2895,7 @@
 
     document.getElementById("apple").addEventListener("click", () => runBusy(document.getElementById("apple"), async () => {
       errorEl.textContent = "";
-      if (!auth) {
+      try { await requireAuth(); } catch (_err) {
         showForm("apple");
         document.getElementById("apple-email").focus();
         return;
@@ -2919,7 +2953,7 @@
           document.getElementById("code-error").textContent = "";
           showForm("code-choice");
         } catch (err) {
-          errorEl.textContent = err.message || "Could not start Apple ID sign-in.";
+          errorEl.textContent = publicAuthError(err);
         }
       });
     });
@@ -2940,7 +2974,7 @@
           }
           await enterApp((await resolver.resolveSignIn(assertion)).user);
         } catch (err) {
-          errorEl.textContent = err.message || "That code was rejected.";
+          errorEl.textContent = publicAuthError(err);
         }
       });
     });
@@ -2957,7 +2991,7 @@
         hideRecaptcha("enroll-recaptcha");
         errorEl.textContent = "Code sent. Enter it below.";
       } catch (err) {
-        errorEl.textContent = err.message || "Could not send the text message.";
+        errorEl.textContent = publicAuthError(err);
       }
     }));
 
@@ -2972,7 +3006,7 @@
           showForm("sign-in");
           errorEl.textContent = "Phone enrolled. Sign in again and enter the new text message code.";
         } catch (err) {
-          errorEl.textContent = err.message || "Enrollment failed.";
+          errorEl.textContent = publicAuthError(err);
         }
       });
     });
@@ -3103,7 +3137,7 @@
         hideRecaptcha("phone-change-recaptcha");
         profileError.textContent = "Code sent. Enter it below.";
       } catch (err) {
-        profileError.textContent = err.message || "Could not send the text message.";
+        profileError.textContent = publicAuthError(err);
       }
     }));
     document.getElementById("confirm-phone-change").addEventListener("click", () => runBusy(document.getElementById("confirm-phone-change"), async () => {
@@ -3120,7 +3154,7 @@
         document.getElementById("current-phone").textContent = "Current number: " + auth.currentUser.phoneNumber;
         profileError.textContent = "Phone number updated.";
       } catch (err) {
-        profileError.textContent = err.message || "Could not update the phone number.";
+        profileError.textContent = publicAuthError(err);
       }
     }));
     document.getElementById("bell").addEventListener("click", () => {

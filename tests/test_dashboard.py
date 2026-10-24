@@ -219,8 +219,33 @@ def test_launch_serves_the_shell_without_blocking():
 
 def test_shell_renders_without_a_firebase_project():
     html = render_shell({}, ["kibera"])
-    assert "Firebase web config is not set" in html or "apiKey" in html
+    assert "/api/auth/config" in html
     assert "kibera" in html
+
+
+def test_shell_html_does_not_embed_firebase_api_key():
+    from src.dashboard.app import public_firebase_web_config
+
+    secret = "AIzaSySecretTestKeyDoNotEmbed1234567"
+    config = {
+        "apiKey": secret,
+        "authDomain": "mtl-nairobi.firebaseapp.com",
+        "projectId": "mtl-nairobi",
+        "measurementId": "G-SHOULD-NOT-LEAK",
+        "messagingSenderId": "999999999999",
+    }
+    html = render_shell(config, ["kibera"])
+    assert secret not in html
+    assert "G-SHOULD-NOT-LEAK" not in html
+    assert "999999999999" not in html
+    assert "FIREBASE_CONFIG_JSON" not in html
+    assert "Settlement Governance Decision Support System · Kibera" not in html
+    public = public_firebase_web_config(config)
+    assert public == {
+        "apiKey": secret,
+        "authDomain": "mtl-nairobi.firebaseapp.com",
+        "projectId": "mtl-nairobi",
+    }
 
 
 def test_email_code_expires_after_five_minutes():
@@ -297,7 +322,10 @@ def test_apple_signin_requires_five_minute_code_before_serving_parcels():
 
 
 def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
-    html = render_shell({"apiKey": "test", "authDomain": "t.firebaseapp.com", "projectId": "t"}, ["kibera"])
+    html = render_shell(
+        {"apiKey": "AIzaSyFrameTestKeyHideFromHtml0001", "authDomain": "t.firebaseapp.com", "projectId": "t"},
+        ["kibera"],
+    )
     assert "Full-Settlement Choropleth Map" in html
     assert "Choropleth Map" in html
     assert "XAI Summary" in html
@@ -305,16 +333,29 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
     assert "/assets/satellite.jpg" in html
     assert "/vendor/leaflet.js" in html
     assert "#28835b" in html
+    assert "AIzaSyFrameTestKeyHideFromHtml0001" not in html
+    assert 'id="gate-theme-toggle"' not in html
 
     def verifier(token):
         raise ValueError("rejected")
 
-    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=verifier)
+    handler = make_handler(
+        _records(),
+        {"apiKey": "AIzaSyFrameTestKeyHideFromHtml0001", "authDomain": "t.firebaseapp.com", "projectId": "t"},
+        "t",
+        verifier=verifier,
+    )
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     base = f"http://127.0.0.1:{server.server_address[1]}"
     try:
+        page = urlopen(base + "/").read().decode()
+        assert "AIzaSyFrameTestKeyHideFromHtml0001" not in page
+        auth_cfg = json.loads(urlopen(base + "/api/auth/config").read().decode())
+        assert auth_cfg["apiKey"] == "AIzaSyFrameTestKeyHideFromHtml0001"
+        assert auth_cfg["authDomain"] == "t.firebaseapp.com"
+        assert "measurementId" not in auth_cfg
         icon = urlopen(base + "/assets/map-brand.svg").read().decode()
         assert "<svg" in icon
         assert urlopen(base + "/assets/satellite.jpg").status == 200

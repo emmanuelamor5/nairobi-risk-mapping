@@ -6,8 +6,10 @@ Local dashboard server.
 verified claims include a second factor. The Folium document is returned
 only from those routes.
 
-Firebase web config (the public apiKey, authDomain, and projectId) is read
-from the environment. The project id used to verify tokens is
+Firebase web config (apiKey, authDomain, projectId) is read from the
+environment and served only from ``GET /api/auth/config`` — it is not
+embedded in the HTML shell. Restrict that browser key in Google Cloud
+(HTTP referrers / app restrictions). Token verification still uses
 ``FIREBASE_PROJECT_ID``.
 """
 
@@ -39,7 +41,7 @@ LIFT_NOTE = (
 
 
 def firebase_web_config() -> dict:
-    """Public client config. Missing keys leave the sign-in form closed."""
+    """Raw env config. Missing keys leave sign-in closed until filled in."""
     raw = os.environ.get("FIREBASE_WEB_CONFIG")
     if raw:
         parsed = json.loads(raw)
@@ -52,6 +54,24 @@ def firebase_web_config() -> dict:
     }
 
 
+def public_firebase_web_config(web_config: dict) -> dict:
+    """
+    Browser SDK fields only. Drops measurement IDs and any other env extras
+    so the auth config endpoint never echoes private Firebase console values.
+    """
+    if not isinstance(web_config, dict):
+        return {}
+    out = {}
+    for key in ("apiKey", "authDomain", "projectId", "appId"):
+        value = web_config.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            out[key] = text
+    return out
+
+
 def _settlement_names(settlement_keys) -> list:
     """Plain strings. A loaded ``.npz`` stores the keys as a NumPy array, and ``array or []`` raises."""
     if settlement_keys is None:
@@ -60,9 +80,10 @@ def _settlement_names(settlement_keys) -> list:
 
 
 def render_shell(web_config: dict, settlement_keys, lift_note: str = LIFT_NOTE) -> str:
+    """Render the gate HTML without embedding Firebase secrets in the document."""
+    del web_config  # served from /api/auth/config instead of inline script
     html = SHELL_PATH.read_text(encoding="utf-8")
     replacements = {
-        "{{FIREBASE_CONFIG_JSON}}": json.dumps(web_config),
         "{{LIFT_NOTE_JSON}}": json.dumps(lift_note),
         "{{SETTLEMENTS_JSON}}": json.dumps(_settlement_names(settlement_keys)),
         "{{COLORS_JSON}}": json.dumps(ACTION_COLORS),
@@ -543,6 +564,7 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
     if verifier is None:
         verifier = partial(verify_firebase_id_token, project_id=project_id)
     shell = render_shell(web_config, records.get("settlement_keys"), lift_note)
+    auth_config = public_firebase_web_config(web_config)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
@@ -618,6 +640,10 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(body)
+                return
+            if parsed.path == "/api/auth/config":
+                # Browser Firebase SDK needs these; keep them out of HTML view-source.
+                _json_response(self, 200, auth_config)
                 return
             if parsed.path == "/api/admin/status":
                 claims = self._admin_claims()
