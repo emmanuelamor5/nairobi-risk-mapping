@@ -242,10 +242,58 @@ def test_shell_accepts_settlement_keys_loaded_from_npz():
 def test_parcel_rows_carry_the_class_probability_vector():
     records = _records()
     records["deprivation_proba"] = np.array([[0.05, 0.15, 0.80], [0.70, 0.20, 0.10]])
+    records["features"] = np.array([[0.8, 1.4, -0.5, 0.2, 1.1], [-0.4, -0.8, 0.3, -0.1, -0.6]])
     rows = parcel_rows(records)
     assert rows[0]["class_probabilities"][2] == {"name": "high", "value": pytest.approx(0.80)}
     assert rows[0]["class_probability"] == pytest.approx(0.80)
     assert rows[1]["class_probabilities"][0]["name"] == "low"
+    assert len(rows[0]["features"]) == 5
+    assert all("attribution" in feat for feat in rows[0]["features"])
+
+
+def test_apple_signin_requires_five_minute_code_before_serving_parcels():
+    from src.dashboard.app import issue_email_code
+
+    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=lambda _tok: (_ for _ in ()).throw(ValueError("no")))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        init_req = Request(
+            base + "/api/email-code",
+            data=json.dumps({"action": "apple-init", "email": "analyst@icloud.com"}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        init_body = json.loads(urlopen(init_req).read().decode())
+        assert init_body["ok"] is True
+        pre_token = init_body["pre_token"]
+
+        try:
+            urlopen(Request(base + "/api/parcels", headers={"Authorization": f"Bearer {pre_token}"}))
+            raise AssertionError("pre_token must not unlock parcels before the 5-minute code check")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        code = issue_email_code("apple:analyst@icloud.com")
+        check_req = Request(
+            base + "/api/email-code",
+            data=json.dumps({"action": "check", "code": code}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {pre_token}"},
+            method="POST",
+        )
+        check_body = json.loads(urlopen(check_req).read().decode())
+        assert check_body["ok"] is True
+        session_token = check_body["session_token"]
+
+        parcels_res = urlopen(Request(base + "/api/parcels", headers={"Authorization": f"Bearer {session_token}"}))
+        assert parcels_res.status == 200
+        rows = json.loads(parcels_res.read().decode())
+        assert rows[0]["id"] == "KB-00001"
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():

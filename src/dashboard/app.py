@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import secrets
 import time
 import urllib.request
 from functools import partial
@@ -111,6 +112,10 @@ def _serve_asset(handler, url_path: str) -> None:
 
 _EMAIL_CODES = {}
 EMAIL_CODE_SECONDS = 300
+VERIFIED_SESSION_SECONDS = 12 * 3600
+_VERIFIED_UIDS = {}
+_PENDING_APPLE_TOKENS = {}
+_VERIFIED_TOKENS = {}
 
 
 def issue_email_code(uid: str, now: float = None) -> str:
@@ -119,6 +124,55 @@ def issue_email_code(uid: str, now: float = None) -> str:
     code = f"{random.randint(0, 999999):06d}"
     _EMAIL_CODES[str(uid)] = {"code": code, "exp": moment + EMAIL_CODE_SECONDS}
     return code
+
+
+def mark_uid_verified(uid: str, now: float = None) -> None:
+    """Record that ``uid`` completed the second-step login code."""
+    if not uid:
+        return
+    moment = time.time() if now is None else now
+    _VERIFIED_UIDS[str(uid)] = moment + VERIFIED_SESSION_SECONDS
+
+
+def is_uid_verified(uid: str, now: float = None) -> bool:
+    """True when ``uid`` has a non-expired second-step code verification."""
+    if not uid:
+        return False
+    moment = time.time() if now is None else now
+    exp = _VERIFIED_UIDS.get(str(uid))
+    if exp is None:
+        return False
+    if moment > exp:
+        _VERIFIED_UIDS.pop(str(uid), None)
+        return False
+    return True
+
+
+def issue_pending_apple_token(email: str, now: float = None) -> str:
+    """Issue a short-lived pre-MFA token for Apple ID sign-in before the 5-minute code step."""
+    moment = time.time() if now is None else now
+    clean = str(email or "").strip().lower()
+    token = f"apple-pre-{secrets.token_urlsafe(24)}"
+    _PENDING_APPLE_TOKENS[token] = {
+        "user_id": f"apple:{clean}",
+        "email": clean,
+        "firebase": {"sign_in_provider": "apple.com"},
+        "exp": moment + EMAIL_CODE_SECONDS * 2,
+    }
+    return token
+
+
+def issue_verified_token(uid: str, email: str = "", now: float = None) -> str:
+    """Issue a verified session token after the 5-minute code check passes."""
+    moment = time.time() if now is None else now
+    token = f"verified-{secrets.token_urlsafe(24)}"
+    _VERIFIED_TOKENS[token] = {
+        "user_id": str(uid),
+        "email": str(email or ""),
+        "firebase": {"sign_in_provider": "apple.com", "sign_in_second_factor": "email_code"},
+        "exp": moment + VERIFIED_SESSION_SECONDS,
+    }
+    return token
 
 
 def check_email_code(uid: str, submitted: str, now: float = None):
@@ -133,11 +187,13 @@ def check_email_code(uid: str, submitted: str, now: float = None):
     if str(submitted or "").strip() != row["code"]:
         return False, "That code was rejected."
     _EMAIL_CODES.pop(str(uid), None)
+    mark_uid_verified(uid, now=moment)
     return True, ""
 
 
 def send_login_email(email: str, code: str) -> None:
     """Deliver the sign-in code. Raises if the mail relay refuses it."""
+    print(f"[Nairobi Risk Mapping] 5-minute verification code for {email}: {code}", flush=True)
     payload = json.dumps({
         "_subject": "Nairobi Risk Mapping code",
         "_captcha": "false",
@@ -147,7 +203,13 @@ def send_login_email(email: str, code: str) -> None:
     request = urllib.request.Request(
         "https://formsubmit.co/ajax/" + email,
         data=payload,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Origin": "https://nairobi-risk-mapping.local",
+            "Referer": "https://nairobi-risk-mapping.local/",
+        },
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=20) as response:
@@ -194,12 +256,25 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
 
         def _claims(self):
             token = bearer_token(self.headers.get("Authorization", ""))
+            now = time.time()
+            verified_row = _VERIFIED_TOKENS.get(token)
+            if verified_row:
+                if now <= verified_row["exp"]:
+                    return verified_row
+                _VERIFIED_TOKENS.pop(token, None)
+            if token in _PENDING_APPLE_TOKENS:
+                _unauthorised(
+                    self, 403,
+                    "A password session is not enough. Complete the authenticator challenge.",
+                )
+                return None
             try:
                 claims = verifier(token)
             except ValueError as exc:
                 _unauthorised(self, 401, str(exc))
                 return None
-            if not mfa_satisfied(claims):
+            uid = str(claims.get("user_id") or claims.get("sub") or claims.get("email") or "")
+            if not mfa_satisfied(claims) and not is_uid_verified(uid, now=now):
                 _unauthorised(
                     self, 403,
                     "A password session is not enough. Complete the authenticator challenge.",
@@ -208,8 +283,15 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
             return claims
 
         def _identity(self):
-            """A valid Firebase session. The login code itself is the second step."""
+            """A valid Firebase or pending Apple session. The login code itself is the second step."""
             token = bearer_token(self.headers.get("Authorization", ""))
+            now = time.time()
+            for store in (_PENDING_APPLE_TOKENS, _VERIFIED_TOKENS):
+                row = store.get(token)
+                if row:
+                    if now <= row["exp"]:
+                        return row
+                    store.pop(token, None)
             try:
                 return verifier(token)
             except ValueError as exc:
@@ -284,9 +366,6 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
             if parsed.path != "/api/email-code":
                 _unauthorised(self, 404, "Not found.")
                 return
-            claims = self._identity()
-            if claims is None:
-                return
             length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(length) if length else b"{}"
             try:
@@ -294,9 +373,20 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
             except json.JSONDecodeError:
                 _json_response(self, 400, {"ok": False, "error": "Bad request."})
                 return
-            uid = str(claims.get("user_id") or claims.get("sub") or claims.get("email") or "")
-            email = str(claims.get("email") or "")
             action = body.get("action")
+            if action == "apple-init":
+                apple_email = str(body.get("email") or "").strip().lower()
+                if "@" not in apple_email or "." not in apple_email.split("@")[-1]:
+                    _json_response(self, 400, {"ok": False, "error": "Enter a valid Apple ID email address."})
+                    return
+                pre_token = issue_pending_apple_token(apple_email)
+                _json_response(self, 200, {"ok": True, "pre_token": pre_token, "email": apple_email})
+                return
+            claims = self._identity()
+            if claims is None:
+                return
+            uid = str(claims.get("user_id") or claims.get("sub") or claims.get("email") or "")
+            email = str(claims.get("email") or body.get("email") or "").strip()
             if action == "send":
                 if not email:
                     _json_response(self, 400, {"ok": False, "error": "This account has no email address. Use a phone code."})
@@ -312,7 +402,14 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
                 return
             if action == "check":
                 ok, message = check_email_code(uid, body.get("code"))
-                _json_response(self, 200 if ok else 400, {"ok": ok, "error": message})
+                payload = {"ok": ok, "error": message}
+                if ok:
+                    payload["session_token"] = issue_verified_token(uid, email)
+                _json_response(self, 200 if ok else 400, payload)
+                return
+            if action == "phone-verified":
+                mark_uid_verified(uid)
+                _json_response(self, 200, {"ok": True, "session_token": issue_verified_token(uid, email)})
                 return
             _json_response(self, 400, {"ok": False, "error": "Unknown action."})
 
