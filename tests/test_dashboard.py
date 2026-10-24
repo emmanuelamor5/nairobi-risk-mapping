@@ -339,10 +339,15 @@ def test_admin_console_enforces_mfa_and_executes_all_eight_use_cases(monkeypatch
     )
 
     monkeypatch.setenv("ADMIN_PASSCODE", "nairobi-secret-2026")
+    monkeypatch.setenv("ADMIN_EMAILS", "ops@example.com")
     html = render_shell({"apiKey": "test", "authDomain": "t.firebaseapp.com", "projectId": "t"}, ["kibera"])
+    assert 'id="role-admin"' not in html
+    assert 'id="role-planner"' not in html
+    assert "auth-mark" not in html
+    assert "SETTLEMENT GOVERNANCE DSS · FOLIUM" not in html
+    assert 'id="nav-admin"' in html and "hidden" in html.split('id="nav-admin"', 1)[1][:80]
     for title in (
-        "City Planner",
-        "System Administrator",
+        "System Administrator Console",
         "Manage data pipeline",
         "Acquire geospatial data",
         "Preprocess data",
@@ -357,6 +362,8 @@ def test_admin_console_enforces_mfa_and_executes_all_eight_use_cases(monkeypatch
     def verifier(token):
         if token == "planner-mfa":
             return {"user_id": "planner-1", "email": "planner@example.com", "firebase": {"sign_in_second_factor": "totp"}}
+        if token == "admin-mfa":
+            return {"user_id": "admin-1", "email": "ops@example.com", "firebase": {"sign_in_second_factor": "totp"}}
         if token == "password-only":
             return {"user_id": "planner-1", "email": "planner@example.com", "firebase": {"sign_in_provider": "password"}}
         raise ValueError("rejected")
@@ -378,6 +385,12 @@ def test_admin_console_enforces_mfa_and_executes_all_eight_use_cases(monkeypatch
             raise AssertionError("un-elevated planner session must be refused when ADMIN_PASSCODE is set")
         except HTTPError as exc:
             assert exc.code == 403
+
+        email_admin = json.loads(
+            urlopen(Request(base + "/api/admin/status", headers={"Authorization": "Bearer admin-mfa"})).read().decode()
+        )
+        assert email_admin["role"] == "system_administrator"
+        assert tuple(email_admin["use_cases"]) == ADMIN_USE_CASES
 
         bad_elevate = Request(
             base + "/api/admin/elevate",

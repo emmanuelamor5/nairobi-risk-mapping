@@ -51,8 +51,8 @@
     img { display: block; }
     .gate {
       min-height: 100vh; height: 100vh; overflow: auto;
-      display: grid; grid-template-columns: minmax(360px, 1.05fr) minmax(320px, 0.95fr);
-      gap: 36px; align-items: center; position: relative; padding: 36px 5vw 76px; color: #f8fafc;
+      display: grid; grid-template-columns: 1fr; justify-items: center; align-items: center;
+      position: relative; padding: 36px 5vw 76px; color: #f8fafc;
       background-color: #07111e;
       background-image:
         radial-gradient(900px 540px at 14% 16%, rgba(20, 184, 166, 0.34), transparent 62%),
@@ -87,7 +87,7 @@
     button.gate-glass-chip { cursor: pointer; transition: background 0.15s ease, transform 0.15s ease; }
     button.gate-glass-chip:hover { background: rgba(255, 255, 255, 0.22); transform: translateY(-1px); }
     .auth-copy {
-      position: relative; z-index: 2; width: min(468px, 100%); margin-left: auto; padding: 32px 32px 26px;
+      position: relative; z-index: 2; width: min(468px, 100%); margin: 0 auto; padding: 32px 32px 26px;
       border-radius: 34px;
       background: linear-gradient(160deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.11) 100%);
       border: 1px solid rgba(255, 255, 255, 0.42);
@@ -106,20 +106,6 @@
     }
     .gate h1 { margin: 0 0 8px; font-size: clamp(36px, 3.8vw, 50px); line-height: 1.02; font-weight: 800; letter-spacing: -1.2px; color: #ffffff; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.28); }
     .gate-lead { margin: 0 0 16px; color: rgba(241, 245, 249, 0.88); font-size: 14px; line-height: 1.5; }
-    .role-switch {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin: 0 0 18px;
-      border-radius: 16px; background: rgba(15, 23, 42, 0.42);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
-    }
-    .role-btn {
-      height: 34px; border: 0; border-radius: 12px; background: transparent; color: rgba(241, 245, 249, 0.78);
-      font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s ease;
-    }
-    .role-btn[aria-pressed="true"] {
-      background: rgba(255, 255, 255, 0.92); color: #0f172a;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    }
     .auth-stack { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 11px; }
     .auth-pill {
       position: relative; width: 100%; height: 42px; border-radius: 999px;
@@ -161,46 +147,11 @@
     .gate .error:empty { display: none; }
     .auth-note, .gate form p { margin: 0; color: rgba(226, 232, 240, 0.82); font-size: 12px; line-height: 1.45; }
     .auth-back { border: 0; background: transparent; color: #7dd3fc; padding: 0 0 6px; cursor: pointer; font-size: 13px; font-weight: 600; text-align: left; }
-    .auth-mark {
-      position: relative; z-index: 2; justify-self: start; width: min(460px, 100%);
-      display: flex; flex-direction: column; gap: 14px;
-      padding: 26px; border-radius: 34px;
-      background: linear-gradient(160deg, rgba(15, 23, 42, 0.56) 0%, rgba(15, 23, 42, 0.34) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.32);
-      box-shadow:
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.48),
-        0 28px 72px rgba(3, 9, 20, 0.5);
-      backdrop-filter: blur(34px) saturate(185%); -webkit-backdrop-filter: blur(34px) saturate(185%);
-      color: #f8fafc; text-align: left; user-select: none;
-    }
-    .auth-mark strong { display: block; font-size: 20px; letter-spacing: -0.02em; line-height: 1.2; color: #ffffff; }
-    .auth-mark span { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5eead4; }
-    .glass-subcard {
-      padding: 14px 16px; border-radius: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-    }
-    .glass-subcard h3 { margin: 0 0 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #99f6e4; }
-    .glass-subcard p { margin: 0; font-size: 12px; line-height: 1.45; color: rgba(241, 245, 249, 0.88); }
-    .glass-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .glass-tag {
-      display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
-      background: rgba(15, 23, 42, 0.48); border: 1px solid rgba(255, 255, 255, 0.22);
-      font-size: 11px; font-weight: 600; color: #f8fafc;
-    }
-    .glass-uc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
-    .glass-uc-item {
-      padding: 6px 9px; border-radius: 10px; background: rgba(15, 23, 42, 0.42);
-      border: 1px solid rgba(255, 255, 255, 0.16); font-size: 11px; font-weight: 500; color: #e2e8f0;
-    }
     .auth-foot { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 2; text-align: center; color: rgba(226, 232, 240, 0.8); font-size: 12px; font-weight: 500; }
     .mark { width: 32px; height: 32px; background: var(--nav); border-radius: 6px; display: grid; place-items: center; flex: none; }
     .brand strong { font-size: 22px; font-weight: 700; }
     @media (max-width: 880px) {
-      .gate { grid-template-columns: 1fr; }
-      .auth-copy { margin: 0 auto; padding-right: 0; }
-      .auth-mark { display: none; }
+      .auth-copy { width: min(420px, 100%); }
     }
     label { display: block; margin: 12px 0 4px; font-size: 12px; color: var(--muted); }
     input[type="email"], input[type="password"], input[type="text"], input[type="tel"], input[type="search"] {
@@ -299,8 +250,7 @@
         linear-gradient(145deg, rgba(4, 9, 18, 0.86) 0%, rgba(9, 18, 32, 0.78) 50%, rgba(4, 10, 20, 0.9) 100%),
         url("/assets/satellite.jpg");
     }
-    html[data-theme="dark"] .auth-copy,
-    html[data-theme="dark"] .auth-mark {
+    html[data-theme="dark"] .auth-copy {
       background: linear-gradient(160deg, rgba(15, 23, 42, 0.68) 0%, rgba(15, 23, 42, 0.44) 100%);
       color: #f8fafc;
       border-color: rgba(255, 255, 255, 0.26);
@@ -310,15 +260,13 @@
         0 32px 80px rgba(0, 0, 0, 0.65);
     }
     html[data-theme="dark"] .gate h1,
-    html[data-theme="dark"] .auth-mark,
     html[data-theme="dark"] .auth-or,
     html[data-theme="dark"] .gate label { color: #f8fafc; }
     html[data-theme="dark"] .gate-lead,
     html[data-theme="dark"] .auth-note,
     html[data-theme="dark"] .gate form p,
     html[data-theme="dark"] .auth-foot { color: #94a3b8; }
-    html[data-theme="dark"] .brand-kicker,
-    html[data-theme="dark"] .auth-mark span { color: #2dd4bf; }
+    html[data-theme="dark"] .brand-kicker { color: #2dd4bf; }
     html[data-theme="dark"] .auth-or::before,
     html[data-theme="dark"] .auth-or::after { background: #1e293b; }
     html[data-theme="dark"] aside { background: #0d1321; color: #f8fafc; border-color: #1e293b; }
@@ -723,10 +671,6 @@
       <p class="brand-kicker"><span class="status-dot"></span> Nairobi Risk Mapping</p>
       <h1>Nairobi<br>Risk Mapping</h1>
       <p class="gate-lead">Parcel-level flood hazard &amp; structural deprivation decision support for Kibera, Mathare, and Mukuru.</p>
-      <div class="role-switch" role="group" aria-label="Select workspace role">
-        <button class="role-btn" id="role-planner" type="button" aria-pressed="true">City Planner</button>
-        <button class="role-btn" id="role-admin" type="button" aria-pressed="false">System Administrator</button>
-      </div>
       <p class="error" id="gate-error" role="alert"></p>
       <div class="auth-stack" id="auth-home">
         <button class="auth-pill auth-dark" id="show-phone" type="button">
@@ -820,30 +764,6 @@
         <p class="error" id="code-error" role="alert"></p>
       </form>
     </div>
-    <div class="auth-mark" aria-hidden="true">
-      <div>
-        <span>SETTLEMENT GOVERNANCE DSS · FOLIUM</span>
-        <strong>Equitable Flood &amp; Upgrading Intelligence</strong>
-      </div>
-      <div class="glass-subcard">
-        <h3>What This System Solves</h3>
-        <p>Informal settlements along Nairobi's river corridors face compounding pluvial flood hazard and infrastructure deprivation. Independent deep-learning heads prevent circular bias and protect residents via a strict late-fusion justice gate.</p>
-        <div class="glass-pills">
-          <span class="glass-tag"><span class="dot" style="background:#34d399"></span>Kibera · Mathare · Mukuru</span>
-          <span class="glass-tag"><span class="dot" style="background:#38bdf8"></span>U-Net Flood IoU 0.7201</span>
-          <span class="glass-tag"><span class="dot" style="background:#fbbf24"></span>GraphSAGE F1 0.8813</span>
-        </div>
-      </div>
-      <div class="glass-subcard">
-        <h3 id="gate-role-title">City Planner Use Cases</h3>
-        <div class="glass-uc-list" id="gate-role-list">
-          <div class="glass-uc-item">View parcel policy recommendations</div>
-          <div class="glass-uc-item">Inspect Grad-CAM Attention Overlays</div>
-          <div class="glass-uc-item">Review SHAP feature attribution charts</div>
-          <div class="glass-uc-item">Explore per parcel XAI recommendations</div>
-        </div>
-      </div>
-    </div>
     <div class="auth-foot">Nairobi Risk Mapping · Folium · Parcel coordinates remain locked behind MFA</div>
   </section>
 
@@ -894,7 +814,7 @@
             <img src="/assets/chart-muted.svg" alt="">
             Fusion engine
           </button>
-          <button class="nav-btn" id="nav-admin" type="button" aria-pressed="false">
+          <button class="nav-btn" id="nav-admin" type="button" aria-pressed="false" hidden>
             <img src="/assets/network.svg" alt="">
             Admin Console
           </button>
@@ -1575,7 +1495,7 @@
     let signedInUser = null;
     let pendingUser = null;
     let sessionToken = "";
-    let selectedRole = "planner";
+    let isElevatedAdmin = false;
     let loginChannel = "";
     let codeDeadline = 0;
     let codeTimer = null;
@@ -1916,8 +1836,18 @@
       }
     }
 
+    function setAdminNavVisible(visible) {
+      isElevatedAdmin = Boolean(visible);
+      const nav = document.getElementById("nav-admin");
+      if (nav) nav.hidden = !isElevatedAdmin;
+      if (!isElevatedAdmin) {
+        document.getElementById("analyst-role").textContent = "City Planner";
+      }
+    }
+
     function renderAdminStatus(data) {
       if (!data || !data.pipeline) return;
+      setAdminNavVisible(true);
       document.getElementById("admin-elevate-box").hidden = true;
       document.getElementById("admin-role-badge").textContent = "MFA + Admin Verified";
       document.getElementById("admin-role-badge").className = "stat-badge ok";
@@ -1972,21 +1902,23 @@
     async function loadAdminStatus(passcode) {
       const headers = await tokenHeader(auth && auth.currentUser);
       let response = await fetch("/api/admin/status", { headers });
-      if (response.status === 403) {
+      if (response.status === 403 && passcode) {
         const elevateHeaders = Object.assign({ "Content-Type": "application/json" }, headers);
         response = await fetch("/api/admin/elevate", {
           method: "POST",
           headers: elevateHeaders,
-          body: JSON.stringify({ passcode: passcode || "" }),
+          body: JSON.stringify({ passcode: passcode }),
         });
       }
       if (response.status === 403) {
-        document.getElementById("admin-elevate-box").hidden = false;
-        document.getElementById("admin-role-badge").textContent = "Passcode Required";
-        document.getElementById("admin-role-badge").className = "stat-badge warn";
+        setAdminNavVisible(false);
+        document.getElementById("admin-elevate-box").hidden = true;
         const errPayload = await response.json().catch(() => ({}));
         if (passcode) {
           document.getElementById("admin-elevate-error").textContent = errPayload.error || "Passcode rejected.";
+          document.getElementById("admin-elevate-box").hidden = false;
+          document.getElementById("admin-role-badge").textContent = "Passcode Required";
+          document.getElementById("admin-role-badge").className = "stat-badge warn";
         }
         return null;
       }
@@ -1994,6 +1926,16 @@
       const payload = await response.json();
       renderAdminStatus(payload);
       return payload;
+    }
+
+    async function revealAdminIfAuthorized() {
+      try {
+        const payload = await loadAdminStatus();
+        return Boolean(payload);
+      } catch (_err) {
+        setAdminNavVisible(false);
+        return false;
+      }
     }
 
     async function runAdminUseCase(useCase, button) {
@@ -2660,9 +2602,8 @@
       showMapLoading();
       await loadParcels(true);
       syncXaiParcelSelect();
-      if (selectedRole === "admin") {
-        await showAdmin();
-      }
+      setAdminNavVisible(false);
+      await revealAdminIfAuthorized();
       setTimeout(() => map && map.invalidateSize(), 50);
     }
 
@@ -3029,6 +2970,8 @@
       document.getElementById("app").classList.remove("on");
       document.getElementById("gate").hidden = false;
       document.getElementById("account-menu").hidden = true;
+      setAdminNavVisible(false);
+      document.getElementById("admin-view").hidden = true;
       freshCodeOk = false;
       sessionToken = "";
       pendingUser = null;
@@ -3095,42 +3038,6 @@
       const query = s && s !== "all" ? "?settlement=" + encodeURIComponent(s) : "";
       download("/api/map" + query, "folium-policy-map" + (s && s !== "all" ? "-" + s : "") + ".html");
     });
-    function selectGateRole(role) {
-      selectedRole = role === "admin" ? "admin" : "planner";
-      document.getElementById("role-planner").setAttribute("aria-pressed", selectedRole === "planner" ? "true" : "false");
-      document.getElementById("role-admin").setAttribute("aria-pressed", selectedRole === "admin" ? "true" : "false");
-      const title = document.getElementById("gate-role-title");
-      const list = document.getElementById("gate-role-list");
-      const items = selectedRole === "admin"
-        ? [
-            "Manage data pipeline",
-            "Acquire geospatial data",
-            "Preprocess data",
-            "Train model",
-            "Run model inference",
-            "Run decision engine",
-            "Generate Folium Dashboard outputs",
-            "Manage code and model versions",
-          ]
-        : [
-            "View parcel policy recommendations",
-            "Inspect Grad-CAM Attention Overlays",
-            "Review SHAP feature attribution charts",
-            "Explore per parcel XAI recommendations",
-          ];
-      if (title) title.textContent = selectedRole === "admin" ? "System Administrator Use Cases" : "City Planner Use Cases";
-      if (list) {
-        list.replaceChildren();
-        for (const text of items) {
-          const cell = document.createElement("div");
-          cell.className = "glass-uc-item";
-          cell.textContent = text;
-          list.append(cell);
-        }
-      }
-    }
-    document.getElementById("role-planner").addEventListener("click", () => selectGateRole("planner"));
-    document.getElementById("role-admin").addEventListener("click", () => selectGateRole("admin"));
     document.getElementById("nav-settings").addEventListener("click", showSettings);
     document.getElementById("open-profile").addEventListener("click", showProfile);
     document.getElementById("analyst-initials").addEventListener("click", showProfile);

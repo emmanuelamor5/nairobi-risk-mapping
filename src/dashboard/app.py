@@ -695,17 +695,15 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
                 configured_passcode = os.environ.get("ADMIN_PASSCODE", "").strip()
                 submitted_passcode = str(body.get("passcode") or "").strip()
                 allowed = admin_satisfied(claims, configured_emails)
-                if not allowed and configured_passcode:
+                if not allowed and configured_passcode and submitted_passcode:
                     allowed = secrets.compare_digest(submitted_passcode, configured_passcode)
-                elif not allowed and not configured_emails and not configured_passcode:
-                    allowed = True
                 if not allowed:
                     _json_response(
                         self,
                         403,
                         {
                             "ok": False,
-                            "error": "This account is not in ADMIN_EMAILS and the administrator passcode did not match.",
+                            "error": "Administrator access denied. Sign in with an ADMIN_EMAILS account or provide ADMIN_PASSCODE.",
                         },
                     )
                     return
