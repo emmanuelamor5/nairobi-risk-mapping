@@ -51,56 +51,150 @@
     img { display: block; }
     .gate {
       min-height: 100vh; height: 100vh; overflow: auto;
-      display: grid; grid-template-columns: minmax(340px, 1.1fr) minmax(280px, 0.9fr);
-      align-items: center; position: relative; padding: 32px 5vw 72px; color: #102033;
-      background:
-        radial-gradient(820px 480px at 12% 18%, rgba(72, 168, 150, 0.45), transparent 62%),
-        radial-gradient(640px 420px at 88% 78%, rgba(23, 50, 78, 0.28), transparent 60%),
-        linear-gradient(155deg, #e7f1f4 0%, #f7f4ef 48%, #d5e3ea 100%);
+      display: grid; grid-template-columns: minmax(360px, 1.05fr) minmax(320px, 0.95fr);
+      gap: 36px; align-items: center; position: relative; padding: 36px 5vw 76px; color: #f8fafc;
+      background-color: #07111e;
+      background-image:
+        radial-gradient(900px 540px at 14% 16%, rgba(20, 184, 166, 0.34), transparent 62%),
+        radial-gradient(780px 520px at 86% 80%, rgba(14, 165, 233, 0.32), transparent 64%),
+        linear-gradient(145deg, rgba(6, 15, 28, 0.78) 0%, rgba(10, 25, 41, 0.66) 50%, rgba(7, 18, 32, 0.84) 100%),
+        url("/assets/satellite.jpg");
+      background-size: cover;
+      background-position: center;
     }
     .gate::before {
       content: ""; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(180deg, rgba(255,255,255,0.28), transparent 30%, rgba(255,255,255,0.12));
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.16), transparent 48%),
+        linear-gradient(180deg, rgba(4, 10, 20, 0.25) 0%, rgba(4, 10, 20, 0.58) 100%);
     }
+    .gate-backdrop-svg {
+      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+      pointer-events: none; opacity: 0.78;
+    }
+    .gate-top-bar {
+      position: absolute; top: 20px; left: 5vw; right: 5vw; z-index: 3;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .gate-glass-chip {
+      display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px;
+      border-radius: 999px; font-size: 12px; font-weight: 600; color: #f8fafc;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 28px rgba(4, 10, 22, 0.32);
+      backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+    }
+    button.gate-glass-chip { cursor: pointer; transition: background 0.15s ease, transform 0.15s ease; }
+    button.gate-glass-chip:hover { background: rgba(255, 255, 255, 0.22); transform: translateY(-1px); }
     .auth-copy {
-      position: relative; width: min(460px, 100%); margin-left: auto; padding: 36px 32px 28px;
-      border-radius: 28px; background: rgba(255,255,255,0.46);
-      border: 1px solid rgba(255,255,255,0.72);
-      box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
-      backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+      position: relative; z-index: 2; width: min(468px, 100%); margin-left: auto; padding: 32px 32px 26px;
+      border-radius: 34px;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.11) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.65),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.16),
+        0 32px 80px rgba(3, 9, 20, 0.52);
+      backdrop-filter: blur(38px) saturate(190%); -webkit-backdrop-filter: blur(38px) saturate(190%);
+      color: #f8fafc;
     }
-    .brand-kicker { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.16em; color: #1d6b5a; }
-    .gate h1 { margin: 0 0 8px; font-size: clamp(42px, 4.4vw, 64px); line-height: 0.98; font-weight: 800; letter-spacing: -1.4px; color: #102033; }
-    .gate-lead { margin: 0 0 28px; color: #3d4d5c; font-size: 15px; line-height: 1.45; }
-    .auth-stack { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
-    .auth-pill { position: relative; width: 100%; height: 40px; border-radius: 999px; border: 1px solid #cfd9de; background: #fff; color: #0f1419; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 16px; transition: background 0.15s ease, border-color 0.15s ease; }
-    .auth-pill:hover:not(:disabled) { background: #f0f3f5; }
-    .auth-dark:hover:not(:disabled), .auth-continue:not(:disabled):hover { background: #272c30; }
+    .brand-kicker {
+      display: inline-flex; align-items: center; gap: 7px; margin: 0 0 10px;
+      padding: 4px 11px; border-radius: 999px;
+      background: rgba(45, 212, 191, 0.18); border: 1px solid rgba(94, 234, 212, 0.42);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #99f6e4;
+    }
+    .gate h1 { margin: 0 0 8px; font-size: clamp(36px, 3.8vw, 50px); line-height: 1.02; font-weight: 800; letter-spacing: -1.2px; color: #ffffff; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.28); }
+    .gate-lead { margin: 0 0 16px; color: rgba(241, 245, 249, 0.88); font-size: 14px; line-height: 1.5; }
+    .role-switch {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin: 0 0 18px;
+      border-radius: 16px; background: rgba(15, 23, 42, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+    }
+    .role-btn {
+      height: 34px; border: 0; border-radius: 12px; background: transparent; color: rgba(241, 245, 249, 0.78);
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s ease;
+    }
+    .role-btn[aria-pressed="true"] {
+      background: rgba(255, 255, 255, 0.92); color: #0f172a;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+    .auth-stack { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 11px; }
+    .auth-pill {
+      position: relative; width: 100%; height: 42px; border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.88); color: #0f172a;
+      font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      cursor: pointer; padding: 0 16px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 6px 18px rgba(4, 10, 22, 0.18);
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .auth-pill:hover:not(:disabled) { background: #ffffff; transform: translateY(-1px); }
+    .auth-dark:hover:not(:disabled), .auth-continue:not(:disabled):hover { filter: brightness(1.08); transform: translateY(-1px); }
     .auth-pill svg { flex: none; }
-    .auth-dark { background: #0f1419; color: #fff; border-color: #0f1419; }
-    .auth-continue { background: #eff3f4; color: #8b98a5; border-color: #eff3f4; cursor: default; }
-    .auth-continue:not(:disabled) { background: #0f1419; color: #fff; border-color: #0f1419; cursor: pointer; }
-    .auth-or { display: flex; align-items: center; gap: 12px; color: #0f1419; font-size: 15px; margin: 4px 0; }
-    .auth-or::before, .auth-or::after { content: ""; height: 1px; background: #eff3f4; flex: 1; }
+    .auth-dark {
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.95) 0%, rgba(2, 132, 199, 0.95) 100%);
+      color: #ffffff; border-color: rgba(255, 255, 255, 0.38);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 24px rgba(2, 132, 199, 0.34);
+    }
+    .auth-continue {
+      background: rgba(255, 255, 255, 0.18); color: rgba(241, 245, 249, 0.6);
+      border-color: rgba(255, 255, 255, 0.22); cursor: default; box-shadow: none;
+    }
+    .auth-continue:not(:disabled) {
+      background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%);
+      color: #fff; border-color: rgba(255, 255, 255, 0.4); cursor: pointer;
+    }
+    .auth-or { display: flex; align-items: center; gap: 12px; color: rgba(241, 245, 249, 0.8); font-size: 13px; font-weight: 600; margin: 2px 0; }
+    .auth-or::before, .auth-or::after { content: ""; height: 1px; background: rgba(255, 255, 255, 0.24); flex: 1; }
     .gate input[type="email"], .gate input[type="password"], .gate input[type="text"], .gate input[type="tel"] {
-      height: 56px; border-radius: 4px; border: 1px solid #cfd9de; padding: 0 12px; font-size: 17px; background: #fff;
+      height: 48px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.36);
+      padding: 0 14px; font-size: 15px; background: rgba(15, 23, 42, 0.46); color: #ffffff;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(12px);
     }
-    .gate input:focus { outline: none; border: 2px solid #1d9bf0; }
-    .gate label { margin: 4px 0 8px; font-size: 15px; font-weight: 700; color: #0f1419; }
-    .gate .error { color: #f4212e; min-height: 0; font-size: 13px; margin: 0 0 12px; }
+    .gate input::placeholder { color: rgba(226, 232, 240, 0.65); }
+    .gate input:focus { outline: none; border-color: #5eead4; box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.25); }
+    .gate label { margin: 4px 0 6px; font-size: 13px; font-weight: 700; color: #f8fafc; }
+    .gate .error { color: #fecdd3; background: rgba(225, 29, 72, 0.28); border: 1px solid rgba(251, 113, 133, 0.45); border-radius: 12px; padding: 8px 12px; min-height: 0; font-size: 12px; margin: 0 0 12px; }
     .gate .error:empty { display: none; }
-    .auth-note, .gate form p { margin: 0; color: #536471; font-size: 13px; line-height: 1.4; }
-    .auth-back { border: 0; background: transparent; color: #1d9bf0; padding: 0 0 8px; cursor: pointer; font-size: 15px; font-weight: 400; text-align: left; }
+    .auth-note, .gate form p { margin: 0; color: rgba(226, 232, 240, 0.82); font-size: 12px; line-height: 1.45; }
+    .auth-back { border: 0; background: transparent; color: #7dd3fc; padding: 0 0 6px; cursor: pointer; font-size: 13px; font-weight: 600; text-align: left; }
     .auth-mark {
-      position: relative; justify-self: center; width: min(280px, 70%); aspect-ratio: 1;
-      display: grid; place-items: center; border-radius: 36px;
-      background: rgba(255,255,255,0.38); border: 1px solid rgba(255,255,255,0.7);
-      box-shadow: 0 24px 60px rgba(16, 32, 51, 0.12);
-      backdrop-filter: blur(18px); color: #102033; text-align: center; user-select: none;
+      position: relative; z-index: 2; justify-self: start; width: min(460px, 100%);
+      display: flex; flex-direction: column; gap: 14px;
+      padding: 26px; border-radius: 34px;
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.56) 0%, rgba(15, 23, 42, 0.34) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.48),
+        0 28px 72px rgba(3, 9, 20, 0.5);
+      backdrop-filter: blur(34px) saturate(185%); -webkit-backdrop-filter: blur(34px) saturate(185%);
+      color: #f8fafc; text-align: left; user-select: none;
     }
-    .auth-mark strong { display: block; font-size: clamp(28px, 3vw, 40px); letter-spacing: -0.04em; line-height: 1; }
-    .auth-mark span { display: block; margin-top: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.12em; color: #1d6b5a; }
-    .auth-foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: #3d4d5c; font-size: 13px; }
+    .auth-mark strong { display: block; font-size: 20px; letter-spacing: -0.02em; line-height: 1.2; color: #ffffff; }
+    .auth-mark span { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5eead4; }
+    .glass-subcard {
+      padding: 14px 16px; border-radius: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    }
+    .glass-subcard h3 { margin: 0 0 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #99f6e4; }
+    .glass-subcard p { margin: 0; font-size: 12px; line-height: 1.45; color: rgba(241, 245, 249, 0.88); }
+    .glass-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .glass-tag {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+      background: rgba(15, 23, 42, 0.48); border: 1px solid rgba(255, 255, 255, 0.22);
+      font-size: 11px; font-weight: 600; color: #f8fafc;
+    }
+    .glass-uc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+    .glass-uc-item {
+      padding: 6px 9px; border-radius: 10px; background: rgba(15, 23, 42, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.16); font-size: 11px; font-weight: 500; color: #e2e8f0;
+    }
+    .auth-foot { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 2; text-align: center; color: rgba(226, 232, 240, 0.8); font-size: 12px; font-weight: 500; }
     .mark { width: 32px; height: 32px; background: var(--nav); border-radius: 6px; display: grid; place-items: center; flex: none; }
     .brand strong { font-size: 22px; font-weight: 700; }
     @media (max-width: 880px) {
@@ -198,16 +292,22 @@
     html[data-theme="dark"] .workspace,
     html[data-theme="dark"] .page { background: #090d16; color: #f8fafc; }
     html[data-theme="dark"] .gate {
-      background:
-        radial-gradient(880px 520px at 14% 18%, rgba(20, 184, 166, 0.28), transparent 62%),
-        radial-gradient(720px 460px at 86% 78%, rgba(14, 165, 233, 0.22), transparent 60%),
-        linear-gradient(155deg, #070b12 0%, #0f172a 54%, #111827 100%);
+      background-color: #040911;
+      background-image:
+        radial-gradient(900px 540px at 14% 16%, rgba(20, 184, 166, 0.32), transparent 62%),
+        radial-gradient(780px 520px at 86% 80%, rgba(14, 165, 233, 0.28), transparent 64%),
+        linear-gradient(145deg, rgba(4, 9, 18, 0.86) 0%, rgba(9, 18, 32, 0.78) 50%, rgba(4, 10, 20, 0.9) 100%),
+        url("/assets/satellite.jpg");
     }
     html[data-theme="dark"] .auth-copy,
     html[data-theme="dark"] .auth-mark {
-      background: rgba(17, 24, 39, 0.76); color: #f8fafc;
-      border-color: rgba(148, 163, 184, 0.22);
-      box-shadow: 0 28px 64px rgba(0, 0, 0, 0.55);
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.68) 0%, rgba(15, 23, 42, 0.44) 100%);
+      color: #f8fafc;
+      border-color: rgba(255, 255, 255, 0.26);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.42),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.12),
+        0 32px 80px rgba(0, 0, 0, 0.65);
     }
     html[data-theme="dark"] .gate h1,
     html[data-theme="dark"] .auth-mark,
@@ -533,6 +633,35 @@
     .path-note { margin-top: 12px; }
     .path-note strong { display: block; font-size: 11px; }
     .path-note p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+    .admin-card { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 12px 14px; min-height: 0; }
+    .admin-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .admin-card-head h2 { margin: 0; font-size: 13px; font-weight: 700; }
+    .admin-card .sub { margin-top: 2px; font-size: 11px; }
+    .admin-meta { font-size: 11px; color: var(--muted); line-height: 1.4; }
+    .admin-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 4px; }
+    .admin-kv-box { padding: 5px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 10px; }
+    .admin-kv-box span { display: block; color: var(--muted); font-size: 9px; }
+    .admin-kv-box strong { display: block; margin-top: 2px; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .admin-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px; }
+    .admin-controls .primary, .admin-controls .tool { height: 30px; padding: 0 11px; font-size: 11px; }
+    .admin-controls select, .admin-controls input[type="number"], .admin-controls input[type="password"] {
+      height: 30px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line);
+      background: var(--surface); color: var(--ink); font: inherit; font-size: 11px;
+    }
+    .admin-output {
+      padding: 6px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line);
+      border-left: 3px solid var(--green); font-size: 10.5px; color: var(--ink); line-height: 1.35;
+    }
+    .admin-audit-list { display: flex; flex-direction: column; gap: 4px; max-height: 52px; overflow: auto; margin-top: 4px; }
+    .admin-audit-row {
+      display: flex; justify-content: space-between; gap: 8px; padding: 4px 7px;
+      border-radius: 5px; background: var(--surface); border: 1px solid var(--line); font-size: 10px;
+    }
+    #admin-view .page-body { padding: 14px 22px 16px; gap: 11px; }
+    #admin-view .stat-row .panel { padding: 11px 14px; min-height: 82px; }
+    #admin-view .stat-row .big { font-size: 23px; margin: 6px 0 4px; }
+    @media (max-width: 1100px) { .admin-grid { grid-template-columns: 1fr; } }
     footer { min-height: 48px; display: flex; justify-content: space-between; gap: 16px; align-items: center; flex-wrap: wrap; padding: 8px 24px; background: var(--card); border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
     .totals { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
     .totals span { display: inline-flex; align-items: center; gap: 5px; }
@@ -552,10 +681,52 @@
 </head>
 <body>
   <section class="gate" id="gate">
+    <svg class="gate-backdrop-svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="riverFlood" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.32"/>
+          <stop offset="50%" stop-color="#14b8a6" stop-opacity="0.22"/>
+          <stop offset="100%" stop-color="#0284c7" stop-opacity="0.36"/>
+        </linearGradient>
+      </defs>
+      <!-- Topographic & hydrological contour lines representing Nairobi river basins -->
+      <path d="M-80,190 C320,120 620,290 1020,180 C1240,120 1380,210 1520,160" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="1.2" stroke-dasharray="6 6"/>
+      <path d="M-80,680 C260,610 590,770 980,640 C1220,560 1370,660 1520,610" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="1.2" stroke-dasharray="6 6"/>
+      <!-- 30m Riparian Flood Hazard Corridor along Ngong / Mathare River -->
+      <path d="M-60,520 C240,430 480,580 770,450 C1050,320 1240,460 1500,350 L1500,455 C1240,560 1050,420 770,545 C480,675 240,525 -60,615 Z" fill="url(#riverFlood)"/>
+      <path d="M-60,568 C240,478 480,628 770,498 C1050,368 1240,508 1500,402" fill="none" stroke="rgba(56,189,248,0.62)" stroke-width="2.5"/>
+      <!-- GraphSAGE Delaunay building adjacency mesh over informal settlement parcels -->
+      <g stroke="rgba(226,232,240,0.22)" stroke-width="1">
+        <line x1="190" y1="280" x2="275" y2="330"/><line x1="275" y1="330" x2="340" y2="270"/><line x1="275" y1="330" x2="310" y2="420"/>
+        <line x1="340" y1="270" x2="430" y2="325"/><line x1="310" y1="420" x2="430" y2="325"/><line x1="310" y1="420" x2="415" y2="495"/>
+        <line x1="880" y1="260" x2="965" y2="315"/><line x1="965" y1="315" x2="1060" y2="275"/><line x1="965" y1="315" x2="1015" y2="405"/>
+        <line x1="1015" y1="405" x2="1125" y2="370"/><line x1="1015" y1="405" x2="1090" y2="475"/><line x1="1125" y1="370" x2="1220" y2="430"/>
+      </g>
+      <g>
+        <circle cx="190" cy="280" r="5" fill="#34d399"/><circle cx="275" cy="330" r="5" fill="#fbbf24"/>
+        <circle cx="340" cy="270" r="5" fill="#34d399"/><circle cx="310" cy="420" r="6" fill="#38bdf8"/>
+        <circle cx="430" cy="325" r="5" fill="#fbbf24"/><circle cx="415" cy="495" r="6.5" fill="#fb7185"/>
+        <circle cx="880" cy="260" r="5" fill="#34d399"/><circle cx="965" cy="315" r="5" fill="#fbbf24"/>
+        <circle cx="1060" cy="275" r="5" fill="#34d399"/><circle cx="1015" cy="405" r="6.5" fill="#fb7185"/>
+        <circle cx="1125" cy="370" r="5.5" fill="#38bdf8"/><circle cx="1090" cy="475" r="6.5" fill="#fb7185"/>
+        <circle cx="1220" cy="430" r="5.5" fill="#38bdf8"/>
+      </g>
+    </svg>
+    <div class="gate-top-bar">
+      <div class="gate-glass-chip">
+        <span class="status-dot"></span>
+        Settlement Governance Decision Support System · Kibera, Mathare &amp; Mukuru
+      </div>
+      <button class="gate-glass-chip" id="gate-theme-toggle" type="button" aria-label="Toggle glass theme">Dark glass</button>
+    </div>
     <div class="auth-copy">
-      <p class="brand-kicker">Nairobi Risk Mapping</p>
+      <p class="brand-kicker"><span class="status-dot"></span> Nairobi Risk Mapping</p>
       <h1>Nairobi<br>Risk Mapping</h1>
-      <p class="gate-lead">Folium parcel policy for Kibera, Mathare, and Mukuru.</p>
+      <p class="gate-lead">Parcel-level flood hazard &amp; structural deprivation decision support for Kibera, Mathare, and Mukuru.</p>
+      <div class="role-switch" role="group" aria-label="Select workspace role">
+        <button class="role-btn" id="role-planner" type="button" aria-pressed="true">City Planner</button>
+        <button class="role-btn" id="role-admin" type="button" aria-pressed="false">System Administrator</button>
+      </div>
       <p class="error" id="gate-error" role="alert"></p>
       <div class="auth-stack" id="auth-home">
         <button class="auth-pill auth-dark" id="show-phone" type="button">
@@ -649,8 +820,31 @@
         <p class="error" id="code-error" role="alert"></p>
       </form>
     </div>
-    <div class="auth-mark" aria-hidden="true"><div><strong>Nairobi Risk Mapping</strong><span>FOLIUM</span></div></div>
-    <div class="auth-foot">Nairobi Risk Mapping · Folium</div>
+    <div class="auth-mark" aria-hidden="true">
+      <div>
+        <span>SETTLEMENT GOVERNANCE DSS · FOLIUM</span>
+        <strong>Equitable Flood &amp; Upgrading Intelligence</strong>
+      </div>
+      <div class="glass-subcard">
+        <h3>What This System Solves</h3>
+        <p>Informal settlements along Nairobi's river corridors face compounding pluvial flood hazard and infrastructure deprivation. Independent deep-learning heads prevent circular bias and protect residents via a strict late-fusion justice gate.</p>
+        <div class="glass-pills">
+          <span class="glass-tag"><span class="dot" style="background:#34d399"></span>Kibera · Mathare · Mukuru</span>
+          <span class="glass-tag"><span class="dot" style="background:#38bdf8"></span>U-Net Flood IoU 0.7201</span>
+          <span class="glass-tag"><span class="dot" style="background:#fbbf24"></span>GraphSAGE F1 0.8813</span>
+        </div>
+      </div>
+      <div class="glass-subcard">
+        <h3 id="gate-role-title">City Planner Use Cases</h3>
+        <div class="glass-uc-list" id="gate-role-list">
+          <div class="glass-uc-item">View parcel policy recommendations</div>
+          <div class="glass-uc-item">Inspect Grad-CAM Attention Overlays</div>
+          <div class="glass-uc-item">Review SHAP feature attribution charts</div>
+          <div class="glass-uc-item">Explore per parcel XAI recommendations</div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-foot">Nairobi Risk Mapping · Folium · Parcel coordinates remain locked behind MFA</div>
   </section>
 
   <div class="app" id="app">
@@ -700,6 +894,10 @@
             <img src="/assets/chart-muted.svg" alt="">
             Fusion engine
           </button>
+          <button class="nav-btn" id="nav-admin" type="button" aria-pressed="false">
+            <img src="/assets/network.svg" alt="">
+            Admin Console
+          </button>
           <button class="nav-btn" id="nav-settings" type="button">
             <img src="/assets/settings.svg" alt="">
             Settings
@@ -714,7 +912,7 @@
         <div class="avatar" id="analyst-initials">—</div>
         <div class="analyst-copy">
           <strong id="analyst-name">Signed in</strong>
-          <span>Policy Analyst</span>
+          <span id="analyst-role">City Planner</span>
         </div>
         <button class="icon-btn" id="analyst-menu" type="button" aria-label="Account menu" aria-expanded="false">
           <img src="/assets/ellipsis.svg" alt="">
@@ -950,6 +1148,229 @@
           </div>
         </div>
       </div>
+      <div class="page" id="admin-view" hidden>
+        <header class="top">
+          <div>
+            <h1>System Administrator Console</h1>
+            <div class="sub">Settlement Governance Decision Support System · Pipeline, Model &amp; Policy Engine Operations</div>
+          </div>
+          <div class="tools">
+            <span class="stat-badge ok" id="admin-role-badge">MFA + Admin Verified</span>
+            <button class="primary" id="admin-run-all" type="button" style="height:36px;padding:0 14px;font-size:12px;">Run All 8 Use Cases</button>
+            <button class="tool" id="admin-refresh" type="button">Refresh</button>
+            <button class="tool" id="quick-theme-admin" type="button" aria-label="Toggle dark mode">Dark mode</button>
+            <button class="tool" id="admin-back-map" type="button"><img src="/assets/arrow-left.svg" alt=""> Back to Map</button>
+          </div>
+        </header>
+        <div class="page-body">
+          <section class="panel" id="admin-elevate-box" hidden>
+            <div class="admin-card-head">
+              <div>
+                <h2>Administrator Session Elevation Required</h2>
+                <div class="sub">Enter the server administrator passcode to unlock System Administrator operations on this MFA session.</div>
+              </div>
+              <span class="stat-badge warn">Locked</span>
+            </div>
+            <div class="admin-controls" style="margin-top:10px;">
+              <input id="admin-passcode" type="password" placeholder="ADMIN_PASSCODE">
+              <button class="primary" id="admin-elevate-btn" type="button">Unlock Admin Console</button>
+              <span class="error" id="admin-elevate-error" role="alert"></span>
+            </div>
+          </section>
+          <div class="stat-row">
+            <div class="panel">
+              <div class="label"><span>Loaded Settlement Parcels</span><span class="stat-badge ok" id="admin-crs-badge">EPSG:32737</span></div>
+              <div class="big" id="admin-kpi-parcels">—</div>
+              <div class="stat-meter"><i style="width:100%"></i></div>
+              <div class="hint" id="admin-kpi-settlements">Kibera · Mathare · Mukuru</div>
+            </div>
+            <div class="panel">
+              <div class="label"><span>Attention U-Net Flood Head</span><span class="stat-badge ok">IoU ≥ 0.60</span></div>
+              <div class="big" id="admin-kpi-unet">0.7201</div>
+              <div class="stat-meter"><i style="width:72%"></i></div>
+              <div class="hint">Pooled IoU 0.7201 · Flood F1 0.8373 (target 0.75)</div>
+            </div>
+            <div class="panel">
+              <div class="label"><span>GraphSAGE Deprivation Head</span><span class="stat-badge ok">F1 ≥ 0.70</span></div>
+              <div class="big" id="admin-kpi-sage">0.8813</div>
+              <div class="stat-meter"><i style="width:88%"></i></div>
+              <div class="hint">Pooled Macro-F1 0.8813 · Kibera 0.9382</div>
+            </div>
+            <div class="panel">
+              <div class="label"><span>Late-Fusion Justice Gate</span><span class="stat-badge ok" id="admin-kpi-justice">Audit Passed</span></div>
+              <div class="big" id="admin-kpi-resettlements">—</div>
+              <div class="stat-meter"><i class="warn" style="width:50%" id="admin-kpi-thresh-bar"></i></div>
+              <div class="hint" id="admin-kpi-thresh-note">Flood ≥ 0.50 &amp; P(high) &gt; 0.50 · Lift 0.929</div>
+            </div>
+          </div>
+          <div class="admin-grid">
+            <section class="panel admin-card" data-admin-uc="manage_data_pipeline">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>1. Manage data pipeline</h2>
+                    <div class="sub">End-to-end orchestration of settlement graphs, raster stacks, and policy tables</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #1</span>
+                </div>
+                <div class="admin-kv">
+                  <div class="admin-kv-box"><span>Joined Features</span><strong id="admin-pipe-features">5 SUPI columns</strong></div>
+                  <div class="admin-kv-box"><span>Class Softmax</span><strong id="admin-pipe-proba">3-class vector</strong></div>
+                </div>
+              </div>
+              <div class="admin-output" id="out-manage_data_pipeline">Ready to verify settlement graph and policy table integrity.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="manage_data_pipeline">Verify Data Pipeline</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="acquire_geospatial_data">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>2. Acquire geospatial data</h2>
+                    <div class="sub">Sentinel-2 optical, Sentinel-1 SAR event bands, SRTM DEM/TWI &amp; OpenStreetMap</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #2</span>
+                </div>
+                <div class="admin-controls" style="margin-top:8px;">
+                  <select id="admin-acq-layout" aria-label="Stack layout">
+                    <option value="EVENT_S1_LAYOUT">EVENT_S1_LAYOUT (11 bands: S2 + S1 VV/VH + DEM/Slope/TWI)</option>
+                    <option value="DEFAULT_LAYOUT">DEFAULT_LAYOUT (9 bands: 6 Sentinel-2 + DEM/Slope/TWI)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="admin-output" id="out-acquire_geospatial_data">OSM layers: buildings, drinking_water, toilets_sanitation, road_network.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="acquire_geospatial_data">Acquire / Verify Manifest</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="preprocess_data">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>3. Preprocess data</h2>
+                    <div class="sub">128×128 raster tiling, flood label construction &amp; standardized SUPI node indicators</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #3</span>
+                </div>
+                <div class="admin-kv" id="admin-prep-stats">
+                  <div class="admin-kv-box"><span>Tile Geometry</span><strong>128×128 px (10m)</strong></div>
+                  <div class="admin-kv-box"><span>SUPI Indicators</span><strong>5 standardized (z)</strong></div>
+                </div>
+              </div>
+              <div class="admin-output" id="out-preprocess_data">Tertile settlement-relative deprivation binning (Low / Medium / High).</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="preprocess_data">Run Preprocessing Diagnostics</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="train_model">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>4. Train model</h2>
+                    <div class="sub">Independent training of GraphSAGE (deprivation) &amp; Attention U-Net (flood hazard)</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #4</span>
+                </div>
+                <div class="admin-controls" style="margin-top:8px;">
+                  <select id="admin-train-head" aria-label="Model head">
+                    <option value="both">Both Heads (GraphSAGE + Attention U-Net)</option>
+                    <option value="graphsage">GraphSAGE (2× SAGEConv, hidden=64, dropout=0.5)</option>
+                    <option value="attention_unet">Attention U-Net (base_channels=32, BCE+Dice)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="admin-output" id="out-train_model">Colab benchmarks: GraphSAGE Macro-F1 0.8813 · Attention U-Net IoU 0.7201 / F1 0.8373.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="train_model">Validate Checkpoints &amp; Training</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="run_model_inference">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>5. Run model inference</h2>
+                    <div class="sub">Execute flood probability &amp; 3-class deprivation softmax inference over settlement graphs</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #5</span>
+                </div>
+                <div class="admin-kv">
+                  <div class="admin-kv-box"><span>Mean Flood Hazard</span><strong id="admin-inf-flood">—</strong></div>
+                  <div class="admin-kv-box"><span>High-Hazard Parcels</span><strong id="admin-inf-high">—</strong></div>
+                </div>
+              </div>
+              <div class="admin-output" id="out-run_model_inference">Ready to evaluate per-parcel flood probability and deprivation softmax.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="run_model_inference">Run Model Inference</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="run_decision_engine">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>6. Run decision engine</h2>
+                    <div class="sub">2×3 late-fusion policy matrix with majority high-deprivation justice gate</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #6</span>
+                </div>
+                <div class="admin-controls" style="margin-top:8px;">
+                  <label style="margin:0;font-size:11px;">Flood ≥ <input id="admin-flood-thresh" type="number" min="0.1" max="0.9" step="0.05" value="0.50" style="width:68px;"></label>
+                  <label style="margin:0;font-size:11px;">P(high) &gt; <input id="admin-dep-gate" type="number" min="0.35" max="0.9" step="0.05" value="0.50" style="width:68px;"></label>
+                  <label style="margin:0;font-size:11px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+                    <input id="admin-apply-policy" type="checkbox" checked> Apply to live map
+                  </label>
+                </div>
+              </div>
+              <div class="admin-output" id="out-run_decision_engine">Justice gate requires both High Flood Hazard and P(high deprivation) &gt; 0.50.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="run_decision_engine">Run Decision Engine</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="generate_folium_outputs">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>7. Generate Folium Dashboard outputs</h2>
+                    <div class="sub">Build interactive Folium choropleth HTML maps and policy summary JSON artifacts</div>
+                  </div>
+                  <span class="stat-badge ok">Use Case #7</span>
+                </div>
+                <div class="admin-controls" style="margin-top:8px;">
+                  <select id="admin-export-settlement" aria-label="Export settlement">
+                    <option value="all">All settlements</option>
+                    <option value="kibera">Kibera</option>
+                    <option value="mathare">Mathare</option>
+                    <option value="mukuru">Mukuru</option>
+                  </select>
+                </div>
+              </div>
+              <div class="admin-output" id="out-generate_folium_outputs">Generates standalone Folium HTML and policy-counts.json for planners.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="generate_folium_outputs">Generate Folium Outputs</button>
+                <button class="tool" id="admin-download-folium" type="button">Download Folium HTML</button>
+              </div>
+            </section>
+            <section class="panel admin-card" data-admin-uc="manage_versions">
+              <div>
+                <div class="admin-card-head">
+                  <div>
+                    <h2>8. Manage code and model versions</h2>
+                    <div class="sub">Git branch/commit tracking, StackLayout schema &amp; administrator audit trail</div>
+                  </div>
+                  <span class="stat-badge ok" id="admin-ver-git">main</span>
+                </div>
+                <div class="admin-audit-list" id="admin-audit-log">
+                  <div class="admin-audit-row"><span>System initialized</span><span>graphsage_best.pt · attention_unet_best.pt</span></div>
+                </div>
+              </div>
+              <div class="admin-output" id="out-manage_versions">Tracks code revision, model checkpoints, and administrator operations.</div>
+              <div class="admin-controls">
+                <button class="primary" type="button" data-run-uc="manage_versions">Verify Code &amp; Model Versions</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
       <div class="page" id="graphsage-view" hidden>
         <header class="top">
           <div>
@@ -1154,6 +1575,7 @@
     let signedInUser = null;
     let pendingUser = null;
     let sessionToken = "";
+    let selectedRole = "planner";
     let loginChannel = "";
     let codeDeadline = 0;
     let codeTimer = null;
@@ -1229,12 +1651,17 @@
       const on = theme === "dark";
       toggle.classList.toggle("on", on);
       toggle.setAttribute("aria-checked", on ? "true" : "false");
-      for (const id of ["quick-theme-map", "quick-theme-xai"]) {
+      for (const id of ["quick-theme-map", "quick-theme-xai", "quick-theme-admin"]) {
         const btn = document.getElementById(id);
         if (btn) {
           btn.textContent = on ? "Light mode" : "Dark mode";
           btn.setAttribute("aria-pressed", on ? "true" : "false");
         }
+      }
+      const gateThemeBtn = document.getElementById("gate-theme-toggle");
+      if (gateThemeBtn) {
+        gateThemeBtn.textContent = on ? "Light glass" : "Dark glass";
+        gateThemeBtn.setAttribute("aria-pressed", on ? "true" : "false");
       }
       if (document.getElementById("app").classList.contains("on") && map) {
         drawLegend();
@@ -1391,14 +1818,14 @@
     }
 
     function hideSidePages() {
-      for (const id of ["settings-view", "profile-view", "history-view", "graphsage-view", "unet-view", "fusion-view"]) {
-        document.getElementById(id).hidden = true;
+      for (const id of ["settings-view", "profile-view", "history-view", "graphsage-view", "unet-view", "fusion-view", "admin-view"]) {
+        const el = document.getElementById(id);
+        if (el) el.hidden = true;
       }
-      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-config").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-fusion").setAttribute("aria-pressed", "false");
+      for (const id of ["nav-settings", "nav-history", "nav-config", "nav-unet", "nav-fusion", "nav-admin"]) {
+        const btn = document.getElementById(id);
+        if (btn) btn.setAttribute("aria-pressed", "false");
+      }
     }
 
     function showModel(viewId, buttonId) {
@@ -1445,15 +1872,10 @@
     function showSettings() {
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.remove("on");
-      document.getElementById("profile-view").hidden = true;
-      document.getElementById("history-view").hidden = true;
-      document.getElementById("graphsage-view").hidden = true;
-      document.getElementById("unet-view").hidden = true;
-      document.getElementById("fusion-view").hidden = true;
+      hideSidePages();
       document.getElementById("settings-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
       document.getElementById("nav-settings").setAttribute("aria-pressed", "true");
       document.querySelector("#nav-map .when-on").hidden = true;
       document.querySelector("#nav-map .when-off").hidden = false;
@@ -1464,17 +1886,10 @@
     function showHistory() {
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.remove("on");
-      document.getElementById("settings-view").hidden = true;
-      document.getElementById("profile-view").hidden = true;
-      document.getElementById("graphsage-view").hidden = true;
-      document.getElementById("unet-view").hidden = true;
-      document.getElementById("fusion-view").hidden = true;
+      hideSidePages();
       document.getElementById("history-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-config").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-unet").setAttribute("aria-pressed", "false");
       document.getElementById("nav-history").setAttribute("aria-pressed", "true");
       document.querySelector("#nav-map .when-on").hidden = true;
       document.querySelector("#nav-map .when-off").hidden = false;
@@ -1488,16 +1903,10 @@
       document.getElementById("account-menu").hidden = true;
       document.getElementById("map-view").hidden = true;
       document.getElementById("xai-view").classList.remove("on");
-      document.getElementById("settings-view").hidden = true;
-      document.getElementById("history-view").hidden = true;
-      document.getElementById("graphsage-view").hidden = true;
-      document.getElementById("unet-view").hidden = true;
-      document.getElementById("fusion-view").hidden = true;
-      document.getElementById("nav-history").setAttribute("aria-pressed", "false");
+      hideSidePages();
       document.getElementById("profile-view").hidden = false;
       document.getElementById("nav-map").setAttribute("aria-pressed", "false");
       document.getElementById("nav-xai").setAttribute("aria-pressed", "false");
-      document.getElementById("nav-settings").setAttribute("aria-pressed", "false");
       if (signedInUser) {
         paintAvatar(signedInUser);
         document.getElementById("profile-email").textContent = signedInUser.email || signedInUser.phoneNumber || "Signed in";
@@ -1505,6 +1914,126 @@
           ? "Current number: " + signedInUser.phoneNumber
           : "No phone number on this account yet.";
       }
+    }
+
+    function renderAdminStatus(data) {
+      if (!data || !data.pipeline) return;
+      document.getElementById("admin-elevate-box").hidden = true;
+      document.getElementById("admin-role-badge").textContent = "MFA + Admin Verified";
+      document.getElementById("admin-role-badge").className = "stat-badge ok";
+      document.getElementById("analyst-role").textContent = "System Administrator";
+      document.getElementById("admin-crs-badge").textContent = data.pipeline.pos_crs || "EPSG:4326";
+      document.getElementById("admin-kpi-parcels").textContent = Number(data.pipeline.total_parcels || 0).toLocaleString();
+      const sNames = (data.pipeline.settlements || []).map(titleCase).join(" · ");
+      if (sNames) document.getElementById("admin-kpi-settlements").textContent = sNames;
+      if (data.training && data.training.attention_unet) {
+        document.getElementById("admin-kpi-unet").textContent = Number(data.training.attention_unet.pooled_iou).toFixed(4);
+      }
+      if (data.training && data.training.graphsage) {
+        document.getElementById("admin-kpi-sage").textContent = Number(data.training.graphsage.pooled_val_macro_f1).toFixed(4);
+      }
+      if (data.decision_engine) {
+        const resCount = data.decision_engine.action_counts && data.decision_engine.action_counts.compensated_resettlement;
+        document.getElementById("admin-kpi-resettlements").textContent = (resCount != null ? resCount : 0) + " resettlements";
+        const ft = Number(data.decision_engine.flood_threshold || 0.5).toFixed(2);
+        const mg = Number(data.decision_engine.majority_gate || 0.5).toFixed(2);
+        document.getElementById("admin-kpi-thresh-note").textContent = "Flood ≥ " + ft + " & P(high) > " + mg + " · Lift " + data.decision_engine.river_corridor_lift;
+        document.getElementById("admin-flood-thresh").value = ft;
+        document.getElementById("admin-dep-gate").value = mg;
+      }
+      if (data.inference) {
+        document.getElementById("admin-inf-flood").textContent = data.inference.mean_flood_proba != null ? Number(data.inference.mean_flood_proba).toFixed(3) : "—";
+        document.getElementById("admin-inf-high").textContent = String(data.inference.high_hazard_parcels || 0);
+      }
+      if (data.versions) {
+        document.getElementById("admin-ver-git").textContent = (data.versions.git_branch || "main") + " @ " + (data.versions.git_commit || "HEAD");
+        const logBox = document.getElementById("admin-audit-log");
+        if (logBox && Array.isArray(data.versions.audit_log) && data.versions.audit_log.length) {
+          logBox.replaceChildren();
+          for (const entry of data.versions.audit_log) {
+            const row = document.createElement("div");
+            row.className = "admin-audit-row";
+            const left = document.createElement("span");
+            left.textContent = entry.use_case + " — " + entry.summary;
+            const right = document.createElement("span");
+            right.style.color = "var(--muted)";
+            right.textContent = entry.timestamp;
+            row.append(left, right);
+            logBox.append(row);
+          }
+        }
+      }
+      if (data.executed_use_case && data.message) {
+        const out = document.getElementById("out-" + data.executed_use_case);
+        if (out) out.textContent = data.message;
+      }
+    }
+
+    async function loadAdminStatus(passcode) {
+      const headers = await tokenHeader(auth && auth.currentUser);
+      let response = await fetch("/api/admin/status", { headers });
+      if (response.status === 403) {
+        const elevateHeaders = Object.assign({ "Content-Type": "application/json" }, headers);
+        response = await fetch("/api/admin/elevate", {
+          method: "POST",
+          headers: elevateHeaders,
+          body: JSON.stringify({ passcode: passcode || "" }),
+        });
+      }
+      if (response.status === 403) {
+        document.getElementById("admin-elevate-box").hidden = false;
+        document.getElementById("admin-role-badge").textContent = "Passcode Required";
+        document.getElementById("admin-role-badge").className = "stat-badge warn";
+        const errPayload = await response.json().catch(() => ({}));
+        if (passcode) {
+          document.getElementById("admin-elevate-error").textContent = errPayload.error || "Passcode rejected.";
+        }
+        return null;
+      }
+      if (!response.ok) return null;
+      const payload = await response.json();
+      renderAdminStatus(payload);
+      return payload;
+    }
+
+    async function runAdminUseCase(useCase, button) {
+      return runBusy(button, async () => {
+        const headers = await tokenHeader(auth && auth.currentUser);
+        headers["Content-Type"] = "application/json";
+        const params = {};
+        if (useCase === "acquire_geospatial_data") {
+          params.layout = document.getElementById("admin-acq-layout").value;
+        } else if (useCase === "train_model") {
+          params.model = document.getElementById("admin-train-head").value;
+        } else if (useCase === "run_decision_engine") {
+          params.flood_threshold = Number(document.getElementById("admin-flood-thresh").value || 0.5);
+          params.majority_gate = Number(document.getElementById("admin-dep-gate").value || 0.5);
+          params.apply = document.getElementById("admin-apply-policy").checked;
+        } else if (useCase === "generate_folium_outputs") {
+          params.settlement = document.getElementById("admin-export-settlement").value;
+        }
+        const response = await fetch("/api/admin/action", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ use_case: useCase, params }),
+        });
+        if (response.status === 403) {
+          await loadAdminStatus();
+          return;
+        }
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok) {
+          renderAdminStatus(payload);
+          if (useCase === "run_decision_engine" && params.apply) {
+            await loadParcels(false);
+          }
+        }
+      });
+    }
+
+    async function showAdmin() {
+      showModel("admin-view", "nav-admin");
+      await loadAdminStatus();
     }
 
     function renderClasses(detail, titleId, tagId, rowId, noteId) {
@@ -2131,6 +2660,9 @@
       showMapLoading();
       await loadParcels(true);
       syncXaiParcelSelect();
+      if (selectedRole === "admin") {
+        await showAdmin();
+      }
       setTimeout(() => map && map.invalidateSize(), 50);
     }
 
@@ -2533,6 +3065,72 @@
     document.getElementById("nav-config").addEventListener("click", () => showModel("graphsage-view", "nav-config"));
     document.getElementById("nav-unet").addEventListener("click", () => showModel("unet-view", "nav-unet"));
     document.getElementById("nav-fusion").addEventListener("click", () => showModel("fusion-view", "nav-fusion"));
+    document.getElementById("nav-admin").addEventListener("click", showAdmin);
+    document.getElementById("admin-back-map").addEventListener("click", showMap);
+    document.getElementById("admin-refresh").addEventListener("click", () => runBusy(document.getElementById("admin-refresh"), () => loadAdminStatus()));
+    document.getElementById("admin-elevate-btn").addEventListener("click", () => runBusy(document.getElementById("admin-elevate-btn"), async () => {
+      document.getElementById("admin-elevate-error").textContent = "";
+      await loadAdminStatus(document.getElementById("admin-passcode").value);
+    }));
+    for (const btn of document.querySelectorAll("[data-run-uc]")) {
+      btn.addEventListener("click", () => runAdminUseCase(btn.dataset.runUc, btn));
+    }
+    document.getElementById("admin-run-all").addEventListener("click", () => runBusy(document.getElementById("admin-run-all"), async () => {
+      const order = [
+        "manage_data_pipeline",
+        "acquire_geospatial_data",
+        "preprocess_data",
+        "train_model",
+        "run_model_inference",
+        "run_decision_engine",
+        "generate_folium_outputs",
+        "manage_versions",
+      ];
+      for (const uc of order) {
+        await runAdminUseCase(uc, null);
+      }
+    }));
+    document.getElementById("admin-download-folium").addEventListener("click", () => {
+      const s = document.getElementById("admin-export-settlement").value;
+      const query = s && s !== "all" ? "?settlement=" + encodeURIComponent(s) : "";
+      download("/api/map" + query, "folium-policy-map" + (s && s !== "all" ? "-" + s : "") + ".html");
+    });
+    function selectGateRole(role) {
+      selectedRole = role === "admin" ? "admin" : "planner";
+      document.getElementById("role-planner").setAttribute("aria-pressed", selectedRole === "planner" ? "true" : "false");
+      document.getElementById("role-admin").setAttribute("aria-pressed", selectedRole === "admin" ? "true" : "false");
+      const title = document.getElementById("gate-role-title");
+      const list = document.getElementById("gate-role-list");
+      const items = selectedRole === "admin"
+        ? [
+            "Manage data pipeline",
+            "Acquire geospatial data",
+            "Preprocess data",
+            "Train model",
+            "Run model inference",
+            "Run decision engine",
+            "Generate Folium Dashboard outputs",
+            "Manage code and model versions",
+          ]
+        : [
+            "View parcel policy recommendations",
+            "Inspect Grad-CAM Attention Overlays",
+            "Review SHAP feature attribution charts",
+            "Explore per parcel XAI recommendations",
+          ];
+      if (title) title.textContent = selectedRole === "admin" ? "System Administrator Use Cases" : "City Planner Use Cases";
+      if (list) {
+        list.replaceChildren();
+        for (const text of items) {
+          const cell = document.createElement("div");
+          cell.className = "glass-uc-item";
+          cell.textContent = text;
+          list.append(cell);
+        }
+      }
+    }
+    document.getElementById("role-planner").addEventListener("click", () => selectGateRole("planner"));
+    document.getElementById("role-admin").addEventListener("click", () => selectGateRole("admin"));
     document.getElementById("nav-settings").addEventListener("click", showSettings);
     document.getElementById("open-profile").addEventListener("click", showProfile);
     document.getElementById("analyst-initials").addEventListener("click", showProfile);
@@ -2544,6 +3142,8 @@
     document.getElementById("dark-mode").addEventListener("click", toggleTheme);
     document.getElementById("quick-theme-map").addEventListener("click", toggleTheme);
     document.getElementById("quick-theme-xai").addEventListener("click", toggleTheme);
+    document.getElementById("quick-theme-admin").addEventListener("click", toggleTheme);
+    document.getElementById("gate-theme-toggle").addEventListener("click", toggleTheme);
     document.getElementById("avatar-file").addEventListener("change", (event) => {
       const file = event.target.files && event.target.files[0];
       if (!file || !signedInUser) return;

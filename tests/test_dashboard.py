@@ -16,8 +16,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.dashboard.app import make_handler, render_shell
-from src.dashboard.auth_gate import bearer_token, mfa_satisfied
+from src.dashboard.app import ADMIN_USE_CASES, make_handler, render_shell
+from src.dashboard.auth_gate import admin_satisfied, bearer_token, mfa_satisfied
 from src.dashboard.map_view import action_counts, build_policy_map, parcel_rows, to_lonlat
 from src.models.attention_unet import AttentionUNet
 from src.models.attention_unet_model import AttentionUNetModel
@@ -325,6 +325,93 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
             raise AssertionError("asset paths must stay inside the asset directory")
         except HTTPError as exc:
             assert exc.code == 404
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_admin_console_enforces_mfa_and_executes_all_eight_use_cases(monkeypatch):
+    assert not admin_satisfied({"admin": True, "firebase": {"sign_in_provider": "password"}})
+    assert admin_satisfied({"admin": True, "firebase": {"sign_in_second_factor": "totp"}})
+    assert admin_satisfied(
+        {"email": "Admin@Example.com", "firebase": {"sign_in_second_factor": "phone"}},
+        admin_emails={"admin@example.com"},
+    )
+
+    monkeypatch.setenv("ADMIN_PASSCODE", "nairobi-secret-2026")
+    html = render_shell({"apiKey": "test", "authDomain": "t.firebaseapp.com", "projectId": "t"}, ["kibera"])
+    for title in (
+        "City Planner",
+        "System Administrator",
+        "Manage data pipeline",
+        "Acquire geospatial data",
+        "Preprocess data",
+        "Train model",
+        "Run model inference",
+        "Run decision engine",
+        "Generate Folium Dashboard outputs",
+        "Manage code and model versions",
+    ):
+        assert title in html
+
+    def verifier(token):
+        if token == "planner-mfa":
+            return {"user_id": "planner-1", "email": "planner@example.com", "firebase": {"sign_in_second_factor": "totp"}}
+        if token == "password-only":
+            return {"user_id": "planner-1", "email": "planner@example.com", "firebase": {"sign_in_provider": "password"}}
+        raise ValueError("rejected")
+
+    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=verifier)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        try:
+            urlopen(Request(base + "/api/admin/status", headers={"Authorization": "Bearer password-only"}))
+            raise AssertionError("password-only session must be refused")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        try:
+            urlopen(Request(base + "/api/admin/status", headers={"Authorization": "Bearer planner-mfa"}))
+            raise AssertionError("un-elevated planner session must be refused when ADMIN_PASSCODE is set")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        bad_elevate = Request(
+            base + "/api/admin/elevate",
+            data=json.dumps({"passcode": "wrong"}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer planner-mfa"},
+            method="POST",
+        )
+        try:
+            urlopen(bad_elevate)
+            raise AssertionError("wrong passcode must be rejected")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        good_elevate = Request(
+            base + "/api/admin/elevate",
+            data=json.dumps({"passcode": "nairobi-secret-2026"}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer planner-mfa"},
+            method="POST",
+        )
+        status_payload = json.loads(urlopen(good_elevate).read().decode())
+        assert status_payload["role"] == "system_administrator"
+        assert tuple(status_payload["use_cases"]) == ADMIN_USE_CASES
+
+        for use_case in ADMIN_USE_CASES:
+            action_req = Request(
+                base + "/api/admin/action",
+                data=json.dumps({"use_case": use_case, "params": {"apply": True}}).encode(),
+                headers={"Content-Type": "application/json", "Authorization": "Bearer planner-mfa"},
+                method="POST",
+            )
+            result = json.loads(urlopen(action_req).read().decode())
+            assert result["ok"] is True
+            assert result["executed_use_case"] == use_case
+            assert result["message"]
     finally:
         server.shutdown()
         server.server_close()
