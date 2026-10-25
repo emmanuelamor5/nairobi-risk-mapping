@@ -4,13 +4,22 @@ ranges, and preprocessing constants.
 
 IMPORTANT: The fallback bounding boxes below are approximate centroids
 pulled from open reference sources, buffered by ~1.5km, NOT authoritative
-settlement boundaries. For anything beyond MVP prototyping, replace
-SETTLEMENTS[*]['fallback_bbox'] with a digitized boundary (e.g. from
-Map Kibera, KISIP II shapefiles, or the NCC planning department) and feed
-it in as `custom_boundary_path` in DataPipeline. The pipeline defaults to
-resolving boundaries live via OSM (Nominatim) through osmnx, which is more
-reliable than any hardcoded box but still depends on OSM's admin polygon
-coverage being complete for these areas -- verify visually before training.
+settlement boundaries. For anything beyond MVP prototyping, supply a
+digitized boundary (e.g. from Map Kibera, KISIP II shapefiles, the Mukuru
+SPA gazette map, or the NCC planning department). Two ways to do that:
+
+  * drop the file at ``data/boundaries/<settlement_key>.geojson`` (any
+    format geopandas can read; see BOUNDARY_DIR) -- every DataPipeline and
+    notebook picks it up automatically, or
+  * pass ``DataPipeline(..., boundary_path="...")`` explicitly.
+
+Only when neither exists does the pipeline resolve boundaries live via OSM
+(Nominatim) through osmnx, which is more reliable than any hardcoded box but
+still depends on OSM's place-polygon coverage being complete for these
+areas, and finally falls back to ``fallback_bbox``. Whichever source wins,
+``DataPipeline.get_boundary`` writes the polygon it used to
+``data/raw/<settlement_key>_boundary_used.geojson`` -- open it over
+satellite imagery before training.
 """
 
 import os
@@ -227,3 +236,16 @@ RAW_DIR = f"{DATA_ROOT}/raw"
 STACKS_DIR = f"{DATA_ROOT}/raster_stacks"
 TILES_DIR = f"{DATA_ROOT}/tiles"
 GRAPHS_DIR = f"{DATA_ROOT}/graphs"
+# Digitized settlement boundaries. A file named <settlement_key>.<ext> here
+# (GeoJSON, GeoPackage, or zipped/unzipped shapefile) overrides OSM geocoding
+# and the fallback bbox for that settlement. Multi-feature files are
+# dissolved to one polygon so village-level layers work as-is.
+BOUNDARY_DIR = f"{DATA_ROOT}/boundaries"
+BOUNDARY_FILE_EXTENSIONS = (".geojson", ".json", ".gpkg", ".shp", ".zip")
+# Sanity window for a supplied boundary, in km^2. Outside it the pipeline
+# still uses the file but warns loudly: Mukuru's SPA is ~6.5 km^2, Kibera's
+# core ~2.5 km^2, so anything above this is almost certainly a ward or a
+# whole sub-county rather than the settlement.
+BOUNDARY_PLAUSIBLE_KM2 = (0.1, 50.0)
+# Window for an OSM-geocoded place polygon before we fall back to the bbox.
+OSM_BOUNDARY_PLAUSIBLE_KM2 = (0.1, 20.0)

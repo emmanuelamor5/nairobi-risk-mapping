@@ -33,7 +33,15 @@ logger = logging.getLogger(__name__)
 
 
 class DataPipeline:
-    def __init__(self, settlement_key: str, gee_project_id: str = None, data_root: str = None):
+    def __init__(self, settlement_key: str, gee_project_id: str = None, data_root: str = None,
+                 boundary_path: str = None):
+        """
+        ``boundary_path`` points at a digitized settlement polygon (GeoJSON,
+        GeoPackage, shapefile). When omitted, the pipeline looks for
+        ``data/boundaries/<settlement_key>.<ext>`` next to the data root
+        before resorting to OSM geocoding and the config bbox -- so dropping
+        a file in that folder fixes the boundary for every notebook at once.
+        """
         if settlement_key not in config.SETTLEMENTS:
             raise ValueError(
                 f"Unknown settlement '{settlement_key}'. Options: {list(config.SETTLEMENTS)}"
@@ -46,6 +54,11 @@ class DataPipeline:
         for d in [config.RAW_DIR, config.STACKS_DIR, config.TILES_DIR, config.GRAPHS_DIR]:
             (self.data_root.parent / d).mkdir(parents=True, exist_ok=True)
 
+        if boundary_path is None:
+            boundary_path = graph_utils.default_boundary_path(
+                settlement_key, data_parent=self.data_root.parent
+            )
+        self.boundary_path = Path(boundary_path) if boundary_path is not None else None
         self._boundary = None
         self._ee_initialized = False
 
@@ -53,10 +66,58 @@ class DataPipeline:
     # Boundary resolution
     # ------------------------------------------------------------------ #
     def get_boundary(self):
+        """
+        Resolve (once) and return the settlement boundary as a one-row WGS84
+        GeoDataFrame. The polygon actually used is also written to
+        ``data/raw/<settlement_key>_boundary_used.geojson`` so it can be
+        checked against satellite imagery before any training run.
+        """
         if self._boundary is None:
             logger.info("Resolving boundary for %s", self.settlement.name)
-            self._boundary = graph_utils.fetch_settlement_boundary(self.settlement_key)
+            self._boundary = graph_utils.fetch_settlement_boundary(
+                self.settlement_key, boundary_path=self.boundary_path
+            )
+            source = self.boundary_source
+            logger.info(
+                "Boundary for %s from %s (%.2f km^2)%s",
+                self.settlement.name, source,
+                graph_utils.boundary_area_km2(self._boundary),
+                f": {self.boundary_path}" if source == "file" else "",
+            )
+            if source != "file":
+                logger.warning(
+                    "Boundary for %s is the %s polygon, not a digitized settlement "
+                    "boundary. Place one at %s/%s.geojson to override it.",
+                    self.settlement.name, source, config.BOUNDARY_DIR, self.settlement_key,
+                )
+            self._write_boundary_used()
         return self._boundary
+
+    @property
+    def boundary_source(self) -> str:
+        """``file`` / ``osm`` / ``bbox`` once the boundary has been resolved."""
+        if self._boundary is None:
+            return "unresolved"
+        if "boundary_source" in self._boundary.columns:
+            return str(self._boundary["boundary_source"].iloc[0])
+        return "osm"
+
+    @property
+    def boundary_used_path(self) -> Path:
+        return (
+            self.data_root.parent / config.RAW_DIR
+            / f"{self.settlement_key}_boundary_used.geojson"
+        )
+
+    def _write_boundary_used(self):
+        try:
+            out = self._boundary[["geometry"]].copy()
+            out["name"] = self.settlement.name
+            out["boundary_source"] = self.boundary_source
+            out["boundary_path"] = str(self.boundary_path) if self.boundary_path else ""
+            out.to_file(self.boundary_used_path, driver="GeoJSON")
+        except Exception as exc:  # inspection aid only; never block the pipeline
+            logger.warning("Could not write boundary snapshot: %s", exc)
 
     # ------------------------------------------------------------------ #
     # Raster branch (feeds the Attention U-Net)
