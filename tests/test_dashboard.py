@@ -49,6 +49,93 @@ def test_mfa_claim_requires_a_second_factor():
     assert not mfa_satisfied({})
     assert bearer_token("Bearer abc.def") == "abc.def"
     assert bearer_token("Basic abc") == ""
+    assert mfa_satisfied({"firebase": {"sign_in_provider": "emailLink"}})
+
+
+def test_email_link_sign_in_is_bound_to_the_inbox():
+    from src.dashboard.app import consume_email_link_nonce, issue_email_link_nonce
+
+    nonce = issue_email_link_nonce("Planner@Example.com", now=1_000.0)
+    assert consume_email_link_nonce(nonce, "other@example.com", now=1_010.0)[0] is False
+    assert consume_email_link_nonce(nonce, "planner@example.com", now=1_000.0 + 3601)[0] is False
+    fresh = issue_email_link_nonce("planner@example.com", now=2_000.0)
+    assert consume_email_link_nonce(fresh, "planner@example.com", now=2_100.0)[0] is True
+    assert consume_email_link_nonce(fresh, "planner@example.com", now=2_101.0)[0] is False
+
+    html = render_shell({}, ["kibera"])
+    assert "sendSignInLinkToEmail" in html
+    assert "isSignInWithEmailLink" in html
+    assert "signInWithEmailLink" in html
+    assert 'localStorage.setItem(EMAIL_FOR_SIGN_IN, email)' in html or "emailForSignIn" in html
+    assert "handleCodeInApp: true" in html
+    assert 'searchParams.set("email"' not in html
+    assert "Email me a sign-in link" in html
+
+    def verifier(token):
+        if token == "link-user":
+            return {
+                "user_id": "uid-1",
+                "email": "planner@example.com",
+                "email_verified": True,
+                "firebase": {"sign_in_provider": "password"},
+            }
+        if token == "unverified":
+            return {
+                "user_id": "uid-2",
+                "email": "planner@example.com",
+                "email_verified": False,
+                "firebase": {"sign_in_provider": "password"},
+            }
+        raise ValueError("rejected")
+
+    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=verifier)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    def post(path, payload, token=""):
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        request = Request(base + path, data=json.dumps(payload).encode(), headers=headers, method="POST")
+        try:
+            response = urlopen(request)
+            return response.status, json.loads(response.read().decode())
+        except HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode() or "{}")
+
+    try:
+        status, body = post("/api/email-code", {"action": "email-link-start", "email": "not-an-email"})
+        assert status == 400
+        status, body = post("/api/email-code", {"action": "email-link-start", "email": "planner@example.com"})
+        assert status == 200 and body["nonce"]
+        nonce = body["nonce"]
+        status, body = post(
+            "/api/email-code",
+            {"action": "email-link-complete", "nonce": nonce},
+            token="unverified",
+        )
+        assert status == 403
+        status, body = post(
+            "/api/email-code",
+            {"action": "email-link-complete", "nonce": nonce},
+            token="link-user",
+        )
+        assert status == 200 and body["session_token"]
+        session = body["session_token"]
+        parcels = urlopen(Request(base + "/api/parcels", headers={"Authorization": f"Bearer {session}"}))
+        assert parcels.status == 200
+        status, replay = post(
+            "/api/email-code",
+            {"action": "email-link-complete", "nonce": nonce},
+            token="link-user",
+        )
+        assert status == 400
+        assert replay["ok"] is False
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_exact_shapley_sums_to_the_prediction_gap():

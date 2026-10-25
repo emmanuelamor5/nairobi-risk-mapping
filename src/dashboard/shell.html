@@ -689,15 +689,27 @@
         <form id="sign-in" class="auth-stack">
           <label class="sr-only" for="email">Email</label>
           <input id="email" type="email" autocomplete="username" placeholder="Email" required>
+          <button class="auth-pill auth-dark" id="email-link-send" type="button" disabled>Email me a sign-in link</button>
           <div id="password-step" class="auth-stack" hidden>
             <label class="sr-only" for="password">Password</label>
             <input id="password" type="password" autocomplete="current-password" placeholder="Password">
             <button class="auth-pill auth-dark" type="submit">Sign in</button>
           </div>
-          <button class="auth-pill auth-continue" id="email-continue" type="button" disabled>Continue</button>
+          <button class="auth-pill auth-continue" id="email-continue" type="button" disabled>Use a password instead</button>
         </form>
-        <p class="auth-note">Parcel locations stay on the server until a second factor succeeds.</p>
+        <p class="auth-note">A sign-in link proves this inbox. Password sign-in still needs a second factor.</p>
       </div>
+      <form id="email-link" class="auth-stack" hidden>
+        <button class="auth-back" id="email-link-back" type="button">All sign-in options</button>
+        <p id="email-link-copy">Check your inbox for a sign-in link. Open it in this browser.</p>
+        <div id="email-link-confirm" hidden>
+          <p>This link was opened on a different device. Enter the same email the link was sent to. The address is not read from the link.</p>
+          <label for="email-link-confirm-input">Email</label>
+          <input id="email-link-confirm-input" type="email" autocomplete="username" placeholder="name@example.com">
+          <button class="auth-pill auth-dark" id="email-link-confirm-btn" type="button">Continue</button>
+        </div>
+        <p class="error" id="email-link-error" role="alert"></p>
+      </form>
       <form id="phone-sign-in" class="auth-stack" hidden>
         <button class="auth-back" id="phone-back" type="button">All sign-in options</button>
         <p>Firebase texts a one-time code. Standard rates may apply.</p>
@@ -1448,6 +1460,7 @@
       getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, signOut, multiFactor, updatePhoneNumber,
       TotpMultiFactorGenerator, PhoneAuthProvider, PhoneMultiFactorGenerator,
       RecaptchaVerifier, getMultiFactorResolver, GoogleAuthProvider, OAuthProvider,
+      sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
     const liftNote = {{LIFT_NOTE_JSON}};
@@ -1526,7 +1539,10 @@
         "auth/cancelled-popup-request": "Another sign-in popup is already open.",
         "auth/network-request-failed": "Network error during sign-in. Check your connection.",
         "auth/unauthorized-domain": "This site is not an authorized domain in Firebase Authentication.",
-        "auth/operation-not-allowed": "This sign-in method is disabled in Firebase Authentication.",
+        "auth/operation-not-allowed": "Email link sign-in is disabled. Enable Email/Password and Email link in Firebase Authentication.",
+        "auth/invalid-action-code": "This sign-in link is invalid or was already used.",
+        "auth/expired-action-code": "This sign-in link expired. Request a new one.",
+        "auth/invalid-email": "Enter the same email address the sign-in link was sent to.",
         "auth/invalid-api-key": "Sign-in is misconfigured on the server.",
         "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Sign-in is misconfigured on the server.",
       };
@@ -1575,6 +1591,7 @@
       document.getElementById("auth-home").hidden = id !== "sign-in";
       document.getElementById("phone-sign-in").hidden = id !== "phone";
       document.getElementById("apple-sign-in").hidden = id !== "apple";
+      document.getElementById("email-link").hidden = id !== "email-link";
       document.getElementById("challenge").hidden = id !== "challenge";
       document.getElementById("enroll").hidden = id !== "enroll";
       document.getElementById("code-choice").hidden = id !== "code-choice";
@@ -1583,6 +1600,79 @@
         document.getElementById("email-continue").hidden = false;
         document.getElementById("password").required = false;
         clearInterval(codeTimer);
+      }
+    }
+
+    const EMAIL_FOR_SIGN_IN = "emailForSignIn";
+
+    function emailLinkContinueUrl(nonce) {
+      const url = new URL(window.location.href);
+      url.hash = "";
+      url.search = "";
+      url.searchParams.set("emailLinkNonce", nonce);
+      return url.toString();
+    }
+
+    function readEmailLinkNonce(href) {
+      try {
+        return new URL(href).searchParams.get("emailLinkNonce") || "";
+      } catch (_err) {
+        return "";
+      }
+    }
+
+    function stripEmailLinkParams() {
+      const clean = new URL(window.location.href);
+      for (const key of ["apiKey", "oobCode", "mode", "lang", "emailLinkNonce", "continueUrl", "tenantId"]) {
+        clean.searchParams.delete(key);
+      }
+      const next = clean.pathname + (clean.search || "") + clean.hash;
+      history.replaceState({}, "", next);
+    }
+
+    async function completeEmailLink(email, href) {
+      const nonce = readEmailLinkNonce(href);
+      const result = await signInWithEmailLink(auth, email, href);
+      try { window.localStorage.removeItem(EMAIL_FOR_SIGN_IN); } catch (_err) { /* storage may be blocked */ }
+      stripEmailLinkParams();
+      const idToken = await result.user.getIdToken();
+      const response = await fetch("/api/email-code", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + idToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "email-link-complete", nonce }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.session_token) {
+        throw new Error(payload.error || "Could not finish email-link sign-in.");
+      }
+      sessionToken = payload.session_token;
+      freshCodeOk = true;
+      await enterApp(result.user);
+    }
+
+    async function maybeFinishEmailLink() {
+      await authReady;
+      if (!auth || !isSignInWithEmailLink(auth, window.location.href)) return;
+      const href = window.location.href;
+      stripEmailLinkParams();
+      showForm("email-link");
+      document.getElementById("email-link-error").textContent = "";
+      let stored = "";
+      try { stored = window.localStorage.getItem(EMAIL_FOR_SIGN_IN) || ""; } catch (_err) { stored = ""; }
+      if (!stored) {
+        document.getElementById("email-link-confirm").hidden = false;
+        document.getElementById("email-link-copy").textContent = "Confirm the email this link was sent to.";
+        document.getElementById("email-link-confirm-input").dataset.href = href;
+        return;
+      }
+      try {
+        await completeEmailLink(stored, href);
+      } catch (err) {
+        if (err && err.code === "auth/multi-factor-auth-required") {
+          await authError(err);
+          return;
+        }
+        document.getElementById("email-link-error").textContent = publicAuthError(err);
       }
     }
 
@@ -2851,8 +2941,60 @@
       }
     }));
     document.getElementById("email").addEventListener("input", (event) => {
-      document.getElementById("email-continue").disabled = event.target.value.trim() === "";
+      const empty = event.target.value.trim() === "";
+      document.getElementById("email-continue").disabled = empty;
+      document.getElementById("email-link-send").disabled = empty;
     });
+    document.getElementById("email-link-send").addEventListener("click", () => runBusy(document.getElementById("email-link-send"), async () => {
+      errorEl.textContent = "";
+      const email = document.getElementById("email").value.trim();
+      if (!email) return;
+      try { await requireAuth(); } catch (_err) { errorEl.textContent = "Sign-in is not available."; return; }
+      const start = await fetch("/api/email-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "email-link-start", email }),
+      });
+      const started = await start.json().catch(() => ({}));
+      if (!start.ok || !started.nonce) {
+        errorEl.textContent = started.error || "Could not start email-link sign-in.";
+        return;
+      }
+      const actionCodeSettings = {
+        url: emailLinkContinueUrl(started.nonce),
+        handleCodeInApp: true,
+      };
+      try {
+        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      } catch (err) {
+        errorEl.textContent = publicAuthError(err);
+        return;
+      }
+      try { window.localStorage.setItem(EMAIL_FOR_SIGN_IN, email); } catch (_err) { /* still ask on return */ }
+      showForm("email-link");
+      document.getElementById("email-link-confirm").hidden = true;
+      document.getElementById("email-link-copy").textContent = "Sign-in link sent to " + email + ". Open it in this browser. The link expires in about an hour.";
+      document.getElementById("email-link-error").textContent = "";
+    }));
+    document.getElementById("email-link-back").addEventListener("click", () => showForm("sign-in"));
+    document.getElementById("email-link-confirm-btn").addEventListener("click", () => runBusy(document.getElementById("email-link-confirm-btn"), async () => {
+      const email = document.getElementById("email-link-confirm-input").value.trim();
+      const href = document.getElementById("email-link-confirm-input").dataset.href || "";
+      document.getElementById("email-link-error").textContent = "";
+      if (!email || !href) {
+        document.getElementById("email-link-error").textContent = "Enter the email address the link was sent to.";
+        return;
+      }
+      try {
+        await completeEmailLink(email, href);
+      } catch (err) {
+        if (err && err.code === "auth/multi-factor-auth-required") {
+          await authError(err);
+          return;
+        }
+        document.getElementById("email-link-error").textContent = publicAuthError(err);
+      }
+    }));
     document.getElementById("email-continue").addEventListener("click", () => runBusy(document.getElementById("email-continue"), async () => {
       if (document.getElementById("email").value.trim() === "") return;
       await new Promise((resolve) => setTimeout(resolve, 800));
@@ -3089,6 +3231,7 @@
     document.getElementById("analyst-initials").addEventListener("click", showProfile);
     document.getElementById("analyst-initials").style.cursor = "pointer";
     applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    maybeFinishEmailLink();
     function toggleTheme() {
       applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
     }

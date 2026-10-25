@@ -132,7 +132,9 @@ def _serve_asset(handler, url_path: str) -> None:
 
 
 _EMAIL_CODES = {}
+_EMAIL_LINK_NONCES = {}
 EMAIL_CODE_SECONDS = 300
+EMAIL_LINK_SECONDS = 3600
 VERIFIED_SESSION_SECONDS = 12 * 3600
 _VERIFIED_UIDS = {}
 _PENDING_APPLE_TOKENS = {}
@@ -236,17 +238,56 @@ def issue_pending_apple_token(email: str, now: float = None) -> str:
     return token
 
 
-def issue_verified_token(uid: str, email: str = "", now: float = None) -> str:
-    """Issue a verified session token after the 5-minute code check passes."""
+def issue_verified_token(uid: str, email: str = "", now: float = None, provider: str = "apple.com") -> str:
+    """Issue a verified session token after a second channel succeeds."""
     moment = time.time() if now is None else now
     token = f"verified-{secrets.token_urlsafe(24)}"
     _VERIFIED_TOKENS[token] = {
         "user_id": str(uid),
         "email": str(email or ""),
-        "firebase": {"sign_in_provider": "apple.com", "sign_in_second_factor": "email_code"},
+        "firebase": {"sign_in_provider": provider, "sign_in_second_factor": "email_code"},
         "exp": moment + VERIFIED_SESSION_SECONDS,
     }
     return token
+
+
+def _clean_email(email: str) -> str:
+    clean = str(email or "").strip().lower()
+    if "@" not in clean or "." not in clean.split("@")[-1] or " " in clean:
+        return ""
+    return clean
+
+
+def issue_email_link_nonce(email: str, now: float = None) -> str:
+    """
+    Bind a one-time nonce to ``email`` before Firebase sends the sign-in link.
+
+    The nonce goes in the continue URL. The email address does not, so a
+    copied link cannot choose a different account.
+    """
+    moment = time.time() if now is None else now
+    clean = _clean_email(email)
+    if not clean:
+        raise ValueError("Enter a valid email address.")
+    nonce = secrets.token_urlsafe(24)
+    _EMAIL_LINK_NONCES[nonce] = {"email": clean, "exp": moment + EMAIL_LINK_SECONDS}
+    return nonce
+
+
+def consume_email_link_nonce(nonce: str, email: str, now: float = None):
+    """Return (ok, message). The nonce matches one email and cannot be reused."""
+    moment = time.time() if now is None else now
+    key = str(nonce or "").strip()
+    row = _EMAIL_LINK_NONCES.get(key)
+    if not row:
+        return False, "Request a new sign-in link."
+    if moment > row["exp"]:
+        _EMAIL_LINK_NONCES.pop(key, None)
+        return False, "That sign-in link expired. Request a new one."
+    if _clean_email(email) != row["email"]:
+        return False, "That email does not match the sign-in link."
+    _EMAIL_LINK_NONCES.pop(key, None)
+    return True, ""
 
 
 def check_email_code(uid: str, submitted: str, now: float = None):
@@ -751,6 +792,37 @@ def make_handler(records: dict, web_config: dict, project_id: str, verifier=None
                 _json_response(self, 200, result)
                 return
             action = body.get("action")
+            if action == "email-link-start":
+                try:
+                    nonce = issue_email_link_nonce(str(body.get("email") or ""))
+                except ValueError as exc:
+                    _json_response(self, 400, {"ok": False, "error": str(exc)})
+                    return
+                _json_response(self, 200, {"ok": True, "nonce": nonce, "expires_in": EMAIL_LINK_SECONDS})
+                return
+            if action == "email-link-complete":
+                claims = self._identity()
+                if claims is None:
+                    return
+                firebase_claims = claims.get("firebase") if isinstance(claims.get("firebase"), dict) else {}
+                provider = str(firebase_claims.get("sign_in_provider") or "")
+                verified_email = claims.get("email_verified") is True or provider == "emailLink"
+                if not verified_email:
+                    _json_response(self, 403, {"ok": False, "error": "Email link sign-in was not verified."})
+                    return
+                email = str(claims.get("email") or "")
+                ok, message = consume_email_link_nonce(str(body.get("nonce") or ""), email)
+                if not ok:
+                    _json_response(self, 400, {"ok": False, "error": message})
+                    return
+                uid = str(claims.get("user_id") or claims.get("sub") or email)
+                mark_uid_verified(uid)
+                _json_response(
+                    self,
+                    200,
+                    {"ok": True, "session_token": issue_verified_token(uid, email, provider="emailLink")},
+                )
+                return
             if action == "apple-init":
                 apple_email = str(body.get("email") or "").strip().lower()
                 if "@" not in apple_email or "." not in apple_email.split("@")[-1]:

@@ -2,11 +2,12 @@
 Firebase Authentication gate for the parcel dashboard.
 
 Parcel actions include compensated resettlement. The map is served only
-when the caller has either completed a second factor or signed in with
-a phone number. Phone sign-in is an SMS one-time code, so the token's
-``sign_in_provider`` is ``phone``. Password-only sessions are still
-rejected. A second factor shows up as ``sign_in_second_factor`` ``totp``
-or ``phone``.
+when the caller has either completed a second factor, signed in with a
+phone number, or completed passwordless email-link sign-in. Phone
+sign-in is an SMS one-time code, so the token's ``sign_in_provider`` is
+``phone``. Email-link sessions use ``emailLink``. Password-only sessions
+are still rejected. A second factor shows up as ``sign_in_second_factor``
+``totp`` or ``phone``.
 
 Token signature verification uses Google's Firebase certs. Tests pass a
 decoded claim dict straight into ``mfa_satisfied`` and never call Google.
@@ -27,7 +28,7 @@ def mfa_satisfied(claims: dict) -> bool:
         return False
     if firebase.get("sign_in_second_factor") in SECOND_FACTORS:
         return True
-    return firebase.get("sign_in_provider") == "phone"
+    return firebase.get("sign_in_provider") in {"phone", "emailLink"}
 
 
 def admin_satisfied(claims: dict, admin_emails=None) -> bool:
