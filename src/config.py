@@ -132,6 +132,15 @@ SRTM_RESOLUTION_M = 30
 # --- OSM / graph construction ---
 BUILDING_ADJACENCY_THRESHOLD_M = 15.0  # per proposal Sec 3.4 unit testing note
 MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
+# Footprints for the GraphSAGE nodes. "osm" is the Overpass extract.
+# "open_buildings" is Google Open Buildings v3 (individual structures; OSM
+# often merges several rooms into one polygon, which pushes centroid spacing
+# up). Opt in per DataPipeline; the default stays OSM so existing graphs are
+# unchanged. v3 only ships detections with confidence >= 0.65, so this floor
+# keeps the full layer and a higher value drops the less certain ones.
+OPEN_BUILDINGS_DATASET = "GOOGLE/Research/open-buildings/v3/polygons"
+OPEN_BUILDINGS_MIN_CONFIDENCE = 0.65
+BUILDING_SOURCES = ("osm", "open_buildings")
 OVERPASS_TAGS = {"building": True}
 INFRA_TAGS = {
     "amenity": ["drinking_water", "toilets"],
@@ -236,6 +245,10 @@ RAW_DIR = f"{DATA_ROOT}/raw"
 STACKS_DIR = f"{DATA_ROOT}/raster_stacks"
 TILES_DIR = f"{DATA_ROOT}/tiles"
 GRAPHS_DIR = f"{DATA_ROOT}/graphs"
+# Google Open Buildings exports, one file per settlement:
+# <key>_open_buildings.geojson. Earth Engine writes the same name into the
+# Drive folder nairobi_risk_mapping/; move it here or pass the Drive path.
+BUILDINGS_DIR = f"{DATA_ROOT}/buildings"
 # Digitized settlement boundaries. A file named <settlement_key>.<ext> here
 # (GeoJSON, GeoPackage, or zipped/unzipped shapefile) overrides OSM geocoding
 # and the fallback bbox for that settlement. Multi-feature files are

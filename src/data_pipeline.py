@@ -34,13 +34,21 @@ logger = logging.getLogger(__name__)
 
 class DataPipeline:
     def __init__(self, settlement_key: str, gee_project_id: str = None, data_root: str = None,
-                 boundary_path: str = None):
+                 boundary_path: str = None, building_source: str = "osm",
+                 open_buildings_path: str = None, open_buildings_min_confidence: float = None):
         """
         ``boundary_path`` points at a digitized settlement polygon (GeoJSON,
         GeoPackage, shapefile). When omitted, the pipeline looks for
         ``data/boundaries/<settlement_key>.<ext>`` next to the data root
         before resorting to OSM geocoding and the config bbox -- so dropping
         a file in that folder fixes the boundary for every notebook at once.
+
+        ``building_source`` is ``"osm"`` (Overpass footprints) or
+        ``"open_buildings"`` (Google Open Buildings v3). The Open Buildings
+        file is ``open_buildings_path``, or
+        ``data/buildings/<key>_open_buildings.geojson`` when that exists.
+        It is produced by ``export_open_buildings``; v3 has no roof tag, so
+        deprivation scoring uses a neutral roof score for those nodes.
         """
         if settlement_key not in config.SETTLEMENTS:
             raise ValueError(
@@ -59,6 +67,17 @@ class DataPipeline:
                 settlement_key, data_parent=self.data_root.parent
             )
         self.boundary_path = Path(boundary_path) if boundary_path is not None else None
+        if building_source not in config.BUILDING_SOURCES:
+            raise ValueError(
+                f"Unknown building_source {building_source!r}. Options: {config.BUILDING_SOURCES}"
+            )
+        self.building_source = building_source
+        self.open_buildings_min_confidence = open_buildings_min_confidence
+        if open_buildings_path is None and building_source == "open_buildings":
+            open_buildings_path = graph_utils.default_open_buildings_path(
+                settlement_key, data_parent=self.data_root.parent
+            )
+        self.open_buildings_path = Path(open_buildings_path) if open_buildings_path is not None else None
         self._boundary = None
         self._ee_initialized = False
 
@@ -293,11 +312,74 @@ class DataPipeline:
     # ------------------------------------------------------------------ #
     # Graph branch (feeds GraphSAGE)
     # ------------------------------------------------------------------ #
+    def export_open_buildings(self):
+        """
+        Start an Earth Engine export of Google Open Buildings v3 inside the
+        settlement boundary. Returns the task. The GeoJSON appears in the
+        Drive folder ``nairobi_risk_mapping`` as
+        ``<settlement_key>_open_buildings.geojson``.
+        """
+        import ee
+
+        if not self._ee_initialized:
+            gee_utils.initialize_gee(self.gee_project_id)
+            self._ee_initialized = True
+        boundary = self.get_boundary()
+        geometry = ee.Geometry(boundary.geometry.iloc[0].__geo_interface__)
+        description = f"{self.settlement_key}_open_buildings"
+        task = gee_utils.export_open_buildings_to_drive(
+            geometry, description, min_confidence=self.open_buildings_min_confidence,
+        )
+        logger.info(
+            "Open Buildings export '%s' started. When it completes, pass "
+            "building_source='open_buildings' and the Drive GeoJSON as "
+            "open_buildings_path.",
+            description,
+        )
+        return task
+
+    def load_buildings(self):
+        """
+        Footprints for the graph, clipped to the settlement boundary.
+
+        OSM when ``building_source`` is ``"osm"``. A local Open Buildings
+        file otherwise. Logs the nearest-neighbour spacing, which is fixed
+        by the footprints: the 15 m edge threshold does not change it.
+        """
+        boundary = self.get_boundary()
+        if self.building_source == "osm":
+            logger.info("Fetching OSM buildings for %s", self.settlement.name)
+            buildings = graph_utils.fetch_osm_buildings(boundary)
+        else:
+            path = self.open_buildings_path
+            if path is None or not path.exists():
+                raise FileNotFoundError(
+                    "No Open Buildings file for "
+                    f"{self.settlement_key}. Run export_open_buildings(), wait for "
+                    f"Drive/nairobi_risk_mapping/{self.settlement_key}_open_buildings.geojson, "
+                    "then construct DataPipeline(..., building_source='open_buildings', "
+                    "open_buildings_path='<that file>')."
+                )
+            logger.info("Loading Open Buildings for %s from %s", self.settlement.name, path)
+            import geopandas as gpd
+            buildings = graph_utils.prepare_open_buildings(
+                gpd.read_file(path),
+                boundary,
+                min_confidence=self.open_buildings_min_confidence,
+            )
+        spacing = graph_utils.spacing_summary(buildings)
+        logger.info(
+            "%s footprints for %s: n=%d median nearest neighbour %s m",
+            self.building_source, self.settlement.name, spacing["n"],
+            "n/a" if spacing["median_m"] is None else f"{spacing['median_m']:.1f}",
+        )
+        self.building_spacing = spacing
+        return buildings
+
     def acquire_graph_data(self):
         boundary = self.get_boundary()
 
-        logger.info("Fetching OSM buildings for %s", self.settlement.name)
-        buildings = graph_utils.fetch_osm_buildings(boundary)
+        buildings = self.load_buildings()
         logger.info("Fetched %d building footprints", len(buildings))
 
         logger.info("Fetching OSM infrastructure for %s", self.settlement.name)
@@ -310,6 +392,8 @@ class DataPipeline:
 
         graph = graph_utils.build_proximity_graph(buildings)
         integrity = graph_utils.check_graph_integrity(graph)
+        integrity["building_source"] = self.building_source
+        integrity["nearest_neighbour_m"] = getattr(self, "building_spacing", None)
         logger.info("Graph integrity check for %s: %s", self.settlement.name, integrity)
 
         if integrity["largest_component_frac"] < 0.5:

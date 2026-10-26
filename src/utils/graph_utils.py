@@ -192,13 +192,113 @@ def fetch_osm_buildings(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Fetch building footprints within the boundary polygon via the Overpass API."""
     polygon = boundary.geometry.iloc[0]
     buildings = _features_from_polygon_with_retry(polygon, config.OVERPASS_TAGS)
+    buildings = _footprints_to_nodes(buildings, source="osm")
+    return buildings
+
+
+def default_open_buildings_path(settlement_key: str, data_parent=None):
+    """
+    Conventional location of an Open Buildings export:
+    ``<data_parent>/data/buildings/<settlement_key>_open_buildings.<ext>``,
+    else the Earth Engine filename ``<data_parent>/<settlement_key>_open_buildings.geojson``
+    (the Drive folder root, where Export.table.toDrive writes it).
+    """
+    from pathlib import Path
+
+    root = Path(data_parent) if data_parent is not None else Path(".")
+    names = (f"{settlement_key}_open_buildings",)
+    for folder in (root / config.BUILDINGS_DIR, root):
+        for name in names:
+            for ext in config.BOUNDARY_FILE_EXTENSIONS:
+                candidate = folder / f"{name}{ext}"
+                if candidate.exists():
+                    return candidate
+    return None
+
+
+def prepare_open_buildings(buildings_gdf, boundary: gpd.GeoDataFrame = None,
+                           min_confidence: float = None) -> gpd.GeoDataFrame:
+    """
+    Turn a Google Open Buildings extract into the node frame the graph builder
+    expects: metric polygons clipped to ``boundary``, confidence-filtered,
+    with ``centroid``, ``area_m2`` and ``node_id``.
+
+    v3 has no roof-material tag, so later deprivation scoring uses the
+    neutral roof score for every node. Area and the infrastructure distances
+    still vary per building. ``min_confidence`` defaults to
+    ``config.OPEN_BUILDINGS_MIN_CONFIDENCE``; the published layer already
+    starts at 0.65, so a lower floor does not add footprints.
+    """
+    if buildings_gdf is None or len(buildings_gdf) == 0:
+        raise ValueError("Open Buildings extract is empty.")
+    gdf = buildings_gdf
+    if gdf.crs is None:
+        warnings.warn("Open Buildings extract has no CRS; assuming EPSG:4326.")
+        gdf = gdf.set_crs(config.CRS_WGS84)
+    if min_confidence is None:
+        min_confidence = config.OPEN_BUILDINGS_MIN_CONFIDENCE
+    if "confidence" in gdf.columns:
+        gdf = gdf[gdf["confidence"].astype(float) >= float(min_confidence)].copy()
+    else:
+        warnings.warn(
+            "Open Buildings extract has no confidence column; keeping every polygon."
+        )
+        gdf = gdf.copy()
+    if len(gdf) == 0:
+        raise ValueError(
+            f"No Open Buildings polygons at confidence >= {float(min_confidence)}."
+        )
+    if boundary is not None:
+        clip_to = boundary.to_crs(gdf.crs)
+        gdf = gpd.clip(gdf, clip_to)
+    return _footprints_to_nodes(gdf, source="open_buildings")
+
+
+def _footprints_to_nodes(buildings: gpd.GeoDataFrame, source: str) -> gpd.GeoDataFrame:
+    """Polygons only, in the metric CRS, one node_id per footprint."""
+    if buildings.crs is None:
+        buildings = buildings.set_crs(config.CRS_WGS84)
     buildings = buildings[buildings.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
+    buildings = buildings[~buildings.geometry.is_empty]
+    if len(buildings) == 0:
+        raise ValueError(f"No polygon footprints left after preparing the {source} extract.")
     buildings = buildings.to_crs(config.CRS_METRIC)
     buildings["centroid"] = buildings.geometry.centroid
     buildings["area_m2"] = buildings.geometry.area
     buildings = buildings.reset_index(drop=True)
     buildings["node_id"] = buildings.index
+    buildings["building_source"] = source
     return buildings
+
+
+def nearest_neighbour_distances(buildings: gpd.GeoDataFrame) -> np.ndarray:
+    """
+    Distance in metres from each footprint centroid to the closest other one.
+
+    This is a property of the polygons, not of the edge threshold. A 5 m
+    median means the footprints themselves are 5 m apart; lowering
+    ``BUILDING_ADJACENCY_THRESHOLD_M`` does not change it.
+    """
+    if "centroid" not in buildings.columns:
+        raise ValueError("buildings need a centroid column in a metric CRS.")
+    n = len(buildings)
+    if n < 2:
+        return np.full(n, np.nan)
+    coords = np.array([[p.x, p.y] for p in buildings["centroid"]], dtype=np.float64)
+    distances, _ = cKDTree(coords).query(coords, k=2)
+    return distances[:, 1]
+
+
+def spacing_summary(buildings: gpd.GeoDataFrame) -> dict:
+    """n plus the 50th, 75th and 90th percentile nearest-neighbour distances."""
+    distances = nearest_neighbour_distances(buildings)
+    finite = distances[np.isfinite(distances)]
+    summary = {"n": int(len(buildings)), "median_m": None, "p75_m": None, "p90_m": None}
+    if len(finite):
+        summary["median_m"] = float(np.median(finite))
+        summary["p75_m"] = float(np.percentile(finite, 75))
+        summary["p90_m"] = float(np.percentile(finite, 90))
+    return summary
 
 
 def fetch_river_corridor(settlement_keys=None, buffer_m: float = None, boundaries=None):

@@ -189,6 +189,7 @@ completion before calling `tile_raster_stack()` on the downloaded GeoTIFF.
 
 ## Known approximations to revisit before final training runs
 
+- **Building footprints** default to OSM. OpenStreetMap often draws one polygon for several rooms, so Kibera centroid spacing on the saved graph is about 7 m. Google Open Buildings v3 (`GOOGLE/Research/open-buildings/v3/polygons`) is one footprint per structure. `DataPipeline.export_open_buildings()` writes `<settlement>_open_buildings.geojson` to the Drive folder, and `acquire_graph_data` uses it when `building_source="open_buildings"` (notebook 01 switches automatically once that file exists). v3 has no roof-material tag, so those nodes get the neutral roof score; area and infrastructure distances still vary. The 15 m edge threshold is unchanged. The median nearest-neighbour distance is printed from the footprints and is not a setting.
 - **Settlement boundaries** default to live OSM/Nominatim geocoding with a
   hardcoded bbox fallback (see `config.py` docstring). Neither is a
   verified administrative or cadastral boundary. To fix this, drop a
