@@ -66,13 +66,24 @@ def configure_overpass_identity():
     referer = getattr(config, "OVERPASS_HTTP_REFERER", agent)
     ox.settings.http_user_agent = agent
     ox.settings.http_referer = referer
-    ox.settings.overpass_rate_limit = True
+    # The status preflight uses the same read timeout as the query. On
+    # private.coffee that GET hangs for the full 180s and the interpreter
+    # request never starts. This loop already pauses on HTTP 429.
+    ox.settings.overpass_rate_limit = False
     # OSMnx otherwise pins DNS through Google DoH. A hung resolver shows up
     # as a read timeout before the interpreter can answer.
     if hasattr(ox.settings, "doh_url_template"):
         ox.settings.doh_url_template = None
-    timeout = float(getattr(config, "OVERPASS_TIMEOUT_S", 180))
-    ox.settings.requests_timeout = max(float(getattr(ox.settings, "requests_timeout", timeout)), timeout)
+    # Overpass QL: ``[timeout:180.0]`` is a static error (HTTP 400). The
+    # value has to be a positive integer. A float here is what made
+    # overpass-api.de and maps.mail.ru answer 400 and get dropped.
+    timeout = int(getattr(config, "OVERPASS_TIMEOUT_S", 180))
+    current = getattr(ox.settings, "requests_timeout", timeout)
+    try:
+        current = int(current)
+    except (TypeError, ValueError):
+        current = timeout
+    ox.settings.requests_timeout = max(current, timeout)
     return agent
 
 
@@ -116,11 +127,13 @@ def classify_overpass_failure(exc) -> str:
     ``rate_limit`` — HTTP 429 (or OSMnx's endless retry of one). Stay on that
     host and pause. Switching mirrors to dodge a 429 is what gets clients banned.
 
-    ``skip_mirror`` — the host will not serve this query: whitelist 403,
-    stock-agent 406, or a 400 from a regional extract (osm.ch returns an XML
-    error page for Nairobi).
+    ``skip_mirror`` — the host will not serve this project: whitelist 403 or
+    a stock-agent 406. A 400 is not in this bucket. Global instances return
+    400 for a bad query (``[timeout:180.0]``) and that query can succeed
+    once it is an integer; dropping the mirror hides the only servers that
+    answered.
 
-    ``retry_other`` — timeout, 502, connection reset. Try the next provider.
+    ``retry_other`` — timeout, 400, 502, connection reset. Try the next provider.
     """
     if isinstance(exc, OverpassRateLimited):
         return "rate_limit"
@@ -131,8 +144,6 @@ def classify_overpass_failure(exc) -> str:
         return "rate_limit"
     if _has_status(text, "403") or _has_status(text, "406") or "not acceptable" in text:
         return "skip_mirror"
-    if _has_status(text, "400"):
-        return "skip_mirror"
     return "retry_other"
 
 
@@ -141,10 +152,17 @@ def _has_status(text, code) -> bool:
 
 
 def _failure_summary(url, exc) -> str:
-    """One line, similar to what a notebook prints when a mirror refuses."""
-    detail = " ".join(str(exc).split())
-    if len(detail) > 180:
-        detail = detail[:177] + "..."
+    """One line. Prefer the Overpass ``Error`` sentence over the XML prologue."""
+    raw = " ".join(str(exc).split())
+    remark = re.search(r"Error</strong>:\s*(.{0,300})", raw, re.I)
+    if remark:
+        detail = re.sub(r"<[^>]+>", "", remark.group(1))
+        detail = detail.replace("&quot;", '"').replace("&#39;", "'")
+        detail = detail.split("</")[0].strip()
+    else:
+        detail = raw
+    if len(detail) > 240:
+        detail = detail[:237] + "..."
     name = type(exc).__name__
     if not detail:
         return f"{url} {name}"
@@ -200,7 +218,7 @@ def _features_from_polygon_with_retry(polygon, tags) -> gpd.GeoDataFrame:
     max_attempts = int(getattr(config, "OVERPASS_MAX_ATTEMPTS", 6))
     base_sleep = float(getattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 5.0))
     rate_sleep = float(getattr(config, "OVERPASS_RATE_LIMIT_SLEEP_S", 30.0))
-    timeout = float(getattr(config, "OVERPASS_TIMEOUT_S", 180))
+    timeout = int(getattr(config, "OVERPASS_TIMEOUT_S", 180))
     logger.info("Overpass User-Agent: %s", agent)
 
     skipped = set()

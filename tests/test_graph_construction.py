@@ -228,6 +228,12 @@ def test_overpass_retry_cycles_mirrors(monkeypatch):
     assert "nairobi-risk-mapping" in agent
     assert "https://github.com/emmanuelamor5/nairobi-risk-mapping" in agent
     assert ox.settings.doh_url_template is None
+    assert ox.settings.overpass_rate_limit is False
+    assert isinstance(ox.settings.requests_timeout, int)
+    from osmnx._overpass import _make_overpass_settings
+    settings = _make_overpass_settings()
+    assert "[timeout:180]" in settings
+    assert "180.0" not in settings
 
 
 def _polygon_gdf():
@@ -257,9 +263,12 @@ def test_overpass_failure_classes_match_the_colab_errors():
     assert graph_utils.classify_overpass_failure(RuntimeError(
         "403 This service is only available to white-listed usages"
     )) == "skip_mirror"
+    # A 400 from a global instance is a rejected query, not a regional mirror.
+    # ``[timeout:180.0]`` is the one that hit overpass-api.de and mail.ru.
     assert graph_utils.classify_overpass_failure(RuntimeError(
-        "400 <?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-    )) == "skip_mirror"
+        "400 <?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+        "static error: For the attribute \"timeout\" the only allowed values are positive integers"
+    )) == "retry_other"
     assert graph_utils.classify_overpass_failure(graph_utils.OverpassRateLimited("back off")) == "rate_limit"
 
 

@@ -146,17 +146,21 @@ OVERPASS_HTTP_REFERER = "https://github.com/emmanuelamor5/nairobi-risk-mapping"
 # lz4.overpass-api.de is the same FOSSGIS servers as overpass-api.de, so it is
 # not a second provider. On HTTP 429, stay on that host and pause — hopping
 # mirrors to get around a rate limit is what those operators ban.
+# private.coffee is last: from Colab it accepts the TCP connection and then
+# does not answer, so it burns the whole read timeout. The other two respond.
 OVERPASS_URLS = (
-    "https://overpass.private.coffee/api",
-    "https://maps.mail.ru/osm/tools/overpass/api",
     "https://overpass-api.de/api",
+    "https://maps.mail.ru/osm/tools/overpass/api",
+    "https://overpass.private.coffee/api",
 )
 OVERPASS_MAX_ATTEMPTS = 6
 OVERPASS_RETRY_BASE_SLEEP_S = 5.0
 # Floor for a 429. Operators ask for at least ~30s, and a short retry is what
 # gets the client banned. Tests set this to 0.
 OVERPASS_RATE_LIMIT_SLEEP_S = 30.0
-OVERPASS_TIMEOUT_S = 180.0
+# Must stay a whole number. Overpass QL rejects ``[timeout:180.0]`` with
+# HTTP 400 ("only allowed values are positive integers").
+OVERPASS_TIMEOUT_S = 180
 
 # --- Structural deprivation labels (Sprint 3 / GraphSAGE) ---------------
 # Three severity classes derived from UN-Habitat / SUPI-style indicators,
