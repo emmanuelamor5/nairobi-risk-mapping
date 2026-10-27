@@ -227,6 +227,7 @@ def test_overpass_retry_cycles_mirrors(monkeypatch):
     agent = ox.settings.http_user_agent
     assert "nairobi-risk-mapping" in agent
     assert "https://github.com/emmanuelamor5/nairobi-risk-mapping" in agent
+    assert ox.settings.doh_url_template is None
 
 
 def _polygon_gdf():

@@ -67,6 +67,10 @@ def configure_overpass_identity():
     ox.settings.http_user_agent = agent
     ox.settings.http_referer = referer
     ox.settings.overpass_rate_limit = True
+    # OSMnx otherwise pins DNS through Google DoH. A hung resolver shows up
+    # as a read timeout before the interpreter can answer.
+    if hasattr(ox.settings, "doh_url_template"):
+        ox.settings.doh_url_template = None
     timeout = float(getattr(config, "OVERPASS_TIMEOUT_S", 180))
     ox.settings.requests_timeout = max(float(getattr(ox.settings, "requests_timeout", timeout)), timeout)
     return agent
