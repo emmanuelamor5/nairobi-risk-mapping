@@ -129,15 +129,34 @@ INFRA_TAGS = {
     "man_made": ["water_tap", "water_well"],
     "highway": True,
 }
-# Public Overpass mirrors. The primary (overpass-api.de) often returns 502
-# when at capacity; graph_utils cycles through these with backoff.
+# Sent on every Overpass and Nominatim request. Public instances rate-limit
+# the shared OSMnx / python-requests agent (HTTP 429, "meaningful User-Agent").
+# private.coffee, which replaced overpass.kumi.systems, asks for a project
+# name and a contact URL. Keep this specific to this repository.
+OVERPASS_USER_AGENT = (
+    "nairobi-risk-mapping/1.0 "
+    "(academic research; Strathmore University ICS Project II; "
+    "https://github.com/emmanuelamor5/nairobi-risk-mapping)"
+)
+OVERPASS_HTTP_REFERER = "https://github.com/emmanuelamor5/nairobi-risk-mapping"
+# Global-coverage interpreters only, osmnx base URL (it appends /interpreter).
+# overpass.openstreetmap.fr is whitelist-only (403). overpass.osm.ch stores
+# Switzerland and answers 400 for Nairobi. overpass.kumi.systems is the retired
+# name of private.coffee and now times out; graph_utils rewrites it.
+# lz4.overpass-api.de is the same FOSSGIS servers as overpass-api.de, so it is
+# not a second provider. On HTTP 429, stay on that host and pause — hopping
+# mirrors to get around a rate limit is what those operators ban.
 OVERPASS_URLS = (
+    "https://overpass.private.coffee/api",
+    "https://maps.mail.ru/osm/tools/overpass/api",
     "https://overpass-api.de/api",
-    "https://lz4.overpass-api.de/api",
-    "https://overpass.kumi.systems/api",
 )
 OVERPASS_MAX_ATTEMPTS = 6
 OVERPASS_RETRY_BASE_SLEEP_S = 5.0
+# Floor for a 429. Operators ask for at least ~30s, and a short retry is what
+# gets the client banned. Tests set this to 0.
+OVERPASS_RATE_LIMIT_SLEEP_S = 30.0
+OVERPASS_TIMEOUT_S = 180.0
 
 # --- Structural deprivation labels (Sprint 3 / GraphSAGE) ---------------
 # Three severity classes derived from UN-Habitat / SUPI-style indicators,

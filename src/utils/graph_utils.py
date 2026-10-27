@@ -10,8 +10,10 @@ calls out mis-thresholded edges as a silent-failure risk.
 """
 
 import logging
+import re
 import time
 import warnings
+from urllib.parse import urlparse
 
 import geopandas as gpd
 import networkx as nx
@@ -33,42 +35,232 @@ from .deprivation_label import (
 
 logger = logging.getLogger(__name__)
 
+# Hosts that cannot serve this project. Checked by hostname so a full
+# /interpreter URL and a trailing slash are treated the same.
+# kumi.systems is rewritten rather than dropped: it is the old private.coffee
+# name, and a config that still lists only kumi should keep working.
+_OVERPASS_HOST_REPLACEMENTS = {
+    "overpass.kumi.systems": "https://overpass.private.coffee/api",
+}
+_OVERPASS_HOSTS_SKIPPED = {
+    "overpass.openstreetmap.fr",  # 403, whitelist-only
+    "overpass.osm.ch",  # Switzerland extract; Nairobi queries return 400
+}
+
+
+class OverpassRateLimited(RuntimeError):
+    """Raised when a mirror answers 429/504 and OSMnx would retry it forever."""
+
+
+def configure_overpass_identity():
+    """
+    Point OSMnx at this project's User-Agent before any Overpass or Nominatim
+    call. The stock agent is shared by every OSMnx user, and private.coffee
+    answers that with 429.
+    """
+    agent = getattr(
+        config,
+        "OVERPASS_USER_AGENT",
+        "nairobi-risk-mapping/1.0 (https://github.com/emmanuelamor5/nairobi-risk-mapping)",
+    )
+    referer = getattr(config, "OVERPASS_HTTP_REFERER", agent)
+    ox.settings.http_user_agent = agent
+    ox.settings.http_referer = referer
+    ox.settings.overpass_rate_limit = True
+    timeout = float(getattr(config, "OVERPASS_TIMEOUT_S", 180))
+    ox.settings.requests_timeout = max(float(getattr(ox.settings, "requests_timeout", timeout)), timeout)
+    return agent
+
+
+def resolve_overpass_urls(urls) -> list:
+    """
+    Drop mirrors that cannot answer a Nairobi query, and rewrite the retired
+    kumi.systems host to private.coffee. Order is preserved. Duplicate hosts
+    after rewriting are collapsed.
+    """
+    resolved = []
+    for raw in urls:
+        url = str(raw).strip().rstrip("/")
+        if url.endswith("/interpreter"):
+            url = url[: -len("/interpreter")]
+        host = urlparse(url).netloc.split(":")[0].lower()
+        if host in _OVERPASS_HOSTS_SKIPPED:
+            warnings.warn(
+                f"Skipping Overpass mirror {url}: it does not serve this project "
+                "(whitelist-only or outside its regional extract).",
+                stacklevel=2,
+            )
+            continue
+        replacement = _OVERPASS_HOST_REPLACEMENTS.get(host)
+        if replacement is not None:
+            warnings.warn(
+                f"{url} is retired and times out; using {replacement} instead.",
+                stacklevel=2,
+            )
+            url = replacement
+        if url not in resolved:
+            resolved.append(url)
+    if not resolved:
+        resolved.append("https://overpass.private.coffee/api")
+    return resolved
+
+
+def classify_overpass_failure(exc) -> str:
+    """
+    Decide how to treat one failed mirror.
+
+    ``rate_limit`` — HTTP 429 (or OSMnx's endless retry of one). Stay on that
+    host and pause. Switching mirrors to dodge a 429 is what gets clients banned.
+
+    ``skip_mirror`` — the host will not serve this query: whitelist 403,
+    stock-agent 406, or a 400 from a regional extract (osm.ch returns an XML
+    error page for Nairobi).
+
+    ``retry_other`` — timeout, 502, connection reset. Try the next provider.
+    """
+    if isinstance(exc, OverpassRateLimited):
+        return "rate_limit"
+    text = f"{type(exc).__name__} {exc}".lower()
+    if any(marker in text for marker in ("white-listed", "white listed", "whitelist")):
+        return "skip_mirror"
+    if _has_status(text, "429") or "too many requests" in text or "meaningful user-agent" in text:
+        return "rate_limit"
+    if _has_status(text, "403") or _has_status(text, "406") or "not acceptable" in text:
+        return "skip_mirror"
+    if _has_status(text, "400"):
+        return "skip_mirror"
+    return "retry_other"
+
+
+def _has_status(text, code) -> bool:
+    return re.search(rf"(?:^|[^0-9]){code}(?:[^0-9]|$)", text) is not None
+
+
+def _failure_summary(url, exc) -> str:
+    """One line, similar to what a notebook prints when a mirror refuses."""
+    detail = " ".join(str(exc).split())
+    if len(detail) > 180:
+        detail = detail[:177] + "..."
+    name = type(exc).__name__
+    if not detail:
+        return f"{url} {name}"
+    if name.lower() in detail.lower():
+        return f"{url} {detail}"
+    return f"{url} {name}: {detail}"
+
+
+def _overpass_call(fn):
+    """
+    Run ``fn`` with OSMnx's recursive 429/504 retry disabled.
+
+    ``_overpass_request`` sleeps 55s and calls itself on 429 or 504, with no
+    attempt cap. Repeated 429s are now a ban signal, so the second entry
+    raises and the caller applies a single paced retry (or moves on).
+    """
+    import osmnx._overpass as overpass_mod
+
+    original = overpass_mod._overpass_request
+    state = {"inside": False}
+
+    def guarded(data):
+        if state["inside"]:
+            raise OverpassRateLimited(
+                "429 Overpass asked us to back off; stopped the in-client retry loop."
+            )
+        state["inside"] = True
+        try:
+            return original(data)
+        finally:
+            state["inside"] = False
+
+    overpass_mod._overpass_request = guarded
+    try:
+        return fn()
+    finally:
+        overpass_mod._overpass_request = original
+
 
 def _features_from_polygon_with_retry(polygon, tags) -> gpd.GeoDataFrame:
     """
-    Call ``ox.features_from_polygon`` with exponential backoff across the
-    configured Overpass mirrors. Public Overpass endpoints frequently return
-    502 / empty bodies when at capacity; cycling mirrors + sleeping is the
-    recommended recovery (and far cheaper than failing the whole Sprint 3 run).
+    Call ``ox.features_from_polygon`` with a project User-Agent.
+
+    Timeouts and gateway errors move to the next global instance. A 429 stays
+    on that instance for one paced retry, then moves on. Whitelist and
+    out-of-region mirrors are dropped immediately. The final failure is a
+    normal exception, so a notebook can rerun the cell without restarting.
     """
-    urls = list(getattr(config, "OVERPASS_URLS", ("https://overpass-api.de/api",)))
+    agent = configure_overpass_identity()
+    urls = resolve_overpass_urls(
+        getattr(config, "OVERPASS_URLS", ("https://overpass.private.coffee/api",)),
+    )
     max_attempts = int(getattr(config, "OVERPASS_MAX_ATTEMPTS", 6))
     base_sleep = float(getattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 5.0))
+    rate_sleep = float(getattr(config, "OVERPASS_RATE_LIMIT_SLEEP_S", 30.0))
+    timeout = float(getattr(config, "OVERPASS_TIMEOUT_S", 180))
+    logger.info("Overpass User-Agent: %s", agent)
+
+    skipped = set()
+    notes = []
     last_exc = None
+    index = 0
+    rate_streak = {}
 
     for attempt in range(max_attempts):
-        url = urls[attempt % len(urls)]
+        usable = [url for url in urls if url not in skipped]
+        if not usable:
+            break
+        url = usable[index % len(usable)]
         ox.settings.overpass_url = url
-        ox.settings.requests_timeout = max(getattr(ox.settings, "requests_timeout", 180), 180)
+        ox.settings.requests_timeout = timeout
         try:
             logger.info(
                 "Overpass attempt %d/%d via %s", attempt + 1, max_attempts, url,
             )
-            return ox.features_from_polygon(polygon, tags=tags)
+            return _overpass_call(
+                lambda: ox.features_from_polygon(polygon, tags=tags),
+            )
         except Exception as exc:
             last_exc = exc
-            sleep_s = base_sleep * (2 ** attempt)
-            logger.warning(
-                "Overpass failed on %s (%s: %s). Sleeping %.0fs before retry.",
-                url, type(exc).__name__, exc, sleep_s,
-            )
-            time.sleep(sleep_s)
+            kind = classify_overpass_failure(exc)
+            summary = _failure_summary(url, exc)
+            notes.append(summary)
+            logger.warning("Overpass %s (%s).", kind, summary)
+            warnings.warn(summary, stacklevel=2)
+            if kind == "skip_mirror":
+                skipped.add(url)
+                index += 1
+                continue
+            if kind == "rate_limit":
+                streak = rate_streak.get(url, 0) + 1
+                rate_streak[url] = streak
+                if streak >= 2:
+                    index += 1
+                if rate_sleep > 0:
+                    logger.info(
+                        "Overpass rate limit on %s. Sleeping %.0fs before retry.",
+                        url, rate_sleep,
+                    )
+                    time.sleep(rate_sleep)
+                continue
+            index += 1
+            delay = min(base_sleep * (2 ** min(attempt, 3)), 60.0)
+            if delay > 0:
+                logger.info(
+                    "Overpass failed on %s. Sleeping %.0fs before the next mirror.",
+                    url, delay,
+                )
+                time.sleep(delay)
 
+    detail = "; ".join(notes) if notes else str(last_exc)
     raise RuntimeError(
-        f"Overpass fetch failed after {max_attempts} attempts across {urls}. "
-        f"Last error: {last_exc}. Wait a few minutes and re-run, or point "
-        f"config.OVERPASS_URLS at a less-loaded mirror."
+        "No Overpass mirror answered "
+        f"({detail}). Wait about 15 minutes and rerun this cell."
     ) from last_exc
+
+
+def fetch_osm_features(polygon, tags) -> gpd.GeoDataFrame:
+    """Fetch OSM features for one polygon, with the Overpass retry policy above."""
+    return _features_from_polygon_with_retry(polygon, tags)
 
 
 def fetch_settlement_boundary(settlement_key: str) -> gpd.GeoDataFrame:
@@ -78,6 +270,7 @@ def fetch_settlement_boundary(settlement_key: str) -> gpd.GeoDataFrame:
     fails or returns an implausibly small/large polygon.
     """
     cfg = config.SETTLEMENTS[settlement_key]
+    configure_overpass_identity()
     try:
         gdf = ox.geocode_to_gdf(cfg.osm_query)
         area_km2 = gdf.to_crs(config.CRS_METRIC).area.iloc[0] / 1e6

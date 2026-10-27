@@ -224,3 +224,151 @@ def test_overpass_retry_cycles_mirrors(monkeypatch):
     assert len(out) == 1
     assert calls["n"] == 3
     assert calls["urls"][0] != calls["urls"][1] or len(config.OVERPASS_URLS) == 1
+    agent = ox.settings.http_user_agent
+    assert "nairobi-risk-mapping" in agent
+    assert "https://github.com/emmanuelamor5/nairobi-risk-mapping" in agent
+
+
+def _polygon_gdf():
+    return gpd.GeoDataFrame(
+        {"geometry": [Point(0, 0).buffer(1)], "building": ["yes"]},
+        crs=config.CRS_WGS84,
+    )
+
+
+def test_overpass_urls_drop_unusable_mirrors_and_rewrite_kumi():
+    """The four hosts from the Colab failure are not four providers."""
+    with pytest.warns(UserWarning):
+        urls = graph_utils.resolve_overpass_urls([
+            "https://overpass.kumi.systems/api",
+            "https://overpass.private.coffee/api/",
+            "https://overpass.openstreetmap.fr/api/interpreter",
+            "https://overpass.osm.ch/api",
+        ])
+    assert urls == ["https://overpass.private.coffee/api"]
+
+
+def test_overpass_failure_classes_match_the_colab_errors():
+    assert graph_utils.classify_overpass_failure(TimeoutError("ReadTimeout")) == "retry_other"
+    assert graph_utils.classify_overpass_failure(RuntimeError(
+        "429 Please include a meaningful User-Agent string with your requests to avoid rate-limiting"
+    )) == "rate_limit"
+    assert graph_utils.classify_overpass_failure(RuntimeError(
+        "403 This service is only available to white-listed usages"
+    )) == "skip_mirror"
+    assert graph_utils.classify_overpass_failure(RuntimeError(
+        "400 <?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+    )) == "skip_mirror"
+    assert graph_utils.classify_overpass_failure(graph_utils.OverpassRateLimited("back off")) == "rate_limit"
+
+
+def test_overpass_429_stays_on_the_same_mirror_then_moves(monkeypatch):
+    """A 429 is a pause, not a cue to rotate mirrors."""
+    calls = {"urls": []}
+
+    def fake_features(polygon, tags=None):
+        calls["urls"].append(ox.settings.overpass_url)
+        if len(calls["urls"]) == 1:
+            raise RuntimeError(
+                "429 Please include a meaningful User-Agent string with your requests to avoid rate-limiting"
+            )
+        return _polygon_gdf()
+
+    import osmnx as ox
+    monkeypatch.setattr(ox, "features_from_polygon", fake_features)
+    monkeypatch.setattr(config, "OVERPASS_MAX_ATTEMPTS", 4)
+    monkeypatch.setattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 0.0)
+    monkeypatch.setattr(config, "OVERPASS_RATE_LIMIT_SLEEP_S", 0.0)
+    monkeypatch.setattr(
+        config, "OVERPASS_URLS",
+        (
+            "https://overpass.private.coffee/api",
+            "https://maps.mail.ru/osm/tools/overpass/api",
+        ),
+    )
+    from shapely.geometry import box
+    boundary = gpd.GeoDataFrame(geometry=[box(0, 0, 1, 1)], crs=config.CRS_WGS84)
+    out = graph_utils.fetch_osm_buildings(boundary)
+    assert len(out) == 1
+    assert calls["urls"] == [
+        "https://overpass.private.coffee/api",
+        "https://overpass.private.coffee/api",
+    ]
+
+
+def test_overpass_skips_whitelist_and_regional_mirrors(monkeypatch):
+    calls = {"urls": []}
+
+    def fake_features(polygon, tags=None):
+        calls["urls"].append(ox.settings.overpass_url)
+        return _polygon_gdf()
+
+    import osmnx as ox
+    monkeypatch.setattr(ox, "features_from_polygon", fake_features)
+    monkeypatch.setattr(config, "OVERPASS_MAX_ATTEMPTS", 4)
+    monkeypatch.setattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 0.0)
+    monkeypatch.setattr(config, "OVERPASS_RATE_LIMIT_SLEEP_S", 0.0)
+    monkeypatch.setattr(
+        config, "OVERPASS_URLS",
+        (
+            "https://overpass.openstreetmap.fr/api",
+            "https://overpass.osm.ch/api",
+            "https://maps.mail.ru/osm/tools/overpass/api",
+        ),
+    )
+    from shapely.geometry import box
+    boundary = gpd.GeoDataFrame(geometry=[box(0, 0, 1, 1)], crs=config.CRS_WGS84)
+    with pytest.warns(UserWarning):
+        out = graph_utils.fetch_osm_buildings(boundary)
+    assert len(out) == 1
+    assert calls["urls"] == ["https://maps.mail.ru/osm/tools/overpass/api"]
+
+
+def test_overpass_exhausted_mirrors_raise_instead_of_exiting(monkeypatch):
+    """A dead Overpass run must not SystemExit — that kills a Colab cell."""
+    def fake_features(polygon, tags=None):
+        host = ox.settings.overpass_url
+        if "kumi" in host or "private.coffee" in host:
+            raise TimeoutError("ReadTimeout")
+        if "openstreetmap.fr" in host:
+            raise RuntimeError("403 This service is only available to white-listed usages")
+        if "osm.ch" in host:
+            raise RuntimeError("400 <?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+        raise RuntimeError(f"unexpected mirror {host}")
+
+    import osmnx as ox
+    monkeypatch.setattr(ox, "features_from_polygon", fake_features)
+    monkeypatch.setattr(config, "OVERPASS_MAX_ATTEMPTS", 4)
+    monkeypatch.setattr(config, "OVERPASS_RETRY_BASE_SLEEP_S", 0.0)
+    monkeypatch.setattr(config, "OVERPASS_RATE_LIMIT_SLEEP_S", 0.0)
+    # kumi is rewritten to private.coffee; fr and ch are not called.
+    monkeypatch.setattr(
+        config, "OVERPASS_URLS",
+        (
+            "https://overpass.kumi.systems/api",
+            "https://overpass.private.coffee/api",
+            "https://overpass.openstreetmap.fr/api",
+            "https://overpass.osm.ch/api",
+        ),
+    )
+    from shapely.geometry import box
+    boundary = gpd.GeoDataFrame(geometry=[box(0, 0, 1, 1)], crs=config.CRS_WGS84)
+    with pytest.raises(RuntimeError, match="15 minutes") as caught:
+        with pytest.warns(UserWarning):
+            graph_utils.fetch_osm_buildings(boundary)
+    assert not isinstance(caught.value, SystemExit)
+    assert "ReadTimeout" in str(caught.value)
+    assert "private.coffee" in str(caught.value)
+
+
+def test_overpass_guard_stops_osmnx_429_recursion(monkeypatch):
+    import osmnx._overpass as overpass_mod
+
+    def recursive(data):
+        return overpass_mod._overpass_request(data)
+
+    monkeypatch.setattr(overpass_mod, "_overpass_request", recursive)
+    with pytest.raises(graph_utils.OverpassRateLimited):
+        graph_utils._overpass_call(lambda: overpass_mod._overpass_request({}))
+    # The real downloader is restored for anything that runs after this test.
+    assert overpass_mod._overpass_request is recursive
