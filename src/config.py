@@ -4,13 +4,22 @@ ranges, and preprocessing constants.
 
 IMPORTANT: The fallback bounding boxes below are approximate centroids
 pulled from open reference sources, buffered by ~1.5km, NOT authoritative
-settlement boundaries. For anything beyond MVP prototyping, replace
-SETTLEMENTS[*]['fallback_bbox'] with a digitized boundary (e.g. from
-Map Kibera, KISIP II shapefiles, or the NCC planning department) and feed
-it in as `custom_boundary_path` in DataPipeline. The pipeline defaults to
-resolving boundaries live via OSM (Nominatim) through osmnx, which is more
-reliable than any hardcoded box but still depends on OSM's admin polygon
-coverage being complete for these areas -- verify visually before training.
+settlement boundaries. For anything beyond MVP prototyping, supply a
+digitized boundary (e.g. from Map Kibera, KISIP II shapefiles, the Mukuru
+SPA gazette map, or the NCC planning department). Two ways to do that:
+
+  * drop the file at ``data/boundaries/<settlement_key>.geojson`` (any
+    format geopandas can read; see BOUNDARY_DIR) -- every DataPipeline and
+    notebook picks it up automatically, or
+  * pass ``DataPipeline(..., boundary_path="...")`` explicitly.
+
+Only when neither exists does the pipeline resolve boundaries live via OSM
+(Nominatim) through osmnx, which is more reliable than any hardcoded box but
+still depends on OSM's place-polygon coverage being complete for these
+areas, and finally falls back to ``fallback_bbox``. Whichever source wins,
+``DataPipeline.get_boundary`` writes the polygon it used to
+``data/raw/<settlement_key>_boundary_used.geojson`` -- open it over
+satellite imagery before training.
 """
 
 import os
@@ -123,6 +132,15 @@ SRTM_RESOLUTION_M = 30
 # --- OSM / graph construction ---
 BUILDING_ADJACENCY_THRESHOLD_M = 15.0  # per proposal Sec 3.4 unit testing note
 MIN_COMPONENT_SIZE = 20  # drop connected components smaller than this (see prune_small_components)
+# Footprints for the GraphSAGE nodes. "osm" is the Overpass extract.
+# "open_buildings" is Google Open Buildings v3 (individual structures; OSM
+# often merges several rooms into one polygon, which pushes centroid spacing
+# up). Opt in per DataPipeline; the default stays OSM so existing graphs are
+# unchanged. v3 only ships detections with confidence >= 0.65, so this floor
+# keeps the full layer and a higher value drops the less certain ones.
+OPEN_BUILDINGS_DATASET = "GOOGLE/Research/open-buildings/v3/polygons"
+OPEN_BUILDINGS_MIN_CONFIDENCE = 0.65
+BUILDING_SOURCES = ("osm", "open_buildings")
 OVERPASS_TAGS = {"building": True}
 INFRA_TAGS = {
     "amenity": ["drinking_water", "toilets"],
@@ -227,3 +245,20 @@ RAW_DIR = f"{DATA_ROOT}/raw"
 STACKS_DIR = f"{DATA_ROOT}/raster_stacks"
 TILES_DIR = f"{DATA_ROOT}/tiles"
 GRAPHS_DIR = f"{DATA_ROOT}/graphs"
+# Google Open Buildings exports, one file per settlement:
+# <key>_open_buildings.geojson. Earth Engine writes the same name into the
+# Drive folder nairobi_risk_mapping/; move it here or pass the Drive path.
+BUILDINGS_DIR = f"{DATA_ROOT}/buildings"
+# Digitized settlement boundaries. A file named <settlement_key>.<ext> here
+# (GeoJSON, GeoPackage, or zipped/unzipped shapefile) overrides OSM geocoding
+# and the fallback bbox for that settlement. Multi-feature files are
+# dissolved to one polygon so village-level layers work as-is.
+BOUNDARY_DIR = f"{DATA_ROOT}/boundaries"
+BOUNDARY_FILE_EXTENSIONS = (".geojson", ".json", ".gpkg", ".shp", ".zip")
+# Sanity window for a supplied boundary, in km^2. Outside it the pipeline
+# still uses the file but warns loudly: Mukuru's SPA is ~6.5 km^2, Kibera's
+# core ~2.5 km^2, so anything above this is almost certainly a ward or a
+# whole sub-county rather than the settlement.
+BOUNDARY_PLAUSIBLE_KM2 = (0.1, 50.0)
+# Window for an OSM-geocoded place polygon before we fall back to the bbox.
+OSM_BOUNDARY_PLAUSIBLE_KM2 = (0.1, 20.0)

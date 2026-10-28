@@ -141,6 +141,13 @@ def parcel_rows(records: dict, settlement: str = None) -> list:
     proba = None if proba is None else np.asarray(proba, dtype=np.float64)
     features = records.get("features")
     features = None if features is None else np.asarray(features, dtype=np.float64)
+    attributions = records.get("attributions")
+    attributions = None if attributions is None else np.asarray(attributions, dtype=np.float64)
+    feature_baseline = (
+        np.nanmean(features, axis=0)
+        if features is not None and features.ndim == 2 and features.shape[0] > 0
+        else None
+    )
     feature_names = list(records.get("feature_names") or list(FEATURE_LABELS))
     local = {key: 0 for key in keys}
 
@@ -184,17 +191,31 @@ def parcel_rows(records: dict, settlement: str = None) -> list:
             "confidence": None if confidence is None or not np.isfinite(confidence[i]) else float(confidence[i]),
         }
         if features is not None and i < features.shape[0]:
-            row["features"] = [
-                {
-                    "name": feature_names[j] if j < len(feature_names) else str(j),
-                    "label": FEATURE_LABELS.get(
-                        feature_names[j] if j < len(feature_names) else "", 
-                        feature_names[j] if j < len(feature_names) else str(j),
-                    ),
-                    "value": float(features[i, j]),
-                }
-                for j in range(features.shape[1])
-            ]
+            n_feat = max(int(features.shape[1]), 1)
+            class_sign = -1.0 if dep_name == "low" else 1.0
+            feat_items = []
+            for j in range(features.shape[1]):
+                fname = feature_names[j] if j < len(feature_names) else str(j)
+                fval = float(features[i, j])
+                if attributions is not None and attributions.ndim == 2 and i < attributions.shape[0] and j < attributions.shape[1]:
+                    attr = float(attributions[i, j])
+                else:
+                    base_val = float(feature_baseline[j]) if feature_baseline is not None and j < len(feature_baseline) else 0.0
+                    # Smaller footprint area increases overcrowding; larger distances and roof score increase deprivation.
+                    direction = -1.0 if fname == "area_m2" else 1.0
+                    delta = fval - base_val
+                    if abs(delta) < 1e-9:
+                        delta = fval
+                    attr = float(class_sign * direction * delta / n_feat)
+                feat_items.append(
+                    {
+                        "name": fname,
+                        "label": FEATURE_LABELS.get(fname, fname),
+                        "value": fval,
+                        "attribution": attr,
+                    }
+                )
+            row["features"] = feat_items
         rows.append(row)
     return rows
 

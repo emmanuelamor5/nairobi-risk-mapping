@@ -38,6 +38,7 @@ numpy over arrays the caller already has.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -594,21 +595,76 @@ def resolve_policy_table(extra_dirs=None) -> Path:
     raise FileNotFoundError("\n".join(lines))
 
 
+def _has_settlement_graph(root: Path) -> bool:
+    """
+    True when ``root`` holds a settlement graph.
+
+    ``Path.glob`` comes back empty on a Colab Drive mount even when
+    ``kibera_graph.pt`` is in the folder, so this stats the filenames and
+    falls back to ``os.listdir``.
+    """
+    if not root.is_dir():
+        return False
+    for name in ("kibera_graph.pt", "mathare_graph.pt", "mukuru_graph.pt"):
+        if (root / name).is_file():
+            return True
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return False
+    return any(name.endswith("_graph.pt") for name in names)
+
+
 def resolve_graphs_dir(extra_dirs=None) -> Path:
-    """Directory that contains ``{settlement}_graph.pt`` files."""
+    """
+    Directory that contains ``{settlement}_graph.pt``.
+
+    On Drive the files are ``MyDrive/nairobi_risk_mapping/data/graphs/``.
+    A ``data`` folder is accepted too: its ``graphs`` subdirectory is checked.
+    """
     roots = [
         Path("data/graphs"),
+        Path("data"),
+        Path("/content/nairobi-risk-mapping/data/graphs"),
+        Path("/content/nairobi-risk-mapping/data"),
         Path("/content/drive/MyDrive/nairobi_risk_mapping/data/graphs"),
+        Path("/content/drive/MyDrive/nairobi_risk_mapping/data"),
     ]
     if extra_dirs:
         roots = [Path(p) for p in extra_dirs] + roots
+    seen = set()
+    candidates = []
     for root in roots:
-        if root.is_dir() and any(root.glob("*_graph.pt")):
-            return root
-    raise FileNotFoundError(
-        "No settlement graphs found. Expected data/graphs/{kibera,mathare,mukuru}_graph.pt "
-        "or the same folder on Drive."
-    )
+        for candidate in (root, root / "graphs"):
+            key = str(candidate.resolve()) if candidate.exists() else str(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(candidate)
+            if _has_settlement_graph(candidate):
+                return candidate
+    lines = [
+        "No settlement graphs found. Expected kibera_graph.pt, mathare_graph.pt, "
+        "and mukuru_graph.pt.",
+        "On Drive they are in MyDrive/nairobi_risk_mapping/data/graphs.",
+        "Looked in:",
+    ]
+    for candidate in candidates:
+        if not candidate.is_dir():
+            lines.append(f"  {candidate}  (not a directory)")
+            continue
+        try:
+            names = sorted(os.listdir(candidate))
+        except OSError as exc:
+            lines.append(f"  {candidate}  (unreadable: {exc})")
+            continue
+        shown = ", ".join(names[:20]) if names else "(empty)"
+        lines.append(f"  {candidate}  files: {shown}")
+    if Path("/content").exists() and not Path("/content/drive/MyDrive").exists():
+        lines.append(
+            "Google Drive is not mounted. Run drive.mount('/content/drive') and re-run this cell."
+        )
+    raise FileNotFoundError("\n".join(lines))
 
 
 def format_policy_report(summary: dict, validation: dict = None, justice: dict = None) -> str:

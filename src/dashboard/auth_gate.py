@@ -2,11 +2,12 @@
 Firebase Authentication gate for the parcel dashboard.
 
 Parcel actions include compensated resettlement. The map is served only
-when the caller has either completed a second factor or signed in with
-a phone number. Phone sign-in is an SMS one-time code, so the token's
-``sign_in_provider`` is ``phone``. Password-only sessions are still
-rejected. A second factor shows up as ``sign_in_second_factor`` ``totp``
-or ``phone``.
+when the caller has either completed a second factor, signed in with a
+phone number, or completed passwordless email-link sign-in. Phone
+sign-in is an SMS one-time code, so the token's ``sign_in_provider`` is
+``phone``. Email-link sessions use ``emailLink``. Password-only sessions
+are still rejected. A second factor shows up as ``sign_in_second_factor``
+``totp`` or ``phone``.
 
 Token signature verification uses Google's Firebase certs. Tests pass a
 decoded claim dict straight into ``mfa_satisfied`` and never call Google.
@@ -15,7 +16,7 @@ decoded claim dict straight into ``mfa_satisfied`` and never call Google.
 from __future__ import annotations
 
 
-SECOND_FACTORS = frozenset({"totp", "phone"})
+SECOND_FACTORS = frozenset({"totp", "phone", "email_code"})
 
 
 def mfa_satisfied(claims: dict) -> bool:
@@ -27,7 +28,27 @@ def mfa_satisfied(claims: dict) -> bool:
         return False
     if firebase.get("sign_in_second_factor") in SECOND_FACTORS:
         return True
-    return firebase.get("sign_in_provider") == "phone"
+    return firebase.get("sign_in_provider") in {"phone", "emailLink"}
+
+
+def admin_satisfied(claims: dict, admin_emails=None) -> bool:
+    """
+    True when a caller has completed MFA and holds System Administrator
+    authorization via an ``admin`` / ``role`` claim or an allowed email.
+    """
+    if not mfa_satisfied(claims):
+        return False
+    if claims.get("admin") is True or str(claims.get("role") or "").lower() == "admin":
+        return True
+    firebase = claims.get("firebase")
+    if isinstance(firebase, dict) and str(firebase.get("role") or "").lower() == "admin":
+        return True
+    if admin_emails:
+        allowed = {str(item).strip().lower() for item in admin_emails if str(item).strip()}
+        email = str(claims.get("email") or "").strip().lower()
+        if email and email in allowed:
+            return True
+    return False
 
 
 def verify_firebase_id_token(token: str, project_id: str) -> dict:

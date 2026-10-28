@@ -479,3 +479,46 @@ def export_stack_to_drive(image: "ee.Image", geometry: "ee.Geometry",
     )
     task.start()
     return task
+
+
+def open_buildings_collection(geometry: "ee.Geometry", min_confidence: float = None):
+    """
+    Google Open Buildings v3 polygons that intersect ``geometry``.
+
+    The published layer already drops detections below 0.65. ``min_confidence``
+    can only raise that floor.
+    """
+    import ee
+
+    floor = float(
+        config.OPEN_BUILDINGS_MIN_CONFIDENCE if min_confidence is None else min_confidence
+    )
+    return (
+        ee.FeatureCollection(config.OPEN_BUILDINGS_DATASET)
+        .filterBounds(geometry)
+        .filter(ee.Filter.gte("confidence", floor))
+        .select(["confidence", "area_in_meters", "full_plus_code"])
+    )
+
+
+def export_open_buildings_to_drive(geometry: "ee.Geometry", description: str,
+                                   folder: str = "nairobi_risk_mapping",
+                                   min_confidence: float = None):
+    """
+    Async GeoJSON export of Open Buildings inside ``geometry``.
+
+    The file lands in the Drive folder as ``<description>.geojson``. Poll
+    ``task.status()`` the same way as a raster export, then point
+    ``DataPipeline`` at that path.
+    """
+    import ee
+
+    task = ee.batch.Export.table.toDrive(
+        collection=open_buildings_collection(geometry, min_confidence),
+        description=description,
+        folder=folder,
+        fileNamePrefix=description,
+        fileFormat="GeoJSON",
+    )
+    task.start()
+    return task

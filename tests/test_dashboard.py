@@ -16,8 +16,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.dashboard.app import make_handler, render_shell
-from src.dashboard.auth_gate import bearer_token, mfa_satisfied
+from src.dashboard.app import ADMIN_USE_CASES, make_handler, render_shell
+from src.dashboard.auth_gate import admin_satisfied, bearer_token, mfa_satisfied
 from src.dashboard.map_view import action_counts, build_policy_map, parcel_rows, to_lonlat
 from src.models.attention_unet import AttentionUNet
 from src.models.attention_unet_model import AttentionUNetModel
@@ -49,6 +49,93 @@ def test_mfa_claim_requires_a_second_factor():
     assert not mfa_satisfied({})
     assert bearer_token("Bearer abc.def") == "abc.def"
     assert bearer_token("Basic abc") == ""
+    assert mfa_satisfied({"firebase": {"sign_in_provider": "emailLink"}})
+
+
+def test_email_link_sign_in_is_bound_to_the_inbox():
+    from src.dashboard.app import consume_email_link_nonce, issue_email_link_nonce
+
+    nonce = issue_email_link_nonce("Planner@Example.com", now=1_000.0)
+    assert consume_email_link_nonce(nonce, "other@example.com", now=1_010.0)[0] is False
+    assert consume_email_link_nonce(nonce, "planner@example.com", now=1_000.0 + 3601)[0] is False
+    fresh = issue_email_link_nonce("planner@example.com", now=2_000.0)
+    assert consume_email_link_nonce(fresh, "planner@example.com", now=2_100.0)[0] is True
+    assert consume_email_link_nonce(fresh, "planner@example.com", now=2_101.0)[0] is False
+
+    html = render_shell({}, ["kibera"])
+    assert "sendSignInLinkToEmail" in html
+    assert "isSignInWithEmailLink" in html
+    assert "signInWithEmailLink" in html
+    assert 'localStorage.setItem(EMAIL_FOR_SIGN_IN, email)' in html or "emailForSignIn" in html
+    assert "handleCodeInApp: true" in html
+    assert 'searchParams.set("email"' not in html
+    assert "Email me a sign-in link" in html
+
+    def verifier(token):
+        if token == "link-user":
+            return {
+                "user_id": "uid-1",
+                "email": "planner@example.com",
+                "email_verified": True,
+                "firebase": {"sign_in_provider": "password"},
+            }
+        if token == "unverified":
+            return {
+                "user_id": "uid-2",
+                "email": "planner@example.com",
+                "email_verified": False,
+                "firebase": {"sign_in_provider": "password"},
+            }
+        raise ValueError("rejected")
+
+    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=verifier)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    def post(path, payload, token=""):
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        request = Request(base + path, data=json.dumps(payload).encode(), headers=headers, method="POST")
+        try:
+            response = urlopen(request)
+            return response.status, json.loads(response.read().decode())
+        except HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode() or "{}")
+
+    try:
+        status, body = post("/api/email-code", {"action": "email-link-start", "email": "not-an-email"})
+        assert status == 400
+        status, body = post("/api/email-code", {"action": "email-link-start", "email": "planner@example.com"})
+        assert status == 200 and body["nonce"]
+        nonce = body["nonce"]
+        status, body = post(
+            "/api/email-code",
+            {"action": "email-link-complete", "nonce": nonce},
+            token="unverified",
+        )
+        assert status == 403
+        status, body = post(
+            "/api/email-code",
+            {"action": "email-link-complete", "nonce": nonce},
+            token="link-user",
+        )
+        assert status == 200 and body["session_token"]
+        session = body["session_token"]
+        parcels = urlopen(Request(base + "/api/parcels", headers={"Authorization": f"Bearer {session}"}))
+        assert parcels.status == 200
+        status, replay = post(
+            "/api/email-code",
+            {"action": "email-link-complete", "nonce": nonce},
+            token="link-user",
+        )
+        assert status == 400
+        assert replay["ok"] is False
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_exact_shapley_sums_to_the_prediction_gap():
@@ -117,8 +204,19 @@ def test_map_route_refuses_sessions_without_mfa():
         assert "Continue with Apple" in shell
         assert "Continue with phone" in shell
         assert "Sign in with phone" in shell
+        assert "Loading the map" in shell
+        assert "Dark mode" in shell
+        assert "Add a profile picture" in shell
+        assert "Change phone number" in shell
         assert "Phone number" in shell
         assert "Text message code" in shell
+        assert 'aria-label="Close notification"' in shell
+        assert "Street map" in shell
+        assert "Satellite" in shell
+        assert "function dockLegend" in shell
+        assert "function hideRecaptcha" in shell
+        assert 'callback: () => { container.hidden = true; }' in shell
+        assert '"expired-callback": () => { container.hidden = false; }' in shell
         assert str(SECRET_LON) not in shell
         assert "compensated resettlement" not in shell
 
@@ -208,8 +306,44 @@ def test_launch_serves_the_shell_without_blocking():
 
 def test_shell_renders_without_a_firebase_project():
     html = render_shell({}, ["kibera"])
-    assert "Firebase web config is not set" in html or "apiKey" in html
+    assert "/api/auth/config" in html
     assert "kibera" in html
+
+
+def test_shell_html_does_not_embed_firebase_api_key():
+    from src.dashboard.app import public_firebase_web_config
+
+    secret = "AIzaSySecretTestKeyDoNotEmbed1234567"
+    config = {
+        "apiKey": secret,
+        "authDomain": "mtl-nairobi.firebaseapp.com",
+        "projectId": "mtl-nairobi",
+        "measurementId": "G-SHOULD-NOT-LEAK",
+        "messagingSenderId": "999999999999",
+    }
+    html = render_shell(config, ["kibera"])
+    assert secret not in html
+    assert "G-SHOULD-NOT-LEAK" not in html
+    assert "999999999999" not in html
+    assert "FIREBASE_CONFIG_JSON" not in html
+    assert "Settlement Governance Decision Support System · Kibera" not in html
+    public = public_firebase_web_config(config)
+    assert public == {
+        "apiKey": secret,
+        "authDomain": "mtl-nairobi.firebaseapp.com",
+        "projectId": "mtl-nairobi",
+    }
+
+
+def test_email_code_expires_after_five_minutes():
+    from src.dashboard.app import check_email_code, issue_email_code
+
+    code = issue_email_code("planner", now=1_000.0)
+    assert check_email_code("planner", code, now=1_000.0 + 299)[0] is True
+    fresh = issue_email_code("planner", now=2_000.0)
+    ok, message = check_email_code("planner", fresh, now=2_000.0 + 301)
+    assert ok is False
+    assert "expired" in message
 
 
 def test_shell_accepts_settlement_keys_loaded_from_npz():
@@ -220,22 +354,146 @@ def test_shell_accepts_settlement_keys_loaded_from_npz():
 def test_parcel_rows_carry_the_class_probability_vector():
     records = _records()
     records["deprivation_proba"] = np.array([[0.05, 0.15, 0.80], [0.70, 0.20, 0.10]])
+    records["features"] = np.array([[0.8, 1.4, -0.5, 0.2, 1.1], [-0.4, -0.8, 0.3, -0.1, -0.6]])
     rows = parcel_rows(records)
     assert rows[0]["class_probabilities"][2] == {"name": "high", "value": pytest.approx(0.80)}
     assert rows[0]["class_probability"] == pytest.approx(0.80)
     assert rows[1]["class_probabilities"][0]["name"] == "low"
+    assert len(rows[0]["features"]) == 5
+    assert all("attribution" in feat for feat in rows[0]["features"])
+
+
+def test_apple_signin_requires_five_minute_code_before_serving_parcels():
+    from src.dashboard.app import issue_email_code
+
+    handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=lambda _tok: (_ for _ in ()).throw(ValueError("no")))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        init_req = Request(
+            base + "/api/email-code",
+            data=json.dumps({"action": "apple-init", "email": "analyst@icloud.com"}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        init_body = json.loads(urlopen(init_req).read().decode())
+        assert init_body["ok"] is True
+        pre_token = init_body["pre_token"]
+
+        try:
+            urlopen(Request(base + "/api/parcels", headers={"Authorization": f"Bearer {pre_token}"}))
+            raise AssertionError("pre_token must not unlock parcels before the 5-minute code check")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        code = issue_email_code("apple:analyst@icloud.com")
+        check_req = Request(
+            base + "/api/email-code",
+            data=json.dumps({"action": "check", "code": code}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {pre_token}"},
+            method="POST",
+        )
+        check_body = json.loads(urlopen(check_req).read().decode())
+        assert check_body["ok"] is True
+        session_token = check_body["session_token"]
+
+        parcels_res = urlopen(Request(base + "/api/parcels", headers={"Authorization": f"Bearer {session_token}"}))
+        assert parcels_res.status == 200
+        rows = json.loads(parcels_res.read().decode())
+        assert rows[0]["id"] == "KB-00001"
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
-    html = render_shell({"apiKey": "test", "authDomain": "t.firebaseapp.com", "projectId": "t"}, ["kibera"])
+    html = render_shell(
+        {"apiKey": "AIzaSyFrameTestKeyHideFromHtml0001", "authDomain": "t.firebaseapp.com", "projectId": "t"},
+        ["kibera"],
+    )
     assert "Full-Settlement Choropleth Map" in html
     assert "Choropleth Map" in html
     assert "XAI Summary" in html
     assert "/assets/map-brand.svg" in html
     assert "/assets/satellite.jpg" in html
+    assert "/vendor/leaflet.js" in html
     assert "#28835b" in html
+    assert "AIzaSyFrameTestKeyHideFromHtml0001" not in html
+    assert 'id="gate-theme-toggle"' not in html
 
     def verifier(token):
+        raise ValueError("rejected")
+
+    handler = make_handler(
+        _records(),
+        {"apiKey": "AIzaSyFrameTestKeyHideFromHtml0001", "authDomain": "t.firebaseapp.com", "projectId": "t"},
+        "t",
+        verifier=verifier,
+    )
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        page = urlopen(base + "/").read().decode()
+        assert "AIzaSyFrameTestKeyHideFromHtml0001" not in page
+        auth_cfg = json.loads(urlopen(base + "/api/auth/config").read().decode())
+        assert auth_cfg["apiKey"] == "AIzaSyFrameTestKeyHideFromHtml0001"
+        assert auth_cfg["authDomain"] == "t.firebaseapp.com"
+        assert "measurementId" not in auth_cfg
+        icon = urlopen(base + "/assets/map-brand.svg").read().decode()
+        assert "<svg" in icon
+        assert urlopen(base + "/assets/satellite.jpg").status == 200
+        leaflet = urlopen(base + "/vendor/leaflet.js").read()
+        assert leaflet.startswith(b"/* @preserve") or b"leaflet" in leaflet[:400].lower()
+        try:
+            urlopen(base + "/assets/../app.py")
+            raise AssertionError("asset paths must stay inside the asset directory")
+        except HTTPError as exc:
+            assert exc.code == 404
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_admin_console_enforces_mfa_and_executes_all_eight_use_cases(monkeypatch):
+    assert not admin_satisfied({"admin": True, "firebase": {"sign_in_provider": "password"}})
+    assert admin_satisfied({"admin": True, "firebase": {"sign_in_second_factor": "totp"}})
+    assert admin_satisfied(
+        {"email": "Admin@Example.com", "firebase": {"sign_in_second_factor": "phone"}},
+        admin_emails={"admin@example.com"},
+    )
+
+    monkeypatch.setenv("ADMIN_PASSCODE", "nairobi-secret-2026")
+    monkeypatch.setenv("ADMIN_EMAILS", "ops@example.com")
+    html = render_shell({"apiKey": "test", "authDomain": "t.firebaseapp.com", "projectId": "t"}, ["kibera"])
+    assert 'id="role-admin"' not in html
+    assert 'id="role-planner"' not in html
+    assert "auth-mark" not in html
+    assert "SETTLEMENT GOVERNANCE DSS · FOLIUM" not in html
+    assert 'id="nav-admin"' in html and "hidden" in html.split('id="nav-admin"', 1)[1][:80]
+    for title in (
+        "System Administrator Console",
+        "Manage data pipeline",
+        "Acquire geospatial data",
+        "Preprocess data",
+        "Train model",
+        "Run model inference",
+        "Run decision engine",
+        "Generate Folium Dashboard outputs",
+        "Manage code and model versions",
+    ):
+        assert title in html
+
+    def verifier(token):
+        if token == "planner-mfa":
+            return {"user_id": "planner-1", "email": "planner@example.com", "firebase": {"sign_in_second_factor": "totp"}}
+        if token == "admin-mfa":
+            return {"user_id": "admin-1", "email": "ops@example.com", "firebase": {"sign_in_second_factor": "totp"}}
+        if token == "password-only":
+            return {"user_id": "planner-1", "email": "planner@example.com", "firebase": {"sign_in_provider": "password"}}
         raise ValueError("rejected")
 
     handler = make_handler(_records(), {"apiKey": "test"}, "t", verifier=verifier)
@@ -244,14 +502,57 @@ def test_shell_frame_matches_the_figma_dashboard_and_serves_icons():
     thread.start()
     base = f"http://127.0.0.1:{server.server_address[1]}"
     try:
-        icon = urlopen(base + "/assets/map-brand.svg").read().decode()
-        assert "<svg" in icon
-        assert urlopen(base + "/assets/satellite.jpg").status == 200
         try:
-            urlopen(base + "/assets/../app.py")
-            raise AssertionError("asset paths must stay inside the asset directory")
+            urlopen(Request(base + "/api/admin/status", headers={"Authorization": "Bearer password-only"}))
+            raise AssertionError("password-only session must be refused")
         except HTTPError as exc:
-            assert exc.code == 404
+            assert exc.code == 403
+
+        try:
+            urlopen(Request(base + "/api/admin/status", headers={"Authorization": "Bearer planner-mfa"}))
+            raise AssertionError("un-elevated planner session must be refused when ADMIN_PASSCODE is set")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        email_admin = json.loads(
+            urlopen(Request(base + "/api/admin/status", headers={"Authorization": "Bearer admin-mfa"})).read().decode()
+        )
+        assert email_admin["role"] == "system_administrator"
+        assert tuple(email_admin["use_cases"]) == ADMIN_USE_CASES
+
+        bad_elevate = Request(
+            base + "/api/admin/elevate",
+            data=json.dumps({"passcode": "wrong"}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer planner-mfa"},
+            method="POST",
+        )
+        try:
+            urlopen(bad_elevate)
+            raise AssertionError("wrong passcode must be rejected")
+        except HTTPError as exc:
+            assert exc.code == 403
+
+        good_elevate = Request(
+            base + "/api/admin/elevate",
+            data=json.dumps({"passcode": "nairobi-secret-2026"}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer planner-mfa"},
+            method="POST",
+        )
+        status_payload = json.loads(urlopen(good_elevate).read().decode())
+        assert status_payload["role"] == "system_administrator"
+        assert tuple(status_payload["use_cases"]) == ADMIN_USE_CASES
+
+        for use_case in ADMIN_USE_CASES:
+            action_req = Request(
+                base + "/api/admin/action",
+                data=json.dumps({"use_case": use_case, "params": {"apply": True}}).encode(),
+                headers={"Content-Type": "application/json", "Authorization": "Bearer planner-mfa"},
+                method="POST",
+            )
+            result = json.loads(urlopen(action_req).read().decode())
+            assert result["ok"] is True
+            assert result["executed_use_case"] == use_case
+            assert result["message"]
     finally:
         server.shutdown()
         server.server_close()

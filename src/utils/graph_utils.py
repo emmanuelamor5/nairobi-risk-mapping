@@ -71,29 +71,118 @@ def _features_from_polygon_with_retry(polygon, tags) -> gpd.GeoDataFrame:
     ) from last_exc
 
 
-def fetch_settlement_boundary(settlement_key: str) -> gpd.GeoDataFrame:
+def boundary_area_km2(boundary: gpd.GeoDataFrame) -> float:
+    """Total polygon area of a boundary frame in km^2 (UTM 37S)."""
+    return float(boundary.to_crs(config.CRS_METRIC).area.sum() / 1e6)
+
+
+def load_boundary_file(path, name: str = None) -> gpd.GeoDataFrame:
     """
-    Resolve a settlement boundary polygon, preferring live OSM geocoding and
-    falling back to the approximate bbox in config.SETTLEMENTS if geocoding
-    fails or returns an implausibly small/large polygon.
+    Read a digitized settlement boundary and normalise it to the one-row
+    WGS84 frame the rest of the pipeline expects.
+
+    Accepts anything geopandas can open (GeoJSON, GeoPackage, shapefile,
+    zipped shapefile). Village- or zone-level layers are dissolved into a
+    single (multi)polygon, so a Map Kibera village file or a KISIP parcel
+    layer can be used directly. Raises instead of falling back: a file the
+    user pointed at deliberately should never be silently replaced by the
+    bbox.
+    """
+    from pathlib import Path
+
+    from shapely.ops import unary_union
+
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Boundary file not found: {path}")
+    gdf = gpd.read_file(path)
+    if gdf.crs is None:
+        # GeoJSON per RFC 7946 is WGS84 by definition; shapefiles missing a
+        # .prj are the other common case and are almost always WGS84 too.
+        warnings.warn(f"{path.name} has no CRS; assuming {config.CRS_WGS84}.")
+        gdf = gdf.set_crs(config.CRS_WGS84)
+    geoms = [
+        g for g in gdf.geometry
+        if g is not None and not g.is_empty and g.geom_type in ("Polygon", "MultiPolygon")
+    ]
+    if not geoms:
+        raise ValueError(f"{path} contains no polygon geometries.")
+    # buffer(0) repairs self-intersections that hand-digitised files often carry.
+    union = unary_union([g.buffer(0) for g in geoms])
+    boundary = gpd.GeoDataFrame(
+        {
+            "name": [name or path.stem],
+            "boundary_source": ["file"],
+            "boundary_path": [str(path)],
+        },
+        geometry=[union],
+        crs=gdf.crs,
+    ).to_crs(config.CRS_WGS84)
+    area_km2 = boundary_area_km2(boundary)
+    lo, hi = config.BOUNDARY_PLAUSIBLE_KM2
+    if not (lo <= area_km2 <= hi):
+        warnings.warn(
+            f"Boundary {path.name} covers {area_km2:.2f} km^2, outside the "
+            f"{lo}-{hi} km^2 window for a Nairobi informal settlement. Using it "
+            f"anyway -- check it is the settlement, not a ward or sub-county."
+        )
+    return boundary
+
+
+def default_boundary_path(settlement_key: str, data_parent=None):
+    """
+    The conventional location of a digitized boundary for ``settlement_key``:
+    ``<data_parent>/data/boundaries/<settlement_key>.<ext>`` for the first
+    extension in config.BOUNDARY_FILE_EXTENSIONS that exists, else None.
+    """
+    from pathlib import Path
+
+    root = Path(data_parent) if data_parent is not None else Path(".")
+    folder = root / config.BOUNDARY_DIR
+    for ext in config.BOUNDARY_FILE_EXTENSIONS:
+        candidate = folder / f"{settlement_key}{ext}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def fetch_settlement_boundary(settlement_key: str, boundary_path=None) -> gpd.GeoDataFrame:
+    """
+    Resolve a settlement boundary polygon, in priority order:
+
+      1. ``boundary_path`` -- a digitized file supplied by the caller
+         (DataPipeline also looks in config.BOUNDARY_DIR before calling
+         this). Errors here propagate; see load_boundary_file.
+      2. Live OSM geocoding of ``config.SETTLEMENTS[key].osm_query``, kept
+         only if the polygon area is inside config.OSM_BOUNDARY_PLAUSIBLE_KM2.
+      3. The approximate ``fallback_bbox`` from config, with a warning.
+
+    The returned frame always carries a ``boundary_source`` column
+    (``file`` / ``osm`` / ``bbox``) so notebooks can report which one won.
     """
     cfg = config.SETTLEMENTS[settlement_key]
+    if boundary_path is not None:
+        return load_boundary_file(boundary_path, name=cfg.name)
     try:
         gdf = ox.geocode_to_gdf(cfg.osm_query)
-        area_km2 = gdf.to_crs(config.CRS_METRIC).area.iloc[0] / 1e6
-        if not (0.1 <= area_km2 <= 20):
+        area_km2 = boundary_area_km2(gdf)
+        lo, hi = config.OSM_BOUNDARY_PLAUSIBLE_KM2
+        if not (lo <= area_km2 <= hi):
             raise ValueError(f"Geocoded area {area_km2:.2f} km^2 looks implausible")
+        gdf = gdf.copy()
+        gdf["boundary_source"] = "osm"
         return gdf
     except Exception as exc:
         warnings.warn(
             f"OSM geocoding failed or implausible for '{cfg.osm_query}' ({exc}); "
             f"falling back to hardcoded bbox. VERIFY this boundary visually "
-            f"before using it for training -- see config.py docstring."
+            f"before using it for training -- or drop a digitized polygon at "
+            f"{config.BOUNDARY_DIR}/{settlement_key}.geojson (see config.py)."
         )
         min_lon, min_lat, max_lon, max_lat = cfg.fallback_bbox
         from shapely.geometry import box
         return gpd.GeoDataFrame(
-            {"name": [cfg.name]},
+            {"name": [cfg.name], "boundary_source": ["bbox"]},
             geometry=[box(min_lon, min_lat, max_lon, max_lat)],
             crs=config.CRS_WGS84,
         )
@@ -103,24 +192,127 @@ def fetch_osm_buildings(boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Fetch building footprints within the boundary polygon via the Overpass API."""
     polygon = boundary.geometry.iloc[0]
     buildings = _features_from_polygon_with_retry(polygon, config.OVERPASS_TAGS)
+    buildings = _footprints_to_nodes(buildings, source="osm")
+    return buildings
+
+
+def default_open_buildings_path(settlement_key: str, data_parent=None):
+    """
+    Conventional location of an Open Buildings export:
+    ``<data_parent>/data/buildings/<settlement_key>_open_buildings.<ext>``,
+    else the Earth Engine filename ``<data_parent>/<settlement_key>_open_buildings.geojson``
+    (the Drive folder root, where Export.table.toDrive writes it).
+    """
+    from pathlib import Path
+
+    root = Path(data_parent) if data_parent is not None else Path(".")
+    names = (f"{settlement_key}_open_buildings",)
+    for folder in (root / config.BUILDINGS_DIR, root):
+        for name in names:
+            for ext in config.BOUNDARY_FILE_EXTENSIONS:
+                candidate = folder / f"{name}{ext}"
+                if candidate.exists():
+                    return candidate
+    return None
+
+
+def prepare_open_buildings(buildings_gdf, boundary: gpd.GeoDataFrame = None,
+                           min_confidence: float = None) -> gpd.GeoDataFrame:
+    """
+    Turn a Google Open Buildings extract into the node frame the graph builder
+    expects: metric polygons clipped to ``boundary``, confidence-filtered,
+    with ``centroid``, ``area_m2`` and ``node_id``.
+
+    v3 has no roof-material tag, so later deprivation scoring uses the
+    neutral roof score for every node. Area and the infrastructure distances
+    still vary per building. ``min_confidence`` defaults to
+    ``config.OPEN_BUILDINGS_MIN_CONFIDENCE``; the published layer already
+    starts at 0.65, so a lower floor does not add footprints.
+    """
+    if buildings_gdf is None or len(buildings_gdf) == 0:
+        raise ValueError("Open Buildings extract is empty.")
+    gdf = buildings_gdf
+    if gdf.crs is None:
+        warnings.warn("Open Buildings extract has no CRS; assuming EPSG:4326.")
+        gdf = gdf.set_crs(config.CRS_WGS84)
+    if min_confidence is None:
+        min_confidence = config.OPEN_BUILDINGS_MIN_CONFIDENCE
+    if "confidence" in gdf.columns:
+        gdf = gdf[gdf["confidence"].astype(float) >= float(min_confidence)].copy()
+    else:
+        warnings.warn(
+            "Open Buildings extract has no confidence column; keeping every polygon."
+        )
+        gdf = gdf.copy()
+    if len(gdf) == 0:
+        raise ValueError(
+            f"No Open Buildings polygons at confidence >= {float(min_confidence)}."
+        )
+    if boundary is not None:
+        clip_to = boundary.to_crs(gdf.crs)
+        gdf = gpd.clip(gdf, clip_to)
+    return _footprints_to_nodes(gdf, source="open_buildings")
+
+
+def _footprints_to_nodes(buildings: gpd.GeoDataFrame, source: str) -> gpd.GeoDataFrame:
+    """Polygons only, in the metric CRS, one node_id per footprint."""
+    if buildings.crs is None:
+        buildings = buildings.set_crs(config.CRS_WGS84)
     buildings = buildings[buildings.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
+    buildings = buildings[~buildings.geometry.is_empty]
+    if len(buildings) == 0:
+        raise ValueError(f"No polygon footprints left after preparing the {source} extract.")
     buildings = buildings.to_crs(config.CRS_METRIC)
     buildings["centroid"] = buildings.geometry.centroid
     buildings["area_m2"] = buildings.geometry.area
     buildings = buildings.reset_index(drop=True)
     buildings["node_id"] = buildings.index
+    buildings["building_source"] = source
     return buildings
 
 
-def fetch_river_corridor(settlement_keys=None, buffer_m: float = None):
+def nearest_neighbour_distances(buildings: gpd.GeoDataFrame) -> np.ndarray:
+    """
+    Distance in metres from each footprint centroid to the closest other one.
+
+    This is a property of the polygons, not of the edge threshold. A 5 m
+    median means the footprints themselves are 5 m apart; lowering
+    ``BUILDING_ADJACENCY_THRESHOLD_M`` does not change it.
+    """
+    if "centroid" not in buildings.columns:
+        raise ValueError("buildings need a centroid column in a metric CRS.")
+    n = len(buildings)
+    if n < 2:
+        return np.full(n, np.nan)
+    coords = np.array([[p.x, p.y] for p in buildings["centroid"]], dtype=np.float64)
+    distances, _ = cKDTree(coords).query(coords, k=2)
+    return distances[:, 1]
+
+
+def spacing_summary(buildings: gpd.GeoDataFrame) -> dict:
+    """n plus the 50th, 75th and 90th percentile nearest-neighbour distances."""
+    distances = nearest_neighbour_distances(buildings)
+    finite = distances[np.isfinite(distances)]
+    summary = {"n": int(len(buildings)), "median_m": None, "p75_m": None, "p90_m": None}
+    if len(finite):
+        summary["median_m"] = float(np.median(finite))
+        summary["p75_m"] = float(np.percentile(finite, 75))
+        summary["p90_m"] = float(np.percentile(finite, 90))
+    return summary
+
+
+def fetch_river_corridor(settlement_keys=None, buffer_m: float = None, boundaries=None):
     """
     One Overpass query for river, stream, and drain lines over the settlement
-    bboxes, buffered into a corridor for the Sprint 5 lift test.
+    extents, buffered into a corridor for the Sprint 5 lift test.
 
     This is the fallback reference when the NRRP 37-zone polygons are not
-    on disk. The query polygon is the union of the configured bboxes, expanded
-    by the buffer so a river just outside a bbox still counts for buildings
-    on the edge. Returns corridor polygons in ``config.CRS_METRIC``.
+    on disk. The query polygon is the union of the settlement extents --
+    the bounding box of each frame in ``boundaries`` (a ``{key: GeoDataFrame}``
+    mapping, e.g. from ``DataPipeline.get_boundary``) when given, else the
+    configured ``fallback_bbox`` -- expanded by the buffer so a river just
+    outside an extent still counts for buildings on the edge. Returns
+    corridor polygons in ``config.CRS_METRIC``.
     """
     from shapely.geometry import box
     from shapely.ops import unary_union
@@ -129,11 +321,17 @@ def fetch_river_corridor(settlement_keys=None, buffer_m: float = None):
 
     buffer_m = float(buffer_m if buffer_m is not None else config.FUSION_RIVER_BUFFER_M)
     keys = list(settlement_keys) if settlement_keys is not None else list(config.SETTLEMENT_KEYS)
+    boundaries = boundaries or {}
     boxes = []
     for key in keys:
         if key not in config.SETTLEMENTS:
             raise ValueError(f"Unknown settlement '{key}'.")
-        min_lon, min_lat, max_lon, max_lat = config.SETTLEMENTS[key].fallback_bbox
+        if key in boundaries and boundaries[key] is not None:
+            min_lon, min_lat, max_lon, max_lat = (
+                boundaries[key].to_crs(config.CRS_WGS84).total_bounds
+            )
+        else:
+            min_lon, min_lat, max_lon, max_lat = config.SETTLEMENTS[key].fallback_bbox
         boxes.append(box(min_lon, min_lat, max_lon, max_lat))
     query_area = gpd.GeoDataFrame(geometry=[unary_union(boxes)], crs=config.CRS_WGS84)
     # Expand in metres so the fetch includes channels just outside the bbox.

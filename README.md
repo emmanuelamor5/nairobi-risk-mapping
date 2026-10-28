@@ -125,6 +125,7 @@ src/
     graph_utils.py          # OSM ingestion + proximity graph construction
     flood_label.py          # event-based change-detection label (pure numpy, Sprint 2 v2)
     label_validation.py     # label-vs-reference agreement / lift (Sprint 2 v2)
+    nrrp_reference.py       # NRRP zones: load/buffer, per-settlement lift, permutation null (Sprint 5)
     deprivation_label.py    # UN-Habitat/SUPI-proxy node labels (pure numpy, Sprint 3)
   models/
     attention_unet.py       # Attention U-Net (optional dropout)
@@ -188,11 +189,21 @@ completion before calling `tile_raster_stack()` on the downloaded GeoTIFF.
 
 ## Known approximations to revisit before final training runs
 
+- **Building footprints** default to OSM. OpenStreetMap often draws one polygon for several rooms, so Kibera centroid spacing on the saved graph is about 7 m. Google Open Buildings v3 (`GOOGLE/Research/open-buildings/v3/polygons`) is one footprint per structure. `DataPipeline.export_open_buildings()` writes `<settlement>_open_buildings.geojson` to the Drive folder, and `acquire_graph_data` uses it when `building_source="open_buildings"` (notebook 01 switches automatically once that file exists). v3 has no roof-material tag, so those nodes get the neutral roof score; area and infrastructure distances still vary. The 15 m edge threshold is unchanged. The median nearest-neighbour distance is printed from the footprints and is not a setting.
 - **Settlement boundaries** default to live OSM/Nominatim geocoding with a
   hardcoded bbox fallback (see `config.py` docstring). Neither is a
-  verified administrative or cadastral boundary — replace with a
-  digitized boundary (Map Kibera, KISIP II, or NCC planning data) before
-  reporting final model metrics.
+  verified administrative or cadastral boundary. To fix this, drop a
+  digitized polygon (Map Kibera, KISIP II, the Mukuru SPA boundary, or NCC
+  planning data; any geopandas-readable format) at
+  `data/boundaries/<settlement_key>.geojson` (in Colab `data/` is the Drive
+  folder `nairobi_risk_mapping/data`) — every `DataPipeline` and
+  notebook picks it up ahead of OSM/bbox, village-level layers are
+  dissolved to one polygon, and the polygon actually used is written to
+  `data/raw/<settlement_key>_boundary_used.geojson` for a satellite check.
+  `DataPipeline(..., boundary_path=...)` points at a file elsewhere. Then
+  rebuild the graphs (`REBUILD_GRAPHS = True` in notebook 05, or
+  `acquire_graph_data()`) and re-export the raster stacks so the parcels
+  and tiles follow the new boundary.
 - **TWI flow accumulation** (`gee_utils.get_srtm_twi`) uses a coarse
   neighbourhood-smoothing proxy, not a true D8/D-infinity flow routing
   algorithm — GEE has no native hydrology flow-accumulation reducer.
@@ -207,6 +218,23 @@ completion before calling `tile_raster_stack()` on the downloaded GeoTIFF.
   truth — `notebooks/02_sprint2_attention_unet_v2.ipynb` section 5 does this
   with `src/utils/label_validation.py` (lift statistic; NRRP polygons, or an
   OSM river-corridor buffer as fallback).
+- **The Sprint 5 lift has only been scored against the OSM river corridor
+  (0.929), never against the NRRP zones.** To score the official map, put
+  the 37 high-risk zone polygons at
+  `data/boundaries/nrrp_high_risk_zones.geojson` (EPSG:4326, or any CRS
+  with a `.prj`; one feature per zone, with a `name`/`zone_name` column if
+  you have one) and re-run notebook 05 section 3. Besides `meets=True/False`
+  it prints an `NRRP VALIDATION` block from `src/utils/nrrp_reference.py`:
+  the lift at 0/30/60 m buffers (a lift that only clears 1.0 at 60 m is a
+  boundary-precision problem, not a model result), per-settlement lifts
+  (a pooled pass can hide an anti-correlated settlement), a permutation
+  null band (whether 1.05 is distinguishable from 1.0 at your parcel
+  count), and a "within 120 m of an OSM river" rule baseline the model
+  should beat. Quote the 0 m pooled lift only when it clears the bar and
+  the other rows support it; the block also refuses to call a lift a
+  result when fewer than 200 model-valid parcels fall inside the zones.
+  Notebook 02 section 5 (`NRRP_GEOJSON_PATH`) does the pixel-level check
+  on the label itself with the same file.
 
 ## Testing
 
