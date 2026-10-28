@@ -27,6 +27,7 @@ from src.models.fusion import (
     justice_audit,
     load_policy_table,
     newest_geotiff,
+    resolve_graphs_dir,
     resolve_policy_table,
     parcel_reference_mask,
     sample_flood_at_pos,
@@ -221,6 +222,19 @@ def test_summarize_and_roundtrip(tmp_path):
     plain.mkdir()
     (plain / "policy_table.npz").write_bytes(path.read_bytes())
     assert resolve_policy_table(extra_dirs=[plain]) == plain / "policy_table.npz"
+
+
+def test_resolve_graphs_dir_reads_the_data_folder_layout(tmp_path):
+    """Drive stores the three graphs in data/graphs, next to tiles and raw."""
+    data = tmp_path / "data"
+    graphs = data / "graphs"
+    graphs.mkdir(parents=True)
+    (graphs / "kibera_graph.pt").write_bytes(b"graph")
+    (graphs / "kibera_graph_before_pos.pt").write_bytes(b"backup")
+    (data / "tiles").mkdir()
+    # Passing the data folder, which is what a mount of MyDrive/.../data is.
+    assert resolve_graphs_dir(extra_dirs=[data]) == graphs
+    assert resolve_graphs_dir(extra_dirs=[graphs]) == graphs
 
 
 def test_sample_raster_and_aggregate_tiles():
